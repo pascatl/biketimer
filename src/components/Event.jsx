@@ -25,13 +25,12 @@ import axios from "axios";
 import classNames from "classnames";
 import { MDBAccordion, MDBAccordionItem } from "mdb-react-ui-kit";
 
-import komootLogo from "../assets/Komoot_Sign_Primary_RGB.svg";
-
 // import * as mdb from "mdb-ui-kit";
 // @import '~mdb-ui-kit/css/mdb.min.css';
 
 import "./event.css";
 import WeatherWidget from "./WheaterWidget";
+import KomootWidget from "./KomootWidget";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faCrown,
@@ -551,11 +550,7 @@ export default function Event(props) {
         </div>
       );
     } else if (link) {
-      return (
-        <a href={link} target="_blank">
-          <img height={"50px"} src={komootLogo}></img>
-        </a>
-      );
+      return <KomootWidget link={link}></KomootWidget>;
     }
   };
 
@@ -776,7 +771,7 @@ export default function Event(props) {
 
             <MDBRow md="2" center>
               <MDBCol className={classNames(editMode && "d-none")}>
-                <WeatherWidget searchDate={date} searchTime={startTime} />
+                {/* <WeatherWidget searchDate={date} searchTime={startTime} /> */}
               </MDBCol>
 
               <MDBCol className={classNames(!editMode && "d-none")}>
