@@ -1,0 +1,36 @@
+.flex-mobile-wrap {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+@media screen and (max-width: 768px) {
+  .flex-mobile-wrap {
+    flex-direction: column;
+  }
+}
+.comment-section p {
+  font-style: italic;
+}
+.btn_thumb {
+}
+
+.yes {
+  background-color: green;
+}
+.no {
+  background-color: red;
+}
+.usertable {
+  width: 100%;
+}
+
+.usertable td {
+  padding-bottom: 10px;
+}
+
+#collapse_list {
+  height: 100%;
+}
+.no-background {
+  background-color: transparent;
+}
