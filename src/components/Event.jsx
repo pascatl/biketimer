@@ -30,7 +30,7 @@ import { MDBAccordion, MDBAccordionItem } from "mdb-react-ui-kit";
 
 import "./event.css";
 import WeatherWidget from "./WheaterWidget";
-import KomootWidget from "./KomootWidget";
+import RouteWidget from "./RouteWidget";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faCrown,
@@ -539,7 +539,7 @@ export default function Event(props) {
     if (editMode) {
       return (
         <div className="md-form">
-          <label htmlFor="form7">Komoot Link</label>
+          <label htmlFor="form7">Routen-Link</label>
           <textarea
             id="form7"
             className="md-textarea form-control"
@@ -550,7 +550,7 @@ export default function Event(props) {
         </div>
       );
     } else if (link) {
-      return <KomootWidget link={link}></KomootWidget>;
+      return <RouteWidget link={link}></RouteWidget>;
     }
   };
 
