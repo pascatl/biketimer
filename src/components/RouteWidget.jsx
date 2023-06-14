@@ -5,6 +5,7 @@ import useSWR from "swr";
 import "./routewidget.css";
 import { Line } from "react-chartjs-2";
 import Chart from "chart.js/auto";
+import { MDBSpinner } from "mdb-react-ui-kit";
 
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -296,7 +297,12 @@ export default function RouteWidget(props) {
   };
 
   return !routeData ? (
-    <div>Loading...</div>
+    <div>
+      {" "}
+      <MDBSpinner role="status">
+        <span className="visually-hidden">Loading...</span>
+      </MDBSpinner>
+    </div>
   ) : (
     <div className="komoot-card">
       <div className="header">
