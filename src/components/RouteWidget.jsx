@@ -14,6 +14,7 @@ import {
   faArrowTrendDown,
 } from "@fortawesome/free-solid-svg-icons";
 import axios from "axios";
+import polyline from "@mapbox/polyline";
 
 const API_URL_KOMOOT = "https://ptom.de/api/biketimer/komoot";
 const API_URL_STRAVA = "https://ptom.de/api/biketimer/strava";
@@ -32,7 +33,36 @@ export default function RouteWidget(props) {
   };
 
   const processStravaData = (data) => {
-    console.log(data.map.polyline);
+    let line = polyline.decode(data.map.polyline);
+
+    const locations = { locations: [] };
+    line.forEach((element) => {
+      let obj = { latitude: element[1], longitude: element[0] };
+      locations.locations.push(obj);
+    });
+
+    console.log(locations);
+
+    try {
+      let config = {
+        method: "post",
+        maxBodyLength: Infinity,
+        url: `https://api.open-elevation.com/api/v1/lookup`,
+        data: locations,
+        headers: {
+          Accept: "application/json",
+        },
+      };
+
+      axios.request(config).then((res) => {
+        console.log(res.data);
+      });
+    } catch (error) {
+      // console.log(error)
+      response.status(500).json({ error: "Fehler beim Abrufen der Tourdaten" });
+      // response.status(500).json(error);
+    }
+
     let d = {
       name: data.name,
       distance: data.distance,
@@ -95,17 +125,6 @@ export default function RouteWidget(props) {
       // kein valid host
     }
   };
-
-  // const validateHost = (host) => {
-  //   switch (host) {
-  //     case "komoot":
-  //       break;
-  //     case "strava":
-  //       break;
-  //     default:
-  //       break;
-  //   }
-  // };
 
   const fetchKomoot = async () => {
     try {
@@ -180,62 +199,9 @@ export default function RouteWidget(props) {
           break;
       }
     } else {
-      console.log("konnte nicht parsen");
+      return;
     }
-
-    // const { error } = useSWR(
-    //   API_URL +
-    //     `?tour_id=${processLink().tour_id}&share_token=${
-    //       processLink().share_token
-    //     }`,
-    //   {
-    //     fetcher: async (url) => {
-    //       const response = await fetch(url, {
-    //         method: "GET",
-    //         headers: {
-    //           "Content-Type": "application/json",
-    //           // Onlyprops: "true",
-    //           //   "User-Agent": "PostmanRuntime/7.32.2",
-    //         },
-    //       });
-
-    //       if (!response.ok) {
-    //         throw new Error("API request failed");
-    //       }
-
-    //       return response.json();
-    //     },
-    //     onSuccess: (fetchedData) => {
-    //       //   console.log(fetchedData);
-    //       processData(fetchedData);
-    //       //   setrouteData(fetchedData);
-    //     },
-    //   }
-    // );
-
-    // if (error) {
-    //   // Handle error state
-    //   return <div>Error: {error.message}</div>;
-    // }
-
-    // if (!routeData) {
-    //   // Loading state
-    //   return <div>Loading...</div>;
-    // }
   }, [routeConfig]);
-
-  const processLink = () => {
-    const url = new URL(props.link);
-    const path = url.pathname.split("/");
-    const params = url.searchParams;
-    // console.log(path);
-    // console.log(params);
-    let obj = {
-      tour_id: path[path.length - 1],
-      share_token: params.get("share_token"),
-    };
-    return obj;
-  };
 
   const convertCoordinatesToChartData = (coordinates) => {
     const data = {

@@ -539,7 +539,7 @@ export default function Event(props) {
     if (editMode) {
       return (
         <div className="md-form">
-          <label htmlFor="form7">Routen-Link</label>
+          <label htmlFor="form7">Strava oder Komoot Link</label>
           <textarea
             id="form7"
             className="md-textarea form-control"
