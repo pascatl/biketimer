@@ -196,22 +196,23 @@ export default function Event(props) {
 
   const createSelectType = () => {
     let dropdowns = [];
-    default_types.forEach((val) => {
+    for (const [key, value] of Object.entries(default_types)) {
+      // default_types.map((key, val) => {
       // console.log(val);
       dropdowns.push(
         <MDBDropdownItem
-          key={val.name}
-          value={val.name}
+          key={key}
+          value={key}
           onClick={(e) => {
             e.preventDefault();
             handleSelectType(e);
           }}
           link
         >
-          {val.alias}
+          {default_types[key].alias}
         </MDBDropdownItem>
       );
-    });
+    }
 
     return dropdowns;
   };
@@ -428,12 +429,13 @@ export default function Event(props) {
 
   const getDataToType = (name) => {
     let data = {};
-    default_types.forEach((t) => {
-      if (t.name == name) {
+    for (const [key, value] of Object.entries(default_types)) {
+      // default_types.map((key, value) => {
+      if (key == name) {
         // console.log(t);
-        data = t;
+        data = key;
       }
-    });
+    }
 
     return data;
   };
@@ -450,7 +452,7 @@ export default function Event(props) {
       return (
         <MDBDropdown className="mb-2">
           <MDBDropdownToggle
-            value={getDataToType(eventType).name}
+            value={default_types[eventType].name}
             className="bg-orange"
             disabled={!editMode}
             hidden={!editMode}
@@ -463,7 +465,7 @@ export default function Event(props) {
       );
     } else {
       // return <div>{getDataToType(eventType).alias}</div>;
-
+      // console.log(default_types);
       return (
         <div
           style={{
@@ -472,9 +474,9 @@ export default function Event(props) {
             alignItems: "center",
           }}
         >
-          <FontAwesomeIcon icon={eventType == "mtb" ? faMountain : faRoad} />
-          {getDataToType(eventType).alias
-            ? getDataToType(eventType).alias
+          <FontAwesomeIcon icon={default_types[eventType].icon} />
+          {default_types[eventType].alias
+            ? default_types[eventType].alias
             : "offen"}
         </div>
       );

@@ -24,6 +24,12 @@ import ControlButtons from "./components/ControlButtons";
 import axios from "axios";
 import TopBar from "./components/TopBar";
 
+import {
+  faMountain,
+  faRoad,
+  faBaseball,
+} from "@fortawesome/free-solid-svg-icons";
+
 export default function App() {
   const [currentEvents, setCurrentEvents] = useState([]);
   // const [currentEvent, setCurrentEvent] = useState({});
@@ -57,17 +63,27 @@ export default function App() {
     "Pascal",
     "Flo",
     "Jan",
-    "Max",
+    "Max B.",
     "Jonas",
     "Samuel",
     "Tom",
     "Alex",
     "Flo W.",
+    "David",
+    "Max H.",
+    "Gil",
   ];
-  const default_types = [
-    { name: "rennrad", alias: "Rennrad", icon: "mountain" },
-    { name: "mtb", alias: "MTB", icon: "mountain" },
-  ];
+  default_users.sort();
+  const default_types = {
+    rennrad: { alias: "Rennrad", icon: faRoad },
+    mtb: { alias: "MTB", icon: faMountain },
+    squash: { alias: "Squash", icon: faBaseball },
+  };
+  // const default_types =[
+  //   { name: "rennrad", alias: "Rennrad", icon: faRoad },
+  //   { name: "mtb", alias: "MTB", icon: faMountain },
+  //   { name: "squash", alias: "Squash", icon: faBaseball },
+  // ];
 
   const defaultEvent = {
     id: null,

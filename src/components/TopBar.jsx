@@ -37,7 +37,7 @@ const TopBar = (props) => {
       }}
     >
       <MDBCol>
-        <div style={{ color: "white" }}>🚴 Fahrradterminplaner 🚴</div>
+        <div style={{ color: "white" }}>Terminplaner</div>
       </MDBCol>
 
       <MDBCol>
