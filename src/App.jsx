@@ -68,10 +68,10 @@ export default function App() {
     "Samuel",
     "Tom",
     "Alex",
-    "Flo W.",
     "David",
     "Max H.",
     "Gil",
+    "Tim"
   ];
   default_users.sort();
   const default_types = {
