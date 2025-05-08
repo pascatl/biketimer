@@ -9,9 +9,9 @@ import { MDBSpinner } from "mdb-react-ui-kit";
 
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  faArrowsLeftRight,
-  faArrowUpRightDots,
-  faArrowTrendDown,
+	faArrowsLeftRight,
+	faArrowUpRightDots,
+	faArrowTrendDown,
 } from "@fortawesome/free-solid-svg-icons";
 import axios from "axios";
 import polyline from "@mapbox/polyline";
@@ -20,300 +20,304 @@ const API_URL_KOMOOT = "https://ptom.de/api/biketimer/komoot";
 const API_URL_STRAVA = "https://ptom.de/api/biketimer/strava";
 
 export default function RouteWidget(props) {
-  const [routeLink, setRouteLink] = useState(props.link);
-  const [routeData, setRouteData] = useState(null);
-  const [routeConfig, setRouteConfig] = useState(null);
-  //   const [processedrouteData, setProcessedrouteData] = useState(null);
+	const [routeLink, setRouteLink] = useState(props.link);
+	const [routeData, setRouteData] = useState(null);
+	const [routeConfig, setRouteConfig] = useState(null);
+	//   const [processedrouteData, setProcessedrouteData] = useState(null);
 
-  const processKomootData = (data) => {
-    let d = data.page._embedded.tour;
-    d.coordinates = data.page._embedded.tour._embedded.coordinates.items;
-    // console.log(d);
-    setRouteData(d);
-  };
+	const processKomootData = (data) => {
+		let d = data.page._embedded.tour;
+		d.coordinates = data.page._embedded.tour._embedded.coordinates.items;
+		// console.log(d);
+		setRouteData(d);
+	};
 
-  const processStravaData = (data) => {
-    let line = polyline.decode(data.map.polyline);
+	const processStravaData = (data) => {
+		let line = polyline.decode(data.map.polyline);
 
-    const locations = { locations: [] };
-    line.forEach((element) => {
-      let obj = { latitude: element[1], longitude: element[0] };
-      locations.locations.push(obj);
-    });
+		const locations = { locations: [] };
+		line.forEach((element) => {
+			let obj = { latitude: element[1], longitude: element[0] };
+			locations.locations.push(obj);
+		});
 
-    console.log(locations);
+		console.log(locations);
 
-    try {
-      let config = {
-        method: "post",
-        maxBodyLength: Infinity,
-        url: `https://api.open-elevation.com/api/v1/lookup`,
-        data: locations,
-        headers: {
-          Accept: "application/json",
-        },
-      };
+		try {
+			let config = {
+				method: "post",
+				maxBodyLength: Infinity,
+				url: `https://api.open-elevation.com/api/v1/lookup`,
+				data: locations,
+				headers: {
+					Accept: "application/json",
+				},
+			};
 
-      axios.request(config).then((res) => {
-        console.log(res.data);
-      });
-    } catch (error) {
-      // console.log(error)
-      response.status(500).json({ error: "Fehler beim Abrufen der Tourdaten" });
-      // response.status(500).json(error);
-    }
+			axios.request(config).then((res) => {
+				console.log(res.data);
+			});
+		} catch (error) {
+			// console.log(error)
+			response.status(500).json({ error: "Fehler beim Abrufen der Tourdaten" });
+			// response.status(500).json(error);
+		}
 
-    let d = {
-      name: data.name,
-      distance: data.distance,
-      elevation_up: data.elevation_gain,
-      elevation_down: null,
-      // coordinates: [null],
-      map_img: data.map_urls.url,
-    };
-    setRouteData(d);
-    // setRouteData(data);
-  };
+		let d = {
+			name: data.name,
+			distance: data.distance,
+			elevation_up: data.elevation_gain,
+			elevation_down: null,
+			// coordinates: [null],
+			map_img: data.map_urls.url,
+		};
+		setRouteData(d);
+		// setRouteData(data);
+	};
 
-  const validateLink = () => {
-    const url = new URL(props.link);
-    const path = url.pathname.split("/");
-    const host = url.hostname.split(".")[url.hostname.split(".").length - 2];
-    const params = url.searchParams;
-    let obj;
-    let null_obj = { service: null };
+	const validateLink = () => {
+		let null_obj = { service: null };
+		if (!URL.canParse(props.link)) {
+			setRouteConfig(null_obj);
+			return;
+		}
+		const url = new URL(props.link);
+		const path = url.pathname.split("/");
+		const host = url.hostname.split(".")[url.hostname.split(".").length - 2];
+		const params = url.searchParams;
+		let obj;
 
-    const valid_hosts = ["komoot", "strava"];
-    if (valid_hosts.includes(host)) {
-      switch (host) {
-        case "komoot":
-          if (
-            typeof parseInt(path[path.length - 1]) === "number" &&
-            params.get("share_token")
-          ) {
-            obj = {
-              service: host,
-              tour_id: path[path.length - 1],
-              share_token: params.get("share_token"),
-            };
-            setRouteConfig(obj);
-          } else {
-            setRouteConfig(null_obj);
-          }
-          break;
-        case "strava":
-          if (
-            typeof parseInt(path[path.length - 1]) === "number" &&
-            path[path.length - 2] == "routes"
-          ) {
-            obj = {
-              service: host,
-              route_id: path[path.length - 1],
-            };
+		const valid_hosts = ["komoot", "strava"];
+		if (valid_hosts.includes(host)) {
+			switch (host) {
+				case "komoot":
+					if (
+						typeof parseInt(path[path.length - 1]) === "number" &&
+						params.get("share_token")
+					) {
+						obj = {
+							service: host,
+							tour_id: path[path.length - 1],
+							share_token: params.get("share_token"),
+						};
+						setRouteConfig(obj);
+					} else {
+						setRouteConfig(null_obj);
+					}
+					break;
+				case "strava":
+					if (
+						typeof parseInt(path[path.length - 1]) === "number" &&
+						path[path.length - 2] == "routes"
+					) {
+						obj = {
+							service: host,
+							route_id: path[path.length - 1],
+						};
 
-            setRouteConfig(obj);
-          } else {
-            setRouteConfig(null_obj);
-          }
-          break;
-        default:
-          setRouteConfig(null_obj);
-          break;
-      }
-    } else {
-      setRouteConfig(null_obj);
-      // kein valid host
-    }
-  };
+						setRouteConfig(obj);
+					} else {
+						setRouteConfig(null_obj);
+					}
+					break;
+				default:
+					setRouteConfig(null_obj);
+					break;
+			}
+		} else {
+			setRouteConfig(null_obj);
+			// kein valid host
+		}
+	};
 
-  const fetchKomoot = async () => {
-    try {
-      const url =
-        API_URL_KOMOOT +
-        `?tour_id=${routeConfig.tour_id}&share_token=${routeConfig.share_token}`;
+	const fetchKomoot = async () => {
+		try {
+			const url =
+				API_URL_KOMOOT +
+				`?tour_id=${routeConfig.tour_id}&share_token=${routeConfig.share_token}`;
 
-      const response = await axios.get(url, {
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
+			const response = await axios.get(url, {
+				headers: {
+					"Content-Type": "application/json",
+				},
+			});
 
-      if (response.status !== 200) {
-        throw new Error("API request failed");
-      }
+			if (response.status !== 200) {
+				throw new Error("API request failed");
+			}
 
-      const fetchedData = response.data;
+			const fetchedData = response.data;
 
-      // Handle fetchedData as needed
-      processKomootData(fetchedData);
-      // setrouteData(fetchedData);
-    } catch (error) {
-      console.error("API request failed:", error);
-      // Handle error as needed
-    }
-  };
-  const fetchStrava = async () => {
-    try {
-      const url = API_URL_STRAVA + `?route_id=${routeConfig.route_id}`;
+			// Handle fetchedData as needed
+			processKomootData(fetchedData);
+			// setrouteData(fetchedData);
+		} catch (error) {
+			console.error("API request failed:", error);
+			// Handle error as needed
+		}
+	};
+	const fetchStrava = async () => {
+		try {
+			const url = API_URL_STRAVA + `?route_id=${routeConfig.route_id}`;
 
-      const response = await axios.get(url, {
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
+			const response = await axios.get(url, {
+				headers: {
+					"Content-Type": "application/json",
+				},
+			});
 
-      if (response.status !== 200) {
-        throw new Error("API request failed");
-      }
+			if (response.status !== 200) {
+				throw new Error("API request failed");
+			}
 
-      const fetchedData = response.data;
-      // console.log(fetchedData);
-      // Handle fetchedData as needed
-      processStravaData(fetchedData);
-      // setrouteData(fetchedData);
-    } catch (error) {
-      console.error("API request failed:", error);
-      // Handle error as needed
-    }
-  };
+			const fetchedData = response.data;
+			// console.log(fetchedData);
+			// Handle fetchedData as needed
+			processStravaData(fetchedData);
+			// setrouteData(fetchedData);
+		} catch (error) {
+			console.error("API request failed:", error);
+			// Handle error as needed
+		}
+	};
 
-  useEffect(() => {
-    if (routeLink) {
-      // console.log(routeLink);
-      validateLink(routeLink);
-    }
-  }, [routeLink]);
+	useEffect(() => {
+		if (routeLink) {
+			// console.log(routeLink);
+			validateLink(routeLink);
+		}
+	}, [routeLink]);
 
-  useEffect(() => {
-    if (routeConfig?.service) {
-      switch (routeConfig.service) {
-        case "komoot":
-          fetchKomoot();
+	useEffect(() => {
+		if (routeConfig?.service) {
+			switch (routeConfig.service) {
+				case "komoot":
+					fetchKomoot();
 
-          break;
-        case "strava":
-          fetchStrava();
-          break;
+					break;
+				case "strava":
+					fetchStrava();
+					break;
 
-        default:
-          break;
-      }
-    } else {
-      return;
-    }
-  }, [routeConfig]);
+				default:
+					break;
+			}
+		} else {
+			return;
+		}
+	}, [routeConfig]);
 
-  const convertCoordinatesToChartData = (coordinates) => {
-    const data = {
-      labels: [],
-      datasets: [
-        {
-          label: "Höhenprofil",
-          data: [],
-          fill: false,
-          borderColor: "green",
-          tension: 0.1,
-          pointsStyle: false,
-          pointRadius: 0,
-        },
-      ],
-    };
-    // console.log(coordinates);
-    coordinates.forEach((coordinate) => {
-      data.labels.push(coordinate?.t);
-      data.datasets[0].data.push(coordinate?.alt);
-    });
+	const convertCoordinatesToChartData = (coordinates) => {
+		const data = {
+			labels: [],
+			datasets: [
+				{
+					label: "Höhenprofil",
+					data: [],
+					fill: false,
+					borderColor: "green",
+					tension: 0.1,
+					pointsStyle: false,
+					pointRadius: 0,
+				},
+			],
+		};
+		// console.log(coordinates);
+		coordinates.forEach((coordinate) => {
+			data.labels.push(coordinate?.t);
+			data.datasets[0].data.push(coordinate?.alt);
+		});
 
-    return data;
-  };
+		return data;
+	};
 
-  const CoordinateChart = () => {
-    // console.log(routeData);
-    let coords = routeData.coordinates;
-    const chartData = convertCoordinatesToChartData(coords);
+	const CoordinateChart = () => {
+		// console.log(routeData);
+		let coords = routeData.coordinates;
+		const chartData = convertCoordinatesToChartData(coords);
 
-    const options = {
-      options: {
-        maintainAspectRatio: false,
-        showTooltips: false,
-      },
+		const options = {
+			options: {
+				maintainAspectRatio: false,
+				showTooltips: false,
+			},
 
-      plugins: {
-        legend: { display: false },
-      },
-      scales: {
-        x: { ticks: { display: false }, grid: { display: false } },
-      },
-    };
+			plugins: {
+				legend: { display: false },
+			},
+			scales: {
+				x: { ticks: { display: false }, grid: { display: false } },
+			},
+		};
 
-    return <Line options={options} data={chartData} />;
-  };
+		return <Line options={options} data={chartData} />;
+	};
 
-  const getLogo = () => {
-    // console.log(routeConfig);
-    switch (routeConfig.service) {
-      case "komoot":
-        return komootLogo;
-      case "strava":
-        return stravaLogo;
+	const getLogo = () => {
+		// console.log(routeConfig);
+		switch (routeConfig.service) {
+			case "komoot":
+				return komootLogo;
+			case "strava":
+				return stravaLogo;
 
-      default:
-        break;
-    }
-  };
+			default:
+				break;
+		}
+	};
 
-  return !routeData ? (
-    <div>
-      {" "}
-      <MDBSpinner role="status">
-        <span className="visually-hidden">Loading...</span>
-      </MDBSpinner>
-    </div>
-  ) : (
-    <div className="komoot-card">
-      <div className="header">
-        {" "}
-        <div className="tourtitle">{routeData.name}</div>
-      </div>
-      <div className="komoot-body">
-        {routeData.coordinates && (
-          <div className="hoehenprofil">{CoordinateChart()}</div>
-        )}
-        {routeData.map_img && (
-          <div className="hoehenprofil">
-            <img src={routeData.map_img}></img>
-          </div>
-        )}
-        <div className="tourprops">
-          <div className="tourprop">
-            <FontAwesomeIcon icon={faArrowsLeftRight} />
-            {Math.round(routeData.distance / 1000)} km
-          </div>
-          {/* <div>{routeData.duration}</div> */}
-          <div className="tourprop">
-            <FontAwesomeIcon icon={faArrowUpRightDots} />
-            {Math.round(routeData.elevation_up)} m
-          </div>
-          {routeData.elevation_down && (
-            <div className="tourprop">
-              <FontAwesomeIcon icon={faArrowTrendDown} />
-              {Math.round(routeData.elevation_down)} m
-            </div>
-          )}
-        </div>
+	return !routeData ? (
+		<div>
+			{" "}
+			<MDBSpinner role="status">
+				<span className="visually-hidden">Loading...</span>
+			</MDBSpinner>
+		</div>
+	) : (
+		<div className="komoot-card">
+			<div className="header">
+				{" "}
+				<div className="tourtitle">{routeData.name}</div>
+			</div>
+			<div className="komoot-body">
+				{routeData.coordinates && (
+					<div className="hoehenprofil">{CoordinateChart()}</div>
+				)}
+				{routeData.map_img && (
+					<div className="hoehenprofil">
+						<img src={routeData.map_img}></img>
+					</div>
+				)}
+				<div className="tourprops">
+					<div className="tourprop">
+						<FontAwesomeIcon icon={faArrowsLeftRight} />
+						{Math.round(routeData.distance / 1000)} km
+					</div>
+					{/* <div>{routeData.duration}</div> */}
+					<div className="tourprop">
+						<FontAwesomeIcon icon={faArrowUpRightDots} />
+						{Math.round(routeData.elevation_up)} m
+					</div>
+					{routeData.elevation_down && (
+						<div className="tourprop">
+							<FontAwesomeIcon icon={faArrowTrendDown} />
+							{Math.round(routeData.elevation_down)} m
+						</div>
+					)}
+				</div>
 
-        {/* <div>
+				{/* <div>
         <img height={"250px"} src={routeData.map_image.src} alt="" />
       </div> */}
 
-        <a href={routeLink} target="_blank">
-          <img
-            style={{ cursor: "pointer" }}
-            height={"50px"}
-            src={getLogo()}
-          ></img>
-        </a>
-      </div>
-    </div>
-  );
+				<a href={routeLink} target="_blank">
+					<img
+						style={{ cursor: "pointer" }}
+						height={"50px"}
+						src={getLogo()}
+					></img>
+				</a>
+			</div>
+		</div>
+	);
 }
