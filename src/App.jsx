@@ -84,6 +84,7 @@ export default function App() {
 		"McDonalds",
 		"FDJ",
 		"Deutschlandtour",
+		"Dr. Kamm",
 		"Cofidis",
 		"HTC",
 		"freie Auswahl",
