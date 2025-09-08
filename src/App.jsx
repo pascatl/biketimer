@@ -72,6 +72,7 @@ export default function App() {
 		"Max H.",
 		"Gil",
 		"Tim",
+		"Miri"
 	];
 	default_users.sort();
 	const default_types = {
