@@ -223,9 +223,11 @@ export default function RouteWidget(props) {
 			],
 		};
 		// console.log(coordinates);
-		coordinates.forEach((coordinate) => {
-			data.labels.push(coordinate?.t);
-			data.datasets[0].data.push(coordinate?.alt);
+		coordinates?.forEach((coordinate) => {
+			if (coordinate) {
+				data.labels.push(coordinate.t);
+				data.datasets[0].data.push(coordinate.alt);
+			}
 		});
 
 		return data;

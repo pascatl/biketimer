@@ -241,8 +241,14 @@ export default function App() {
 
 	const handleAddEvent = (event) => {
 		console.log(event);
-		let new_event = defaultEvent;
-		new_event.event_data.event_date = event.event_data.event_date;
+		// Create a deep copy to avoid mutating defaultEvent
+		let new_event = {
+			id: null,
+			event_data: {
+				...defaultEvent.event_data,
+				event_date: event.event_data.event_date,
+			},
+		};
 		const requestOptions = {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
@@ -255,15 +261,27 @@ export default function App() {
 			.then((response) => response.json())
 			.then((data) => {
 				console.log(data);
-				setCurrentEvents((prevEvents) => {
-					const updatedEvents = [...prevEvents, data[0]];
-					updatedEvents.sort(
-						(a, b) =>
-							new Date(a.event_data.event_date) -
-							new Date(b.event_data.event_date)
-					);
-					return updatedEvents;
-				});
+				// Handle both array and single object responses
+				let newEvent = null;
+				if (Array.isArray(data) && data[0] && data[0].id) {
+					newEvent = data[0];
+				} else if (data && data.id) {
+					newEvent = data;
+				}
+
+				if (newEvent) {
+					setCurrentEvents((prevEvents) => {
+						const updatedEvents = [...prevEvents, newEvent];
+						updatedEvents.sort(
+							(a, b) =>
+								new Date(a.event_data.event_date) -
+								new Date(b.event_data.event_date),
+						);
+						return updatedEvents;
+					});
+				} else {
+					console.error("Ungültige Server-Antwort:", data);
+				}
 			})
 			.catch((error) => {
 				console.error("Fehler beim Hinzufügen des Events:", error);
