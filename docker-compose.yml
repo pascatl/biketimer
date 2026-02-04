@@ -1,0 +1,13 @@
+version: "3.8"
+
+services:
+  biketimer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: biketimer
+    ports:
+      - "${PORT}:80"
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
