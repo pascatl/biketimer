@@ -1,29 +1,9 @@
-import React, { useCallback, useEffect, useState } from "react";
-import {
-	MDBCard,
-	MDBCardBody,
-	MDBCardTitle,
-	MDBCardText,
-	MDBCardHeader,
-	MDBCardFooter,
-	MDBBtn,
-	MDBContainer,
-	MDBBadge,
-	MDBDropdown,
-	MDBDropdownToggle,
-	MDBDropdownMenu,
-	MDBDropdownItem,
-	MDBIcon,
-	MDBCol,
-	MDBRow,
-} from "mdb-react-ui-kit";
+import React, { useEffect, useState } from "react";
+import { Container, Box, Stack } from "@mui/material";
 import { add } from "date-fns";
-import useSWR from "swr";
-import Event from "./components/Event";
-import ControlButtons from "./components/ControlButtons";
 import axios from "axios";
+import Event from "./components/Event";
 import TopBar from "./components/TopBar";
-
 import {
 	faMountain,
 	faRoad,
@@ -72,7 +52,7 @@ export default function App() {
 		"Max H.",
 		"Gil",
 		"Tim",
-		"Miri"
+		"Miri",
 	];
 	default_users.sort();
 	const default_types = {
@@ -362,16 +342,21 @@ export default function App() {
 	}, [currentEvents]);
 
 	return (
-		<>
-			<MDBContainer>
-				<TopBar
-					currentEvents={currentEvents}
-					onAddEvent={handleAddEvent}
-					// defaultEventData={defaultEventData}
-					defaultEvent={defaultEvent}
-				></TopBar>
-
-				<MDBContainer style={{ paddingTop: "95px" }} className="d-grid gap-3">
+		<Box
+			sx={{
+				bgcolor: "background.default",
+				minHeight: "100vh",
+				pt: "72px",
+				pb: 5,
+			}}
+		>
+			<TopBar
+				currentEvents={currentEvents}
+				onAddEvent={handleAddEvent}
+				defaultEvent={defaultEvent}
+			/>
+			<Container maxWidth="md">
+				<Stack spacing={2} sx={{ mt: 3 }}>
 					{currentEvents.map((event) => (
 						<Event
 							key={event.id}
@@ -380,10 +365,10 @@ export default function App() {
 							default_types={default_types}
 							onDeleteEvent={handleDeleteEvent}
 							data={event}
-						></Event>
+						/>
 					))}
-				</MDBContainer>
-			</MDBContainer>
-		</>
+				</Stack>
+			</Container>
+		</Box>
 	);
 }

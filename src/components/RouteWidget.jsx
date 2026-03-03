@@ -5,7 +5,9 @@ import useSWR from "swr";
 import "./routewidget.css";
 import { Line } from "react-chartjs-2";
 import Chart from "chart.js/auto";
-import { MDBSpinner } from "mdb-react-ui-kit";
+import CircularProgress from "@mui/material/CircularProgress";
+import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
 
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -269,12 +271,9 @@ export default function RouteWidget(props) {
 	};
 
 	return !routeData ? (
-		<div>
-			{" "}
-			<MDBSpinner role="status">
-				<span className="visually-hidden">Loading...</span>
-			</MDBSpinner>
-		</div>
+		<Box sx={{ display: "flex", justifyContent: "center", py: 2 }}>
+			<CircularProgress size={28} />
+		</Box>
 	) : (
 		<div className="komoot-card">
 			<div className="header">

@@ -1,0 +1,14 @@
+services:
+  biketimer:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: biketimer-dev
+    ports:
+      - "${PORT:-5173}:5173"
+    volumes:
+      - .:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+    restart: unless-stopped

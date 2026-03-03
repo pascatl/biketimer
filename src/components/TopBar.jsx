@@ -1,58 +1,78 @@
-import { MDBCol } from "mdb-react-ui-kit";
-import React, { useState, useEffect } from "react";
+import React from "react";
+import {
+	AppBar,
+	Toolbar,
+	Typography,
+	Box,
+	Slide,
+	useScrollTrigger,
+} from "@mui/material";
+import DirectionsBikeIcon from "@mui/icons-material/DirectionsBike";
 import ControlButtons from "./ControlButtons";
-import "./topbar.css";
+
+function HideOnScroll({ children }) {
+	const trigger = useScrollTrigger();
+	return (
+		<Slide appear={false} direction="down" in={!trigger}>
+			{children}
+		</Slide>
+	);
+}
 
 const TopBar = (props) => {
-  const [showBar, setShowBar] = useState(true);
-
-  useEffect(() => {
-    let prevScrollPos = window.pageYOffset;
-    const handleScroll = () => {
-      const currentScrollPos = window.pageYOffset;
-      const visible = prevScrollPos > currentScrollPos;
-      setShowBar(visible);
-      prevScrollPos = currentScrollPos;
-    };
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
-  return (
-    <div
-      className="top-bar"
-      style={{
-        position: "fixed",
-        top: showBar ? "0" : "-100px",
-        left: "0",
-        width: "100%",
-        height: "100px",
-        backgroundColor: "#853838",
-        transition: "top 0.5s ease-in-out",
-        zIndex: "999",
-        display: "flex",
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-      }}
-    >
-      <MDBCol>
-        <div style={{ color: "white" }}>Terminplaner</div>
-      </MDBCol>
-
-      <MDBCol>
-        <div>
-          <ControlButtons
-            // resetList={resetList}
-            currentEvents={props.currentEvents}
-            onAddEvent={props.onAddEvent}
-            // defaultEventData={defaultEventData}
-            defaultEvent={props.defaultEvent}
-          ></ControlButtons>
-        </div>
-      </MDBCol>
-    </div>
-  );
+	return (
+		<HideOnScroll>
+			<AppBar
+				position="fixed"
+				elevation={0}
+				sx={{
+					bgcolor: "primary.main",
+					borderBottom: "1px solid rgba(255,255,255,0.08)",
+				}}
+			>
+				<Toolbar
+					sx={{
+						justifyContent: "space-between",
+						px: { xs: 2, sm: 3 },
+						minHeight: 64,
+					}}
+				>
+					<Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+						<Box
+							sx={{
+								bgcolor: "rgba(255,255,255,0.12)",
+								borderRadius: 2,
+								p: 0.75,
+								display: "flex",
+								alignItems: "center",
+							}}
+						>
+							<DirectionsBikeIcon sx={{ fontSize: 24, color: "#E5BA41" }} />
+						</Box>
+						<Box>
+							<Typography
+								variant="h6"
+								component="div"
+								sx={{
+									fontWeight: 700,
+									letterSpacing: 0.3,
+									lineHeight: 1.2,
+									color: "#fff",
+								}}
+							>
+								Terminplaner
+							</Typography>
+						</Box>
+					</Box>
+					<ControlButtons
+						currentEvents={props.currentEvents}
+						onAddEvent={props.onAddEvent}
+						defaultEvent={props.defaultEvent}
+					/>
+				</Toolbar>
+			</AppBar>
+		</HideOnScroll>
+	);
 };
 
 export default TopBar;

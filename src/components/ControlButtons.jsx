@@ -1,215 +1,234 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
-	MDBBtn,
-	MDBIcon,
-	MDBModal,
-	MDBModalBody,
-	MDBModalContent,
-	MDBModalDialog,
-	MDBModalFooter,
-	MDBModalHeader,
-	MDBModalTitle,
-} from "mdb-react-ui-kit";
-import "./controlbuttons.css";
+	Button,
+	Dialog,
+	DialogContent,
+	DialogTitle,
+	Box,
+	Chip,
+	Divider,
+	Stack,
+	Typography,
+	IconButton,
+} from "@mui/material";
+import AddIcon from "@mui/icons-material/Add";
+import CloseIcon from "@mui/icons-material/Close";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
+import { de } from "date-fns/locale";
+import { nextDay, addWeeks, startOfDay, format } from "date-fns";
+
+// Nächste N Freitage (Wochentag 5 = Freitag)
+function getNextFridays(count = 6) {
+	const today = startOfDay(new Date());
+	const fridays = [];
+	let f = nextDay(today, 5);
+	// Falls heute Freitag ist, trotzdem den nächsten nehmen
+	for (let i = 0; i < count; i++) {
+		fridays.push(addWeeks(f, i));
+	}
+	return fridays;
+}
+
+function toIso(date) {
+	return format(date, "yyyy-MM-dd");
+}
+
+function toDisplay(isoStr) {
+	if (!isoStr) return "";
+	const d = new Date(isoStr + "T00:00:00");
+	return d.toLocaleDateString("de-DE", {
+		weekday: "short",
+		day: "2-digit",
+		month: "2-digit",
+	});
+}
 
 export default function ControlButtons(props) {
-	// console.log(props);
-	//   const [editMode, setEditMode] = useState(false);
-	//   const [addMode, setAddMode] = useState(false);
-	const [addModal, setAddModal] = useState(false);
-	const [editModal, setEditModal] = useState(false);
-	const [newEventDate, setNewEventDate] = useState();
-	const [dataSent, setDataSent] = useState(false);
+	const [addOpen, setAddOpen] = useState(false);
+	const [selectedDate, setSelectedDate] = useState(null);
+	const [activePreset, setActivePreset] = useState(null);
 
-	const handleEdit = () => {};
+	const fridays = getNextFridays(6);
 
-	const toggleAddModal = () => {
-		setAddModal(!addModal);
+	const handlePreset = (date) => {
+		setSelectedDate(date);
+		setActivePreset(toIso(date));
 	};
 
-	const toggleEditModal = () => {
-		setEditModal(!editModal);
-	};
-
-	const handleAbort = () => {
-		setAddModal(false);
-	};
-
-	const handleEditAbort = () => {
-		setEditModal(false);
+	const handlePickerChange = (date) => {
+		setSelectedDate(date);
+		setActivePreset(null);
 	};
 
 	const handleAddEvent = () => {
-		// Create a deep copy to avoid mutating the defaultEvent
-		let new_event = {
+		if (!selectedDate) return;
+		const isoDate = toIso(selectedDate);
+		const new_event = {
 			id: props.defaultEvent.id,
 			event_data: {
 				...props.defaultEvent.event_data,
-				event_date: newEventDate,
+				event_date: isoDate,
 			},
 		};
-		// // console.log(new_event);
-		// const requestOptions = {
-		//   method: "POST",
-		//   headers: { "Content-Type": "application/json" },
-		//   body: JSON.stringify({
-		//     event_data: new_event.event_data,
-		//   }),
-		// };
-		// fetch("https://ptom.de/api/rad/events", requestOptions)
-		//   .then((response) => {
-		//     response.json();
-		//   })
-		//   .then((data) => {
-		//     console.log(data);
-		//     props.onAddEvent(new_event);
-		//   });
 		props.onAddEvent(new_event);
-		// close Modal
-		setAddModal(!addModal);
+		setAddOpen(false);
+		setSelectedDate(null);
+		setActivePreset(null);
 	};
 
-	const setDate = (e) => {
-		const { value } = e.target;
-		setNewEventDate(value);
-	};
-
-	const handleResetList = () => {
-		props.resetList();
-	};
-
-	// const createNewEvent = () => {
-	//   // setDataSent(false);
-	//   const requestOptions = {
-	//     method: "POST",
-	//     headers: { "Content-Type": "application/json" },
-	//     body: JSON.stringify({
-	//       event_date: newEventDate,
-	//       default_data: props.defaultEventData,
-	//     }),
-	//   };
-	//   fetch("https://ptom.de/api/rad/events", requestOptions)
-	//     .then((response) => {
-	//       // console.log(response);
-	//     })
-	//     .then((data) => {
-	//       // console.log(data);
-	//       // setDataSent(true);
-	//       // handleResetList();
-	//     });
-	// };
-	useEffect(() => {
-		if (dataSent) {
-			console.log("data sent");
-			props.handleNewData(dataSent);
-		}
-		// console.log(dataSent);
-	}, [dataSent]);
-
-	useEffect(() => {
-		const date = new Date();
-		const options = { year: "numeric", month: "2-digit", day: "2-digit" };
-		const locale = "de-DE";
-		const formattedDate = date.toLocaleDateString(locale, options);
-		setNewEventDate(formattedDate);
-	}, []);
-
-	const createAddModal = () => {
-		return (
-			<MDBModal show={addModal} setShow={setAddModal} tabIndex="-1">
-				<MDBModalDialog style={{ zIndex: "10000" }} centered>
-					<MDBModalContent>
-						<MDBModalHeader>
-							<MDBModalTitle>Neuen Termin hinzufügen</MDBModalTitle>
-							<MDBBtn
-								className="btn-close"
-								color="none"
-								onClick={toggleAddModal}
-							></MDBBtn>
-						</MDBModalHeader>
-						<MDBModalBody className="d-flex justify-content-center">
-							<input
-								type="date"
-								// value={newEventDate}
-								onChange={setDate}
-								placeholder="test"
-							></input>
-						</MDBModalBody>
-
-						<MDBModalFooter>
-							<MDBBtn color="secondary" onClick={handleAbort}>
-								Abbrechen
-							</MDBBtn>
-							<MDBBtn onClick={handleAddEvent}>Speichern</MDBBtn>
-						</MDBModalFooter>
-					</MDBModalContent>
-				</MDBModalDialog>
-			</MDBModal>
-		);
-	};
-
-	const createEditModal = () => {
-		return (
-			<MDBModal show={editModal} setShow={setEditModal} tabIndex="-1">
-				<MDBModalDialog centered>
-					<MDBModalContent>
-						<MDBModalHeader>
-							<MDBModalTitle>
-								Dieser Button kann noch gar nichts...
-							</MDBModalTitle>
-							<MDBBtn
-								className="btn-close"
-								color="none"
-								onClick={toggleEditModal}
-							></MDBBtn>
-						</MDBModalHeader>
-						{/* <MDBModalBody className="d-flex justify-content-center">
-              
-              
-            </MDBModalBody> */}
-
-						<MDBModalFooter>
-							<MDBBtn color="secondary" onClick={handleEditAbort}>
-								Ok
-							</MDBBtn>
-							<MDBBtn onClick={handleEditAbort}>Ok</MDBBtn>
-						</MDBModalFooter>
-					</MDBModalContent>
-				</MDBModalDialog>
-			</MDBModal>
-		);
+	const handleClose = () => {
+		setAddOpen(false);
+		setSelectedDate(null);
+		setActivePreset(null);
 	};
 
 	return (
-		<>
-			<div className="cb-container">
-				<MDBBtn
-					className="single-button"
-					type="button"
-					color="warning"
-					tag="a"
-					floating
-					onClick={toggleEditModal}
-					// disabled={editMode}
-					// hidden={editMode}
-				>
-					<MDBIcon fas icon="magic" />
-				</MDBBtn>
-				<MDBBtn
-					className="single-button"
-					type="button"
-					color="success"
-					tag="a"
-					floating
-					onClick={toggleAddModal}
-					// disabled={editMode}
-					// hidden={editMode}
-				>
-					<MDBIcon fas icon="plus" />
-				</MDBBtn>
-				{createAddModal()}
-				{createEditModal()}
-			</div>
-		</>
+		<LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={de}>
+			<Button
+				variant="contained"
+				onClick={() => setAddOpen(true)}
+				startIcon={<AddIcon />}
+				disableElevation
+				sx={{
+					bgcolor: "#E5BA41",
+					color: "#2D3C59",
+					fontWeight: 700,
+					borderRadius: 2,
+					px: 2,
+					py: 0.75,
+					fontSize: "0.85rem",
+					"&:hover": { bgcolor: "#d4a92e" },
+				}}
+			>
+				Termin
+			</Button>
+
+			<Dialog
+				open={addOpen}
+				onClose={handleClose}
+				maxWidth="xs"
+				fullWidth
+				PaperProps={{
+					sx: { borderRadius: 3, boxShadow: "0 8px 32px rgba(45,60,89,0.18)" },
+				}}
+			>
+				<DialogTitle sx={{ fontWeight: 700, color: "text.primary", pr: 6 }}>
+					Neuen Termin anlegen
+					<IconButton
+						onClick={handleClose}
+						size="small"
+						sx={{
+							position: "absolute",
+							right: 12,
+							top: 12,
+							color: "text.secondary",
+						}}
+					>
+						<CloseIcon fontSize="small" />
+					</IconButton>
+				</DialogTitle>
+
+				<DialogContent sx={{ pt: 0 }}>
+					<Stack spacing={2.5}>
+						{/* Schnellauswahl */}
+						<Box>
+							<Typography
+								variant="body2"
+								sx={{ color: "text.secondary", mb: 1, fontWeight: 600 }}
+							>
+								Nächste Freitage
+							</Typography>
+							<Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75 }}>
+								{fridays.map((d) => {
+									const iso = toIso(d);
+									const isActive = activePreset === iso;
+									return (
+										<Chip
+											key={iso}
+											label={d.toLocaleDateString("de-DE", {
+												day: "2-digit",
+												month: "2-digit",
+											})}
+											onClick={() => handlePreset(d)}
+											color={isActive ? "primary" : "default"}
+											variant={isActive ? "filled" : "outlined"}
+											size="small"
+											sx={{ fontWeight: isActive ? 700 : 500 }}
+										/>
+									);
+								})}
+							</Box>
+						</Box>
+
+						<Divider />
+
+						{/* DatePicker */}
+						<Box>
+							<Typography
+								variant="body2"
+								sx={{ color: "text.secondary", mb: 1, fontWeight: 600 }}
+							>
+								Eigenes Datum
+							</Typography>
+							<DatePicker
+								label="Datum wählen"
+								value={selectedDate}
+								onChange={handlePickerChange}
+								slotProps={{ textField: { size: "small", fullWidth: true } }}
+							/>
+						</Box>
+
+						{/* Auswahl-Anzeige + Bestätigen */}
+						{selectedDate && (
+							<Box
+								sx={{
+									bgcolor: "rgba(45,60,89,0.05)",
+									borderRadius: 2,
+									px: 2,
+									py: 1.5,
+									display: "flex",
+									alignItems: "center",
+									justifyContent: "space-between",
+								}}
+							>
+								<Box>
+									<Typography
+										variant="caption"
+										sx={{
+											color: "text.secondary",
+											fontWeight: 600,
+											textTransform: "uppercase",
+											letterSpacing: 0.8,
+										}}
+									>
+										Gewählt
+									</Typography>
+									<Typography
+										variant="body1"
+										sx={{ fontWeight: 700, color: "primary.main" }}
+									>
+										{selectedDate.toLocaleDateString("de-DE", {
+											weekday: "long",
+											day: "2-digit",
+											month: "long",
+										})}
+									</Typography>
+								</Box>
+								<Button
+									variant="contained"
+									disableElevation
+									onClick={handleAddEvent}
+									sx={{ borderRadius: 2, fontWeight: 700, px: 2.5 }}
+								>
+									Anlegen
+								</Button>
+							</Box>
+						)}
+					</Stack>
+				</DialogContent>
+			</Dialog>
+		</LocalizationProvider>
 	);
 }
