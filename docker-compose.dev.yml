@@ -1,14 +1,84 @@
+# ── Development ───────────────────────────────────────────────────────────────
+# Start: docker compose -f docker-compose.dev.yml up --build
+# .env is loaded from the project root (same directory as this file).
+# Ports: frontend 5173 (Vite), backend 8000 (FastAPI+Swagger), db 5432 (internal only)
+# ──────────────────────────────────────────────────────────────────────────────
+
 services:
-  biketimer:
-    build:
-      context: .
-      dockerfile: Dockerfile.dev
-    container_name: biketimer-dev
-    ports:
-      - "${PORT:-5173}:5173"
+  db:
+    image: postgres:16-alpine
+    container_name: biketimer-db-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-biketimer}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-biketimer}
+      POSTGRES_DB: ${DB_NAME:-biketimer}
     volumes:
-      - .:/app
-      - /app/node_modules
+      - db_data_dev:/var/lib/postgresql/data
+      - ./backend/migrations/001_init.sql:/docker-entrypoint-initdb.d/001_init.sql:ro
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${DB_USER:-biketimer} -d ${DB_NAME:-biketimer}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - biketimer-net
+    # Port 5432 intentionally not published – only accessible within the stack.
+    # To connect from host in dev: uncomment the line below.
+    # ports:
+    #   - "5432:5432"
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: biketimer-backend-dev
+    ports:
+      - "${BACKEND_PORT:-8000}:8000" # exposed in dev for direct curl/Swagger
+    volumes:
+      - ./backend:/app
+    env_file: .env
+    environment:
+      - DATABASE_URL=postgresql://${DB_USER:-biketimer}:${DB_PASSWORD:-biketimer}@db:5432/${DB_NAME:-biketimer}
+      - FRONTEND_ORIGINS=http://localhost:${FRONTEND_PORT:-5173}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - biketimer-net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: biketimer-frontend-dev
+    ports:
+      - "${FRONTEND_PORT:-5173}:5173" # Vite dev server
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules # keep container node_modules isolated
     environment:
       - NODE_ENV=development
+      - KEYCLOAK_URL=${KEYCLOAK_URL} # used by vite.config.js proxy (server-side)
+      - VITE_KEYCLOAK_URL=${KEYCLOAK_URL}
+      - VITE_KEYCLOAK_REALM=${KEYCLOAK_REALM}
+      - VITE_KEYCLOAK_CLIENT_ID=${KEYCLOAK_CLIENT_ID_FRONTEND}
+      # /api and /kc are proxied by Vite → backend / Keycloak (see vite.config.js)
+    env_file: .env
+    depends_on:
+      - backend
     restart: unless-stopped
+    networks:
+      - biketimer-net
+
+volumes:
+  db_data_dev:
+
+networks:
+  biketimer-net:
+    driver: bridge

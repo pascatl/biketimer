@@ -17,6 +17,7 @@ import LogoutIcon from "@mui/icons-material/Logout";
 import LoginIcon from "@mui/icons-material/Login";
 import MailOutlineIcon from "@mui/icons-material/MailOutline";
 import ControlButtons from "./ControlButtons";
+import { useAuth } from "../auth/AuthContext";
 
 function HideOnScroll({ children }) {
 	const trigger = useScrollTrigger();
@@ -31,18 +32,13 @@ const TopBar = ({
 	currentEvents,
 	onAddEvent,
 	defaultEvent,
-	keycloak,
-	authenticated,
 	invitationCount,
 }) => {
-	const userName =
-		keycloak?.tokenParsed?.name ||
-		keycloak?.tokenParsed?.preferred_username ||
-		"";
+	const { user, authenticated, openLogin, logout } = useAuth();
+	const userName = user?.name || user?.preferred_username || "";
 
-	const handleLogin = () => keycloak?.login();
-	const handleLogout = () =>
-		keycloak?.logout({ redirectUri: window.location.origin });
+	const handleLogin = () => openLogin();
+	const handleLogout = () => logout();
 
 	return (
 		<HideOnScroll>

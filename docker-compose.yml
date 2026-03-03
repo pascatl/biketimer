@@ -1,11 +1,70 @@
+# ── Production ────────────────────────────────────────────────────────────────
+# Start: docker compose up --build -d
+# .env is loaded from the project root (same directory as this file).
+# Ports: frontend 80 (nginx, public). backend + db are internal only.
+# ──────────────────────────────────────────────────────────────────────────────
+
 services:
-  biketimer:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: biketimer
-    ports:
-      - "${PORT}:80"
+  db:
+    image: postgres:16-alpine
+    container_name: biketimer-db
     restart: unless-stopped
     environment:
-      - NODE_ENV=production
+      POSTGRES_USER: ${DB_USER:-biketimer}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-biketimer}
+      POSTGRES_DB: ${DB_NAME:-biketimer}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./backend/migrations/001_init.sql:/docker-entrypoint-initdb.d/001_init.sql:ro
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${DB_USER:-biketimer} -d ${DB_NAME:-biketimer}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - biketimer-net
+    # Port 5432 is NOT published in production.
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: biketimer-backend
+    # Port 8000 is NOT published in production – nginx proxies internally.
+    env_file: .env
+    environment:
+      - DATABASE_URL=postgresql://${DB_USER:-biketimer}:${DB_PASSWORD:-biketimer}@db:5432/${DB_NAME:-biketimer}
+      - FRONTEND_ORIGINS=${FRONTEND_URL:-http://localhost}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - biketimer-net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: biketimer-frontend
+    ports:
+      - "${PORT:-80}:80" # nginx, publicly accessible
+    env_file: .env
+    environment:
+      - KEYCLOAK_URL=${KEYCLOAK_URL} # used by nginx envsubst for /kc proxy
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - biketimer-net
+
+volumes:
+  db_data:
+
+networks:
+  biketimer-net:
+    driver: bridge

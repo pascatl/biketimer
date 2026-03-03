@@ -39,11 +39,7 @@ import LandscapeIcon from "@mui/icons-material/Landscape";
 import SportsTennisIcon from "@mui/icons-material/SportsTennis";
 import PersonAddAltIcon from "@mui/icons-material/PersonAddAlt";
 import RouteWidget from "./RouteWidget";
-import {
-	updateEvent as apiUpdateEvent,
-	deleteEvent as apiDeleteEvent,
-	inviteUser,
-} from "../api";
+import { updateEvent as apiUpdateEvent, deleteEvent as apiDeleteEvent, inviteUser } from "../api";
 
 const TYPE_META = {
 	rennrad: { label: "Rennrad", icon: <DirectionsBikeIcon />, color: "#2D3C59" },
@@ -770,12 +766,7 @@ export default function Event(props) {
 					<IconButton
 						onClick={handleInviteClose}
 						size="small"
-						sx={{
-							position: "absolute",
-							right: 12,
-							top: 12,
-							color: "text.secondary",
-						}}
+						sx={{ position: "absolute", right: 12, top: 12, color: "text.secondary" }}
 					>
 						<CloseIcon fontSize="small" />
 					</IconButton>
@@ -783,10 +774,7 @@ export default function Event(props) {
 				<DialogContent>
 					{inviteSent ? (
 						<Box sx={{ textAlign: "center", py: 2 }}>
-							<Typography
-								variant="body1"
-								sx={{ fontWeight: 700, color: "primary.main", mb: 1 }}
-							>
+							<Typography variant="body1" sx={{ fontWeight: 700, color: "primary.main", mb: 1 }}>
 								✓ Einladung gesendet!
 							</Typography>
 							<Typography variant="body2" color="text.secondary">

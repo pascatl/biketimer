@@ -9,8 +9,10 @@ import {
 	faRoad,
 	faBaseball,
 } from "@fortawesome/free-solid-svg-icons";
+import { useAuth } from "./auth/AuthContext";
 
-export default function App({ keycloak, authenticated }) {
+export default function App() {
+	const { user, authenticated } = useAuth();
 	const [currentEvents, setCurrentEvents] = useState([]);
 	const [invitations, setInvitations] = useState([]);
 
@@ -133,8 +135,6 @@ export default function App({ keycloak, authenticated }) {
 				currentEvents={currentEvents}
 				onAddEvent={handleAddEvent}
 				defaultEvent={defaultEvent}
-				keycloak={keycloak}
-				authenticated={authenticated}
 				invitationCount={invitations.length}
 			/>
 			<Container maxWidth="md">
@@ -154,7 +154,6 @@ export default function App({ keycloak, authenticated }) {
 							onDeleteEvent={handleDeleteEvent}
 							data={event}
 							authenticated={authenticated}
-							keycloak={keycloak}
 						/>
 					))}
 				</Stack>
