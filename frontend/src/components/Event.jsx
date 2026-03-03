@@ -1,8 +1,5 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-	Accordion,
-	AccordionDetails,
-	AccordionSummary,
 	Avatar,
 	Box,
 	Button,
@@ -25,13 +22,11 @@ import {
 	Tooltip,
 	Typography,
 } from "@mui/material";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import EditIcon from "@mui/icons-material/Edit";
 import SaveIcon from "@mui/icons-material/Save";
 import CloseIcon from "@mui/icons-material/Close";
 import DeleteIcon from "@mui/icons-material/Delete";
-import ThumbUpIcon from "@mui/icons-material/ThumbUp";
-import ThumbDownIcon from "@mui/icons-material/ThumbDown";
+import HowToRegIcon from "@mui/icons-material/HowToReg";
 import EmojiPeopleIcon from "@mui/icons-material/EmojiPeople";
 import CheckroomIcon from "@mui/icons-material/Checkroom";
 import DirectionsBikeIcon from "@mui/icons-material/DirectionsBike";
@@ -39,7 +34,14 @@ import LandscapeIcon from "@mui/icons-material/Landscape";
 import SportsTennisIcon from "@mui/icons-material/SportsTennis";
 import PersonAddAltIcon from "@mui/icons-material/PersonAddAlt";
 import RouteWidget from "./RouteWidget";
-import { updateEvent as apiUpdateEvent, deleteEvent as apiDeleteEvent, inviteUser } from "../api";
+import {
+	updateEvent as apiUpdateEvent,
+	deleteEvent as apiDeleteEvent,
+	inviteUser,
+	fetchEventInvitations,
+	respondInvitation,
+} from "../api";
+import { useAuth } from "../auth/AuthContext";
 
 const TYPE_META = {
 	rennrad: { label: "Rennrad", icon: <DirectionsBikeIcon />, color: "#2D3C59" },
@@ -49,15 +51,13 @@ const TYPE_META = {
 
 export default function Event(props) {
 	const event_data = props.data.event_data;
-	const { authenticated } = props;
+	const { authenticated, user } = useAuth();
 
 	const [date, setDate] = useState(event_data.event_date);
 	const [eventId] = useState(props.data.id);
 	const [startTime, setStartTime] = useState(event_data.event_startTime);
 	const [comment, setComment] = useState(event_data.event_comment);
 	const [link, setLink] = useState(event_data.event_link);
-	const [members, setMembers] = useState(event_data.event_members ?? []);
-	const [noMembers, setNoMembers] = useState(event_data.event_no_members ?? []);
 	const [leader, setLeader] = useState(event_data.event_leader);
 	const [jersey, setJersey] = useState(event_data.event_jersey);
 	const [eventType, setEventType] = useState(
@@ -76,6 +76,9 @@ export default function Event(props) {
 	const [inviteLoading, setInviteLoading] = useState(false);
 	const [inviteError, setInviteError] = useState("");
 	const [inviteSent, setInviteSent] = useState(false);
+
+	const [invitations, setInvitations] = useState([]);
+	const [myInvitation, setMyInvitation] = useState(null);
 
 	const isMounted = useRef(false);
 
@@ -97,14 +100,26 @@ export default function Event(props) {
 
 	const typeMeta = TYPE_META[eventType] ?? TYPE_META.rennrad;
 
-	const handleSelectAdd = (user) => {
-		setMembers((m) => [...m, user]);
-		setNoMembers((nm) => nm.filter((u) => u !== user));
-	};
+	const loadInvitations = useCallback(async () => {
+		const list = await fetchEventInvitations(eventId);
+		setInvitations(list);
+		if (user?.email) {
+			setMyInvitation(list.find((i) => i.invitee_email === user.email) ?? null);
+		}
+	}, [eventId, user?.email]);
 
-	const handleSelectRemove = (user) => {
-		setMembers((m) => m.filter((u) => u !== user));
-		setNoMembers((nm) => (nm.includes(user) ? nm : [...nm, user]));
+	useEffect(() => {
+		loadInvitations();
+	}, [loadInvitations]);
+
+	const handleRespond = async (action) => {
+		if (!myInvitation) return;
+		try {
+			await respondInvitation(myInvitation.id, action);
+			await loadInvitations();
+		} catch (err) {
+			console.error(err);
+		}
 	};
 
 	const handleSave = () => {
@@ -113,8 +128,6 @@ export default function Event(props) {
 			event_data: {
 				event_date: date,
 				event_startTime: startTime,
-				event_members: members,
-				event_no_members: noMembers,
 				event_leader: leader,
 				event_jersey: jersey,
 				event_type: eventType,
@@ -152,6 +165,7 @@ export default function Event(props) {
 			await inviteUser(eventId, inviteEmail);
 			setInviteSent(true);
 			setInviteEmail("");
+			await loadInvitations();
 		} catch (err) {
 			setInviteError(err.message);
 		} finally {
@@ -167,8 +181,8 @@ export default function Event(props) {
 	};
 
 	const hasBody =
-		members.length > 0 ||
-		(noMembers && noMembers.length > 0) ||
+		invitations.length > 0 ||
+		myInvitation !== null ||
 		!!comment ||
 		!!link ||
 		editMode;
@@ -447,7 +461,24 @@ export default function Event(props) {
 									)}
 								</>
 							)}
-							{!editMode && (
+							{authenticated && (
+								<Tooltip title="Person einladen">
+									<IconButton
+										size="small"
+										onClick={() => setInviteOpen(true)}
+										sx={{
+											color: "text.secondary",
+											"&:hover": {
+												bgcolor: "rgba(45,60,89,0.08)",
+												color: "primary.main",
+											},
+										}}
+									>
+										<PersonAddAltIcon fontSize="small" />
+									</IconButton>
+								</Tooltip>
+							)}
+							{authenticated && !editMode && (
 								<Tooltip title="Bearbeiten">
 									<IconButton
 										size="small"
@@ -473,36 +504,44 @@ export default function Event(props) {
 				{/* ── Body ── */}
 				{hasBody && (
 					<CardContent sx={{ pt: 1, pb: hasBody ? 2 : 0 }}>
-						{/* Member chips (view mode) */}
-						{!editMode &&
-							(members.length > 0 || (noMembers && noMembers.length > 0)) && (
-								<Box
-									sx={{
-										display: "flex",
-										flexWrap: "wrap",
-										gap: 0.75,
-										mt: 0.5,
-										mb: 0.5,
-									}}
-								>
-									{members.map((u) => (
-										<Chip
-											key={u}
-											label={u}
-											size="small"
-											sx={{
-												bgcolor: "#94A378",
-												color: "#fff",
-												fontWeight: 600,
-												fontSize: "0.75rem",
-											}}
-										/>
-									))}
-									{noMembers &&
-										noMembers.map((u) => (
+						{/* Einladungen: Statusanzeige */}
+						{invitations.length > 0 && (
+							<Box
+								sx={{
+									display: "flex",
+									flexWrap: "wrap",
+									gap: 0.75,
+									mt: 0.5,
+									mb: 0.5,
+								}}
+							>
+								{invitations.map((inv) => {
+									const label = inv.invitee_email.split("@")[0];
+									if (inv.status === "accepted") {
+										return (
 											<Chip
-												key={u}
-												label={u}
+												key={inv.id}
+												label={label}
+												size="small"
+												icon={
+													<HowToRegIcon
+														sx={{ fontSize: "0.95rem !important" }}
+													/>
+												}
+												sx={{
+													bgcolor: "#94A378",
+													color: "#fff",
+													fontWeight: 600,
+													fontSize: "0.75rem",
+												}}
+											/>
+										);
+									}
+									if (inv.status === "declined") {
+										return (
+											<Chip
+												key={inv.id}
+												label={label}
 												size="small"
 												variant="outlined"
 												sx={{
@@ -512,92 +551,76 @@ export default function Event(props) {
 													fontSize: "0.75rem",
 												}}
 											/>
-										))}
-								</Box>
-							)}
+										);
+									}
+									// pending
+									return (
+										<Chip
+											key={inv.id}
+											label={label}
+											size="small"
+											variant="outlined"
+											sx={{
+												borderColor: "#E5BA41",
+												color: "#E5BA41",
+												fontWeight: 600,
+												fontSize: "0.75rem",
+											}}
+										/>
+									);
+								})}
+							</Box>
+						)}
 
-						{/* Edit mode: participants */}
-						{editMode && (
-							<Accordion
-								disableGutters
-								elevation={0}
+						{/* Inline-Antwort für eingeladene Nutzer */}
+						{myInvitation?.status === "pending" && (
+							<Box
 								sx={{
-									bgcolor: "rgba(45,60,89,0.03)",
-									borderRadius: 2,
 									mt: 1,
-									"&:before": { display: "none" },
+									p: 1.5,
+									borderRadius: 2,
+									bgcolor: "rgba(229,186,65,0.1)",
+									border: "1px solid rgba(229,186,65,0.4)",
+									display: "flex",
+									alignItems: "center",
+									gap: 1.5,
+									flexWrap: "wrap",
 								}}
 							>
-								<AccordionSummary
-									expandIcon={<ExpandMoreIcon />}
-									sx={{ borderRadius: 2, minHeight: 40 }}
+								<Typography
+									variant="body2"
+									sx={{ fontWeight: 600, flex: 1, color: "text.primary" }}
 								>
-									<Typography
-										variant="body2"
-										sx={{ fontWeight: 700, color: "text.primary" }}
-									>
-										Teilnehmer verwalten
-									</Typography>
-								</AccordionSummary>
-								<AccordionDetails sx={{ p: 0, pb: 1 }}>
-									<Stack spacing={0.25}>
-										{default_users.map((user) => {
-											const isYes = members.includes(user);
-											const isNo = noMembers.includes(user);
-											return (
-												<Box
-													key={user}
-													sx={{
-														display: "flex",
-														alignItems: "center",
-														px: 1.5,
-														py: 0.5,
-														borderRadius: 1.5,
-														bgcolor: isYes
-															? "rgba(148,163,120,0.15)"
-															: isNo
-																? "rgba(209,133,92,0.12)"
-																: "transparent",
-														transition: "background 0.15s",
-													}}
-												>
-													<Typography
-														variant="body2"
-														sx={{
-															flex: 1,
-															fontWeight: isYes || isNo ? 600 : 400,
-														}}
-													>
-														{user}
-													</Typography>
-													<IconButton
-														size="small"
-														sx={{
-															color: isYes ? "#94A378" : "rgba(0,0,0,0.25)",
-															"&:hover": { color: "#94A378" },
-														}}
-														onClick={() => handleSelectAdd(user)}
-														disabled={isYes}
-													>
-														<ThumbUpIcon fontSize="small" />
-													</IconButton>
-													<IconButton
-														size="small"
-														sx={{
-															color: isNo ? "#D1855C" : "rgba(0,0,0,0.25)",
-															"&:hover": { color: "#D1855C" },
-														}}
-														onClick={() => handleSelectRemove(user)}
-														disabled={isNo}
-													>
-														<ThumbDownIcon fontSize="small" />
-													</IconButton>
-												</Box>
-											);
-										})}
-									</Stack>
-								</AccordionDetails>
-							</Accordion>
+									Du wurdest eingeladen
+								</Typography>
+								<Button
+									size="small"
+									variant="contained"
+									disableElevation
+									onClick={() => handleRespond("accept")}
+									sx={{
+										bgcolor: "#94A378",
+										color: "#fff",
+										borderRadius: 2,
+										"&:hover": { bgcolor: "#7a8f61" },
+									}}
+								>
+									Teilnehmen
+								</Button>
+								<Button
+									size="small"
+									variant="outlined"
+									onClick={() => handleRespond("decline")}
+									sx={{
+										borderColor: "#D1855C",
+										color: "#D1855C",
+										borderRadius: 2,
+										"&:hover": { bgcolor: "rgba(209,133,92,0.08)" },
+									}}
+								>
+									Ablehnen
+								</Button>
+							</Box>
 						)}
 
 						{/* Comment */}
@@ -766,7 +789,12 @@ export default function Event(props) {
 					<IconButton
 						onClick={handleInviteClose}
 						size="small"
-						sx={{ position: "absolute", right: 12, top: 12, color: "text.secondary" }}
+						sx={{
+							position: "absolute",
+							right: 12,
+							top: 12,
+							color: "text.secondary",
+						}}
 					>
 						<CloseIcon fontSize="small" />
 					</IconButton>
@@ -774,7 +802,10 @@ export default function Event(props) {
 				<DialogContent>
 					{inviteSent ? (
 						<Box sx={{ textAlign: "center", py: 2 }}>
-							<Typography variant="body1" sx={{ fontWeight: 700, color: "primary.main", mb: 1 }}>
+							<Typography
+								variant="body1"
+								sx={{ fontWeight: 700, color: "primary.main", mb: 1 }}
+							>
 								✓ Einladung gesendet!
 							</Typography>
 							<Typography variant="body2" color="text.secondary">

@@ -153,7 +153,6 @@ export default function App() {
 							default_types={default_types}
 							onDeleteEvent={handleDeleteEvent}
 							data={event}
-							authenticated={authenticated}
 						/>
 					))}
 				</Stack>

@@ -1,16 +1,15 @@
 import { getAccessToken } from "./auth/AuthService";
 
-// In dev: Vite proxies /api → http://backend:8000
-// In prod: nginx proxies /api → http://backend:8000
+// In dev: Vite proxies /api -> http://backend:8000
+// In prod: nginx proxies /api -> http://backend:8000
 const API_URL = import.meta.env.VITE_API_URL || "/api";
 
-/** Returns Authorization header if user is logged in. */
 function authHeaders() {
 	const token = getAccessToken();
 	return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-// ── Events ────────────────────────────────────────────────────
+// Events
 
 export async function fetchEvents() {
 	const res = await fetch(`${API_URL}/events`);
@@ -19,7 +18,7 @@ export async function fetchEvents() {
 }
 
 export async function createEvent(eventData) {
-	const headers = await authHeaders();
+	const headers = authHeaders();
 	const res = await fetch(`${API_URL}/events`, {
 		method: "POST",
 		headers: { "Content-Type": "application/json", ...headers },
@@ -33,7 +32,7 @@ export async function createEvent(eventData) {
 }
 
 export async function updateEvent(id, eventData) {
-	const headers = await authHeaders();
+	const headers = authHeaders();
 	const res = await fetch(`${API_URL}/events/${id}`, {
 		method: "PUT",
 		headers: { "Content-Type": "application/json", ...headers },
@@ -44,17 +43,17 @@ export async function updateEvent(id, eventData) {
 }
 
 export async function deleteEvent(id) {
-	const headers = await authHeaders();
+	const headers = authHeaders();
 	const res = await fetch(`${API_URL}/events/${id}`, {
 		method: "DELETE",
-		headers: { ...headers },
+		headers,
 	});
-	if (!res.ok) throw new Error("Fehler beim Löschen");
+	if (!res.ok) throw new Error("Fehler beim Loeschen");
 	return res.json();
 }
 
 export async function inviteUser(eventId, email) {
-	const headers = await authHeaders();
+	const headers = authHeaders();
 	const res = await fetch(`${API_URL}/events/${eventId}/invite`, {
 		method: "POST",
 		headers: { "Content-Type": "application/json", ...headers },
@@ -67,18 +66,23 @@ export async function inviteUser(eventId, email) {
 	return res.json();
 }
 
-// ── Invitations ───────────────────────────────────────────────
+export async function fetchEventInvitations(eventId) {
+	const res = await fetch(`${API_URL}/events/${eventId}/invitations`);
+	if (!res.ok) return [];
+	return res.json();
+}
+
+// Invitations
 
 export async function fetchMyInvitations() {
-	const headers = await authHeaders();
+	const headers = authHeaders();
 	const res = await fetch(`${API_URL}/invitations/mine`, { headers });
 	if (!res.ok) return [];
 	return res.json();
 }
 
 export async function respondInvitation(invitationId, action) {
-	// action: "accept" | "decline"
-	const headers = await authHeaders();
+	const headers = authHeaders();
 	const res = await fetch(`${API_URL}/invitations/${invitationId}/${action}`, {
 		method: "POST",
 		headers,

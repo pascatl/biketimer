@@ -17,6 +17,21 @@ def get_events(db: Session = Depends(get_db)):
     return db.query(Event).order_by(Event.id.asc()).all()
 
 
+@router.get("/{event_id}/invitations")
+def get_event_invitations(event_id: int, db: Session = Depends(get_db)):
+    """Return all invitations for an event (no auth required)."""
+    invitations = db.query(Invitation).filter(Invitation.event_id == event_id).all()
+    return [
+        {
+            "id": inv.id,
+            "invitee_email": inv.invitee_email,
+            "inviter_name": inv.inviter_name,
+            "status": inv.status,
+        }
+        for inv in invitations
+    ]
+
+
 @router.post("", response_model=EventResponse, status_code=status.HTTP_201_CREATED)
 def create_event(
     event_in: EventCreate,

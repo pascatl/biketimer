@@ -24,3 +24,5 @@ dist-ssr
 *.sw?
 
 .env
+
+backend/app/routers/__pycache__/
