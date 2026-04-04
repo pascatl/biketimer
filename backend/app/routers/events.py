@@ -109,6 +109,15 @@ def get_event_invitations(event_id: int, db: Session = Depends(get_db)):
             u = db.query(User).filter(User.email == inv.invitee_email).first()
             if u:
                 display_name = u.name
+            elif inv.invitee_email.endswith("@local"):
+                # Synthetic email: strip suffix and look up by name
+                candidate_name = inv.invitee_email[: -len("@local")]
+                u = db.query(User).filter(User.name == candidate_name).first()
+                if u:
+                    display_name = u.name
+                else:
+                    # Fall back to the name part only (better than showing @local)
+                    display_name = candidate_name
         result.append(
             {
                 "id": inv.id,

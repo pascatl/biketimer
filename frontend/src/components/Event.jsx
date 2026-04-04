@@ -662,8 +662,10 @@ export default function Event(props) {
 								}}
 							>
 								{invitations.map((inv) => {
-									const label =
-										inv.invitee_name || inv.invitee_email.split("@")[0];
+									const rawFallback = inv.invitee_email?.endsWith("@local")
+										? inv.invitee_email.replace("@local", "")
+										: inv.invitee_email?.split("@")[0] || "?";
+									const label = inv.invitee_name || rawFallback;
 									// Only the inviter can revoke an invitation
 									const canRevoke =
 										authenticated && user?.sub === inv.inviter_keycloak_id;
