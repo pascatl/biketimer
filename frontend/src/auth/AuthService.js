@@ -47,7 +47,14 @@ function scheduleRefresh(expiresIn, onRefreshed) {
 	}, delay);
 }
 
+const STORAGE_KEY = "bt_refresh";
+
 async function _doRefresh() {
+	if (!_refreshToken) {
+		// Try reading from storage (e.g. after page reload)
+		_refreshToken = localStorage.getItem(STORAGE_KEY) || null;
+	}
+	if (!_refreshToken) throw new Error("No refresh token");
 	const body = new URLSearchParams({
 		grant_type: "refresh_token",
 		client_id: KC_CLIENT,
@@ -58,10 +65,14 @@ async function _doRefresh() {
 		headers: { "Content-Type": "application/x-www-form-urlencoded" },
 		body,
 	});
-	if (!res.ok) throw new Error("Token-Refresh fehlgeschlagen");
+	if (!res.ok) {
+		localStorage.removeItem(STORAGE_KEY);
+		throw new Error("Token-Refresh fehlgeschlagen");
+	}
 	const data = await res.json();
 	_accessToken = data.access_token;
 	_refreshToken = data.refresh_token;
+	localStorage.setItem(STORAGE_KEY, _refreshToken);
 	return data;
 }
 
@@ -87,6 +98,7 @@ export async function login(username, password) {
 	const data = await res.json();
 	_accessToken = data.access_token;
 	_refreshToken = data.refresh_token;
+	localStorage.setItem(STORAGE_KEY, _refreshToken);
 	return data;
 }
 
@@ -94,6 +106,26 @@ export function logout() {
 	clearTimeout(_refreshTimer);
 	_accessToken = null;
 	_refreshToken = null;
+	localStorage.removeItem(STORAGE_KEY);
+}
+
+/**
+ * Try to restore a session from the stored refresh token.
+ * Returns user info on success, null if no stored token or refresh fails.
+ */
+export async function restoreSession(onRefreshed) {
+	const stored = localStorage.getItem(STORAGE_KEY);
+	if (!stored) return null;
+	_refreshToken = stored;
+	try {
+		const data = await _doRefresh();
+		scheduleRefresh(data.expires_in, onRefreshed);
+		return getUserInfo();
+	} catch {
+		localStorage.removeItem(STORAGE_KEY);
+		_refreshToken = null;
+		return null;
+	}
 }
 
 export function getAccessToken() {

@@ -82,10 +82,6 @@ export default function Event(props) {
 	);
 	const [editMode, setEditMode] = useState(false);
 	const [currentEvent, setCurrentEvent] = useState(props.data);
-	const [deleteOpen, setDeleteOpen] = useState(false);
-	const [saveOpen, setSaveOpen] = useState(false);
-
-	const [typeAnchor, setTypeAnchor] = useState(null);
 	const [leaderAnchor, setLeaderAnchor] = useState(null);
 	const [jerseyAnchor, setJerseyAnchor] = useState(null);
 	const [inviteOpen, setInviteOpen] = useState(false);
@@ -225,7 +221,7 @@ export default function Event(props) {
 
 	useEffect(() => {
 		if (isMounted.current) {
-			setSaveOpen(true);
+			setToast({ message: "Gespeichert ✓", severity: "success" });
 			updateEvent();
 			setEditMode(false);
 		} else {
@@ -889,7 +885,7 @@ export default function Event(props) {
 						<Button
 							size="small"
 							startIcon={<DeleteIcon />}
-							onClick={() => setDeleteOpen(true)}
+							onClick={handleDelete}
 							sx={{
 								color: "#D1855C",
 								borderColor: "#D1855C",
@@ -914,71 +910,6 @@ export default function Event(props) {
 				</Collapse>
 			</Card>
 
-			{/* Delete Dialog */}
-			<Dialog
-				open={deleteOpen}
-				onClose={() => setDeleteOpen(false)}
-				maxWidth="xs"
-				PaperProps={{ sx: { borderRadius: 3 } }}
-			>
-				<DialogTitle sx={{ fontWeight: 700, color: "text.primary" }}>
-					Termin löschen?
-				</DialogTitle>
-				<DialogContent>
-					<Typography variant="body2" color="text.secondary">
-						{date
-							? `${convertDate(date)[0]}, ${convertDate(date)[1]}`
-							: "Diesen Termin"}{" "}
-						wirklich löschen?
-					</Typography>
-				</DialogContent>
-				<DialogActions sx={{ px: 3, pb: 2 }}>
-					<Button
-						onClick={() => setDeleteOpen(false)}
-						color="inherit"
-						sx={{ color: "text.secondary" }}
-					>
-						Abbrechen
-					</Button>
-					<Button
-						onClick={handleDelete}
-						disableElevation
-						variant="contained"
-						sx={{
-							bgcolor: "#D1855C",
-							"&:hover": { bgcolor: "#b8693f" },
-							borderRadius: 2,
-						}}
-					>
-						Löschen
-					</Button>
-				</DialogActions>
-			</Dialog>
-
-			{/* Save Confirmation */}
-			<Dialog
-				open={saveOpen}
-				onClose={() => setSaveOpen(false)}
-				maxWidth="xs"
-				PaperProps={{ sx: { borderRadius: 3 } }}
-			>
-				<DialogTitle sx={{ fontWeight: 700 }}>Gespeichert ✓</DialogTitle>
-				<DialogContent>
-					<Typography variant="body2" color="text.secondary">
-						Die Änderungen wurden erfolgreich gespeichert.
-					</Typography>
-				</DialogContent>
-				<DialogActions sx={{ px: 3, pb: 2 }}>
-					<Button
-						onClick={() => setSaveOpen(false)}
-						variant="contained"
-						disableElevation
-						sx={{ borderRadius: 2 }}
-					>
-						Ok
-					</Button>
-				</DialogActions>
-			</Dialog>
 			{/* Invite Dialog */}
 			<Dialog
 				open={inviteOpen}

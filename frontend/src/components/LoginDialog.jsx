@@ -20,7 +20,7 @@ import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import { useAuth } from "../auth/AuthContext";
 
 export default function LoginDialog() {
-	const { loginOpen, closeLogin, login, authenticated } = useAuth();
+	const { loginOpen, closeLogin, login, authenticated, restoring } = useAuth();
 	const [username, setUsername] = useState("");
 	const [password, setPassword] = useState("");
 	const [showPw, setShowPw] = useState(false);
@@ -53,7 +53,7 @@ export default function LoginDialog() {
 
 	return (
 		<Dialog
-			open={loginOpen}
+			open={loginOpen && !restoring}
 			onClose={authenticated ? handleClose : undefined}
 			disableEscapeKeyDown={!authenticated}
 			maxWidth="xs"
