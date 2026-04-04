@@ -7,7 +7,7 @@
  */
 
 // KC_URL is only used for fallback; all actual requests go through /kc proxy to avoid CORS.
-const KC_REALM = import.meta.env.VITE_KEYCLOAK_REALM || "biketimer";
+export const KC_REALM = import.meta.env.VITE_KEYCLOAK_REALM || "biketimer";
 const KC_CLIENT =
 	import.meta.env.VITE_KEYCLOAK_CLIENT_ID || "biketimer-frontend";
 
@@ -48,11 +48,32 @@ function scheduleRefresh(expiresIn, onRefreshed) {
 }
 
 const STORAGE_KEY = "bt_refresh";
+// If false, use sessionStorage (cleared when tab/browser closes)
+let _persistMode = "local"; // "local" | "session"
+
+function _saveToken(token) {
+	if (_persistMode === "session") {
+		sessionStorage.setItem(STORAGE_KEY, token);
+		localStorage.removeItem(STORAGE_KEY);
+	} else {
+		localStorage.setItem(STORAGE_KEY, token);
+		sessionStorage.removeItem(STORAGE_KEY);
+	}
+}
+
+function _loadToken() {
+	return localStorage.getItem(STORAGE_KEY) || sessionStorage.getItem(STORAGE_KEY) || null;
+}
+
+function _clearToken() {
+	localStorage.removeItem(STORAGE_KEY);
+	sessionStorage.removeItem(STORAGE_KEY);
+}
 
 async function _doRefresh() {
 	if (!_refreshToken) {
 		// Try reading from storage (e.g. after page reload)
-		_refreshToken = localStorage.getItem(STORAGE_KEY) || null;
+		_refreshToken = _loadToken();
 	}
 	if (!_refreshToken) throw new Error("No refresh token");
 	const body = new URLSearchParams({
@@ -66,19 +87,20 @@ async function _doRefresh() {
 		body,
 	});
 	if (!res.ok) {
-		localStorage.removeItem(STORAGE_KEY);
+		_clearToken();
 		throw new Error("Token-Refresh fehlgeschlagen");
 	}
 	const data = await res.json();
 	_accessToken = data.access_token;
 	_refreshToken = data.refresh_token;
-	localStorage.setItem(STORAGE_KEY, _refreshToken);
+	_saveToken(_refreshToken);
 	return data;
 }
 
 // ─── public API ──────────────────────────────────────────────────────────────
 
-export async function login(username, password) {
+export async function login(username, password, rememberMe = true) {
+	_persistMode = rememberMe ? "local" : "session";
 	const body = new URLSearchParams({
 		grant_type: "password",
 		client_id: KC_CLIENT,
@@ -98,7 +120,7 @@ export async function login(username, password) {
 	const data = await res.json();
 	_accessToken = data.access_token;
 	_refreshToken = data.refresh_token;
-	localStorage.setItem(STORAGE_KEY, _refreshToken);
+	_saveToken(_refreshToken);
 	return data;
 }
 
@@ -106,7 +128,7 @@ export function logout() {
 	clearTimeout(_refreshTimer);
 	_accessToken = null;
 	_refreshToken = null;
-	localStorage.removeItem(STORAGE_KEY);
+	_clearToken();
 }
 
 /**

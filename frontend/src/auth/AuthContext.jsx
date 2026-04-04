@@ -35,8 +35,8 @@ export function AuthProvider({ children }) {
 	// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
-	const login = useCallback(async (username, password) => {
-		const data = await svcLogin(username, password);
+	const login = useCallback(async (username, password, rememberMe = true) => {
+		const data = await svcLogin(username, password, rememberMe);
 		const info = getUserInfo();
 		setUser(info);
 		setLoginOpen(false);

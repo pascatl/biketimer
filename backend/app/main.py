@@ -6,7 +6,7 @@ from sqlalchemy import text
 
 from .database import engine
 from .models import Base
-from .routers import events, invitations, users, admin, data, push, stats
+from .routers import events, invitations, users, admin, data, push, stats, auth
 
 # Create tables that don't exist yet (safe with existing DB)
 Base.metadata.create_all(bind=engine)
@@ -72,6 +72,7 @@ app.include_router(admin.router, prefix="/api")
 app.include_router(data.router, prefix="/api")
 app.include_router(push.router, prefix="/api")
 app.include_router(stats.router, prefix="/api")
+app.include_router(auth.router, prefix="/api")
 
 
 @app.get("/api/health")

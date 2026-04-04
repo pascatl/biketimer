@@ -154,6 +154,18 @@ export async function registerMe() {
 	return res.json();
 }
 
+export async function registerUser({ username, email, password, display_name }) {
+	/** In-app registration: creates a new Keycloak + DB user. */
+	const res = await fetch(`${API_URL}/auth/register`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ username, email, password, display_name }),
+	});
+	const data = await res.json().catch(() => ({}));
+	if (!res.ok) throw new Error(data.detail || "Registrierung fehlgeschlagen");
+	return data;
+}
+
 // ── Data (jerseys, sport types) ──────────────────────────────
 
 export async function fetchJerseys() {

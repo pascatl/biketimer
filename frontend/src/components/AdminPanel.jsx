@@ -33,7 +33,6 @@ import SportsTennisIcon from "@mui/icons-material/SportsTennis";
 import SettingsIcon from "@mui/icons-material/Settings";
 import {
 	adminFetchUsers,
-	adminCreateUser,
 	adminUpdateUser,
 	adminDeleteUser,
 	adminFetchJerseys,
@@ -55,9 +54,6 @@ function UserManager() {
 	const [users, setUsers] = useState([]);
 	const [editId, setEditId] = useState(null);
 	const [editData, setEditData] = useState({});
-	const [addOpen, setAddOpen] = useState(false);
-	const [newName, setNewName] = useState("");
-	const [newEmail, setNewEmail] = useState("");
 
 	const load = useCallback(async () => {
 		try {
@@ -70,22 +66,6 @@ function UserManager() {
 	useEffect(() => {
 		load();
 	}, [load]);
-
-	const handleAdd = async () => {
-		if (!newName.trim()) return;
-		try {
-			await adminCreateUser({
-				name: newName.trim(),
-				email: newEmail.trim() || null,
-			});
-			setNewName("");
-			setNewEmail("");
-			setAddOpen(false);
-			load();
-		} catch (e) {
-			alert(e.message);
-		}
-	};
 
 	const handleSave = async (id) => {
 		try {
@@ -125,21 +105,6 @@ function UserManager() {
 				<Typography variant="h6" sx={{ fontWeight: 700 }}>
 					Personen
 				</Typography>
-				<Button
-					startIcon={<AddIcon />}
-					variant="contained"
-					size="small"
-					disableElevation
-					onClick={() => setAddOpen(true)}
-					sx={{
-						bgcolor: "#E5BA41",
-						color: "#2D3C59",
-						fontWeight: 700,
-						"&:hover": { bgcolor: "#d4a92e" },
-					}}
-				>
-					Hinzufügen
-				</Button>
 			</Box>
 			<List dense>
 				{users.map((u) => (
@@ -225,54 +190,6 @@ function UserManager() {
 					</ListItem>
 				))}
 			</List>
-			{/* Add Dialog */}
-			<Dialog
-				open={addOpen}
-				onClose={() => setAddOpen(false)}
-				maxWidth="xs"
-				fullWidth
-				PaperProps={{ sx: { borderRadius: 3 } }}
-			>
-				<DialogTitle sx={{ fontWeight: 700 }}>Person hinzufügen</DialogTitle>
-				<DialogContent>
-					<Stack spacing={2} sx={{ pt: 1 }}>
-						<TextField
-							label="Name"
-							size="small"
-							fullWidth
-							value={newName}
-							onChange={(e) => setNewName(e.target.value)}
-							autoFocus
-						/>
-						<TextField
-							label="E-Mail (optional)"
-							size="small"
-							fullWidth
-							value={newEmail}
-							onChange={(e) => setNewEmail(e.target.value)}
-						/>
-					</Stack>
-				</DialogContent>
-				<DialogActions sx={{ px: 3, pb: 2 }}>
-					<Button onClick={() => setAddOpen(false)} color="inherit">
-						Abbrechen
-					</Button>
-					<Button
-						onClick={handleAdd}
-						variant="contained"
-						disableElevation
-						disabled={!newName.trim()}
-						sx={{
-							bgcolor: "#E5BA41",
-							color: "#2D3C59",
-							fontWeight: 700,
-							"&:hover": { bgcolor: "#d4a92e" },
-						}}
-					>
-						Hinzufügen
-					</Button>
-				</DialogActions>
-			</Dialog>
 		</Box>
 	);
 }

@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from ..auth import require_admin
+from ..kc_admin import delete_kc_user
 from ..database import get_db
 from ..models import User, Jersey, SportType
 from ..schemas import (
@@ -79,8 +80,15 @@ def admin_delete_user(
     u = db.query(User).filter(User.id == user_id).first()
     if not u:
         raise HTTPException(status_code=404, detail="Benutzer nicht gefunden")
+    kc_id = u.keycloak_id
     db.delete(u)
     db.commit()
+    # Also remove from Keycloak if linked
+    if kc_id:
+        try:
+            delete_kc_user(kc_id)
+        except Exception:
+            pass  # log but don't fail if KC deletion has issues
     return {"ok": True}
 
 
