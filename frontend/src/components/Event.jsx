@@ -30,6 +30,12 @@ import {
 	Tooltip,
 	Typography,
 } from "@mui/material";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import { TimePicker } from "@mui/x-date-pickers/TimePicker";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
+import { de } from "date-fns/locale";
+import { parseISO, parse as parseFns, format as formatFns } from "date-fns";
 import EditIcon from "@mui/icons-material/Edit";
 import SaveIcon from "@mui/icons-material/Save";
 import CloseIcon from "@mui/icons-material/Close";
@@ -393,33 +399,30 @@ export default function Event(props) {
 					}
 					title={
 						editMode ? (
-							<Box
-								sx={{
-									display: "flex",
-									gap: 1.5,
-									flexWrap: "wrap",
-									alignItems: "center",
-								}}
-							>
-								<TextField
-									label="Datum"
-									type="date"
-									size="small"
-									value={date}
-									onChange={(e) => setDate(e.target.value)}
-									InputLabelProps={{ shrink: true }}
-									sx={{ maxWidth: 160 }}
-								/>
-								<TextField
-									label="Uhrzeit"
-									type="time"
-									size="small"
-									value={startTime}
-									onChange={(e) => setStartTime(e.target.value)}
-									InputLabelProps={{ shrink: true }}
-									sx={{ maxWidth: 130 }}
-								/>
-							</Box>
+							<LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={de}>
+								<Box
+									sx={{
+										display: "flex",
+										gap: 1.5,
+										flexWrap: "wrap",
+										alignItems: "center",
+									}}
+								>
+									<DatePicker
+										label="Datum"
+										value={date ? parseISO(date) : null}
+										onChange={(d) => setDate(d ? formatFns(d, "yyyy-MM-dd") : "")}
+										slotProps={{ textField: { size: "small", sx: { maxWidth: 180 } } }}
+									/>
+									<TimePicker
+										label="Uhrzeit"
+										value={startTime ? parseFns(startTime, "HH:mm", new Date()) : null}
+										onChange={(t) => setStartTime(t ? formatFns(t, "HH:mm") : "")}
+										ampm={false}
+										slotProps={{ textField: { size: "small", sx: { maxWidth: 150 } } }}
+									/>
+								</Box>
+							</LocalizationProvider>
 						) : (
 							<Box
 								onClick={props.onOpenDetail ? () => props.onOpenDetail(eventId) : undefined}

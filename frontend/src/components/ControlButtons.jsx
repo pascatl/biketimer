@@ -14,6 +14,7 @@ import {
 import AddIcon from "@mui/icons-material/Add";
 import CloseIcon from "@mui/icons-material/Close";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import { TimePicker } from "@mui/x-date-pickers/TimePicker";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { de } from "date-fns/locale";
@@ -48,6 +49,7 @@ function toDisplay(isoStr) {
 export default function ControlButtons(props) {
 	const [addOpen, setAddOpen] = useState(false);
 	const [selectedDate, setSelectedDate] = useState(null);
+	const [selectedTime, setSelectedTime] = useState(null);
 	const [activePreset, setActivePreset] = useState(null);
 
 	const fridays = getNextFridays(6);
@@ -65,22 +67,26 @@ export default function ControlButtons(props) {
 	const handleAddEvent = () => {
 		if (!selectedDate) return;
 		const isoDate = toIso(selectedDate);
+		const isoTime = selectedTime ? format(selectedTime, "HH:mm") : null;
 		const new_event = {
 			id: props.defaultEvent.id,
 			event_data: {
 				...props.defaultEvent.event_data,
 				event_date: isoDate,
+				...(isoTime && { event_startTime: isoTime }),
 			},
 		};
 		props.onAddEvent(new_event);
 		setAddOpen(false);
 		setSelectedDate(null);
+		setSelectedTime(null);
 		setActivePreset(null);
 	};
 
 	const handleClose = () => {
 		setAddOpen(false);
 		setSelectedDate(null);
+		setSelectedTime(null);
 		setActivePreset(null);
 	};
 
@@ -164,20 +170,37 @@ export default function ControlButtons(props) {
 
 						<Divider />
 
-						{/* DatePicker */}
-						<Box>
-							<Typography
-								variant="body2"
-								sx={{ color: "text.secondary", mb: 1, fontWeight: 600 }}
-							>
-								Eigenes Datum
-							</Typography>
-							<DatePicker
-								label="Datum wählen"
-								value={selectedDate}
-								onChange={handlePickerChange}
-								slotProps={{ textField: { size: "small", fullWidth: true } }}
-							/>
+{/* DatePicker + TimePicker */}
+					<Box>
+						<Typography
+							variant="body2"
+							sx={{ color: "text.secondary", mb: 1, fontWeight: 600 }}
+						>
+							Eigenes Datum
+						</Typography>
+						<DatePicker
+							label="Datum wählen"
+							value={selectedDate}
+							onChange={handlePickerChange}
+							slotProps={{ textField: { size: "small", fullWidth: true } }}
+						/>
+					</Box>
+
+					{/* TimePicker */}
+					<Box>
+						<Typography
+							variant="body2"
+							sx={{ color: "text.secondary", mb: 1, fontWeight: 600 }}
+						>
+							Uhrzeit (optional)
+						</Typography>
+						<TimePicker
+							label="Uhrzeit wählen"
+							value={selectedTime}
+							onChange={setSelectedTime}
+							ampm={false}
+							slotProps={{ textField: { size: "small", fullWidth: true } }}
+						/>
 						</Box>
 
 						{/* Auswahl-Anzeige + Bestätigen */}
@@ -214,8 +237,11 @@ export default function ControlButtons(props) {
 											day: "2-digit",
 											month: "long",
 										})}
+									</Typography>								{selectedTime && (
+									<Typography variant="body2" sx={{ color: "text.secondary", mt: 0.25 }}>
+										{format(selectedTime, "HH:mm")} Uhr
 									</Typography>
-								</Box>
+								)}								</Box>
 								<Button
 									variant="contained"
 									disableElevation
