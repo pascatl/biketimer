@@ -711,12 +711,11 @@ export default function Event(props) {
 										return (
 											<Tooltip
 												key={inv.id}
-												title={reasonTip || (inv.status === "withdrawn" ? "Abgesagt" : "")}
+												title={reasonTip || (inv.status === "withdrawn" ? "Abgesagt" : "Abgelehnt")}
 											>
 												<Chip
 													label={label}
 													size="small"
-													variant="outlined"
 													onDelete={
 														canRevoke ? () => handleRevoke(inv.id) : undefined
 													}
@@ -728,13 +727,13 @@ export default function Event(props) {
 														) : undefined
 													}
 													sx={{
-														borderColor: "#D1855C",
-														color: "#D1855C",
+														bgcolor: "#D1855C",
+														color: "#fff",
 														fontWeight: 600,
 														fontSize: "0.75rem",
 														"& .MuiChip-deleteIcon": {
-															color: "rgba(209,133,92,0.6)",
-															"&:hover": { color: "#D1855C" },
+															color: "rgba(255,255,255,0.7)",
+															"&:hover": { color: "#fff" },
 														},
 													}}
 												/>
