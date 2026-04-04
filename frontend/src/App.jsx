@@ -261,8 +261,8 @@ export default function App() {
 			sx={{
 				bgcolor: "background.default",
 				minHeight: "100vh",
-				pt: "72px",
-				pb: 5,
+			pt: "72px",
+				pb: "56px", // leave room for fixed footer
 			}}
 		>
 			<TopBar

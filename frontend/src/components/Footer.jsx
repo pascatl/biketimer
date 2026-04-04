@@ -26,15 +26,20 @@ export default function Footer() {
 			<Box
 				component="footer"
 				sx={{
-					mt: 6,
-					py: 2,
+					position: "fixed",
+					bottom: 0,
+					left: 0,
+					right: 0,
+					py: 1,
 					px: 3,
+					bgcolor: "background.default",
 					borderTop: "1px solid rgba(45,60,89,0.1)",
 					display: "flex",
 					alignItems: "center",
-					justifyContent: "space-between",
+				justifyContent: "center",
 					flexWrap: "wrap",
 					gap: 1,
+					zIndex: 1100,
 				}}
 			>
 				{/* Left: Impressum */}
