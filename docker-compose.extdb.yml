@@ -1,0 +1,62 @@
+# ── Test against external (production) database ──────────────────────────────
+# Startet nur Backend + Frontend, OHNE lokalen postgres-Container.
+# Die DATABASE_URL zeigt direkt auf deine bestehende externe DB.
+#
+# Voraussetzung: .env enthält EXTERNAL_DATABASE_URL (oder alle DB_* Variablen + DB_HOST)
+#
+# Start:
+#   docker compose -f docker-compose.extdb.yml up --build
+#
+# Ports: frontend 5174 (abweichend, damit kein Konflikt mit laufendem dev-Stack)
+#         backend 8001
+# ──────────────────────────────────────────────────────────────────────────────
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: biketimer-backend-extdb
+    ports:
+      - "8001:8000"
+    volumes:
+      - ./backend:/app
+    env_file: .env
+    environment:
+      # Falls EXTERNAL_DATABASE_URL gesetzt ist, wird diese bevorzugt.
+      # Sonst wird DATABASE_URL aus DB_USER/DB_PASSWORD/DB_HOST/DB_PORT/DB_NAME gebaut.
+      - DATABASE_URL=${EXTERNAL_DATABASE_URL:-postgresql://${DB_USER:-biketimer}:${DB_PASSWORD:-biketimer}@${DB_HOST:-localhost}:${DB_PORT:-5432}/${DB_NAME:-biketimer}}
+      - FRONTEND_ORIGINS=http://localhost:5174
+    restart: "no"
+    extra_hosts:
+      - "host.docker.internal:host-gateway" # ermöglicht Zugriff auf DB-Host im LAN/VPN
+    networks:
+      - biketimer-extdb-net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: biketimer-frontend-extdb
+    ports:
+      - "5174:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+      - KEYCLOAK_URL=${KEYCLOAK_URL} # Vite-Proxy: /kc → Keycloak (server-side)
+      - VITE_KEYCLOAK_URL=${KEYCLOAK_URL}
+      - VITE_KEYCLOAK_REALM=${KEYCLOAK_REALM}
+      - VITE_KEYCLOAK_CLIENT_ID=${KEYCLOAK_CLIENT_ID_FRONTEND}
+      # kein VITE_API_URL → Vite-Proxy leitet /api intern an backend:8000 weiter
+    env_file: .env
+    depends_on:
+      - backend
+    restart: "no"
+    networks:
+      - biketimer-extdb-net
+
+networks:
+  biketimer-extdb-net:
+    driver: bridge

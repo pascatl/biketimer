@@ -1,8 +1,6 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-	Accordion,
-	AccordionDetails,
-	AccordionSummary,
+	Autocomplete,
 	Avatar,
 	Box,
 	Button,
@@ -10,6 +8,7 @@ import {
 	CardActions,
 	CardContent,
 	CardHeader,
+	Checkbox,
 	Chip,
 	Collapse,
 	Dialog,
@@ -18,6 +17,10 @@ import {
 	DialogTitle,
 	Divider,
 	IconButton,
+	List,
+	ListItem,
+	ListItemButton,
+	ListItemText,
 	Menu,
 	MenuItem,
 	Stack,
@@ -25,43 +28,50 @@ import {
 	Tooltip,
 	Typography,
 } from "@mui/material";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import EditIcon from "@mui/icons-material/Edit";
 import SaveIcon from "@mui/icons-material/Save";
 import CloseIcon from "@mui/icons-material/Close";
 import DeleteIcon from "@mui/icons-material/Delete";
-import ThumbUpIcon from "@mui/icons-material/ThumbUp";
-import ThumbDownIcon from "@mui/icons-material/ThumbDown";
+import HowToRegIcon from "@mui/icons-material/HowToReg";
 import EmojiPeopleIcon from "@mui/icons-material/EmojiPeople";
 import CheckroomIcon from "@mui/icons-material/Checkroom";
 import DirectionsBikeIcon from "@mui/icons-material/DirectionsBike";
 import LandscapeIcon from "@mui/icons-material/Landscape";
 import SportsTennisIcon from "@mui/icons-material/SportsTennis";
 import PersonAddAltIcon from "@mui/icons-material/PersonAddAlt";
+import PersonIcon from "@mui/icons-material/Person";
 import RouteWidget from "./RouteWidget";
 import {
 	updateEvent as apiUpdateEvent,
 	deleteEvent as apiDeleteEvent,
-	inviteUser,
+	inviteUsersToEvent,
+	fetchEventInvitations,
+	respondInvitation,
+	revokeInvitation,
 } from "../api";
+import { useAuth } from "../auth/AuthContext";
 
-const TYPE_META = {
-	rennrad: { label: "Rennrad", icon: <DirectionsBikeIcon />, color: "#2D3C59" },
-	mtb: { label: "MTB", icon: <LandscapeIcon />, color: "#94A378" },
-	squash: { label: "Squash", icon: <SportsTennisIcon />, color: "#D1855C" },
+const ICON_MAP = {
+	DirectionsBike: <DirectionsBikeIcon />,
+	Landscape: <LandscapeIcon />,
+	SportsTennis: <SportsTennisIcon />,
+};
+
+const DEFAULT_TYPE_META = {
+	label: "Event",
+	icon: <DirectionsBikeIcon />,
+	color: "#2D3C59",
 };
 
 export default function Event(props) {
 	const event_data = props.data.event_data;
-	const { authenticated } = props;
+	const { authenticated, user } = useAuth();
 
 	const [date, setDate] = useState(event_data.event_date);
 	const [eventId] = useState(props.data.id);
 	const [startTime, setStartTime] = useState(event_data.event_startTime);
 	const [comment, setComment] = useState(event_data.event_comment);
 	const [link, setLink] = useState(event_data.event_link);
-	const [members, setMembers] = useState(event_data.event_members ?? []);
-	const [noMembers, setNoMembers] = useState(event_data.event_no_members ?? []);
 	const [leader, setLeader] = useState(event_data.event_leader);
 	const [jersey, setJersey] = useState(event_data.event_jersey);
 	const [eventType, setEventType] = useState(
@@ -76,16 +86,42 @@ export default function Event(props) {
 	const [leaderAnchor, setLeaderAnchor] = useState(null);
 	const [jerseyAnchor, setJerseyAnchor] = useState(null);
 	const [inviteOpen, setInviteOpen] = useState(false);
-	const [inviteEmail, setInviteEmail] = useState("");
 	const [inviteLoading, setInviteLoading] = useState(false);
 	const [inviteError, setInviteError] = useState("");
 	const [inviteSent, setInviteSent] = useState(false);
+	const [inviteSearch, setInviteSearch] = useState("");
+
+	const [invitations, setInvitations] = useState([]);
+	const [myInvitation, setMyInvitation] = useState(null);
 
 	const isMounted = useRef(false);
 
-	const default_users = props.default_users;
-	const default_types = props.default_types;
-	const default_jerseys = props.default_jerseys;
+	const default_users = props.default_users || [];
+	const default_types = props.default_types || {};
+	const default_jerseys = props.default_jerseys || [];
+	const allUsers = props.allUsers || [];
+
+	// Exclude logged-in user from invite list
+	const invitableUsers = allUsers.filter((u) => {
+		if (user?.sub && u.keycloak_id === user.sub) return false;
+		if (user?.email && u.email === user.email) return false;
+		return true;
+	});
+
+	// Build type meta from DB sport types
+	const getTypeMeta = (key) => {
+		const t = default_types[key];
+		if (t) {
+			return {
+				label: t.label || t.alias || key,
+				icon: ICON_MAP[t.icon] || <DirectionsBikeIcon />,
+				color: t.color || "#2D3C59",
+			};
+		}
+		return DEFAULT_TYPE_META;
+	};
+
+	const typeMeta = getTypeMeta(eventType);
 
 	const convertDate = (input_date) => {
 		const d = Date.parse(input_date);
@@ -99,16 +135,35 @@ export default function Event(props) {
 		];
 	};
 
-	const typeMeta = TYPE_META[eventType] ?? TYPE_META.rennrad;
+	const loadInvitations = useCallback(async () => {
+		const list = await fetchEventInvitations(eventId);
+		setInvitations(list);
+		if (user?.email) {
+			setMyInvitation(list.find((i) => i.invitee_email === user.email) ?? null);
+		}
+	}, [eventId, user?.email]);
 
-	const handleSelectAdd = (user) => {
-		setMembers((m) => [...m, user]);
-		setNoMembers((nm) => nm.filter((u) => u !== user));
+	useEffect(() => {
+		loadInvitations();
+	}, [loadInvitations]);
+
+	const handleRespond = async (action) => {
+		if (!myInvitation) return;
+		try {
+			await respondInvitation(myInvitation.id, action);
+			await loadInvitations();
+		} catch (err) {
+			console.error(err);
+		}
 	};
 
-	const handleSelectRemove = (user) => {
-		setMembers((m) => m.filter((u) => u !== user));
-		setNoMembers((nm) => (nm.includes(user) ? nm : [...nm, user]));
+	const handleRevoke = async (invId) => {
+		try {
+			await revokeInvitation(invId);
+			await loadInvitations();
+		} catch (err) {
+			console.error(err);
+		}
 	};
 
 	const handleSave = () => {
@@ -117,8 +172,6 @@ export default function Event(props) {
 			event_data: {
 				event_date: date,
 				event_startTime: startTime,
-				event_members: members,
-				event_no_members: noMembers,
 				event_leader: leader,
 				event_jersey: jersey,
 				event_type: eventType,
@@ -148,14 +201,20 @@ export default function Event(props) {
 			.catch(console.error);
 	};
 
-	const handleInvite = async () => {
-		if (!inviteEmail) return;
+	const [selectedInvitees, setSelectedInvitees] = useState([]);
+	const [inviteResult, setInviteResult] = useState(null);
+
+	const handleInviteSubmit = async () => {
+		if (selectedInvitees.length === 0) return;
 		setInviteLoading(true);
 		setInviteError("");
 		try {
-			await inviteUser(eventId, inviteEmail);
+			const ids = selectedInvitees.map((u) => u.id);
+			const res = await inviteUsersToEvent(eventId, ids);
+			setInviteResult(res);
 			setInviteSent(true);
-			setInviteEmail("");
+			setSelectedInvitees([]);
+			await loadInvitations();
 		} catch (err) {
 			setInviteError(err.message);
 		} finally {
@@ -165,14 +224,36 @@ export default function Event(props) {
 
 	const handleInviteClose = () => {
 		setInviteOpen(false);
-		setInviteEmail("");
 		setInviteError("");
 		setInviteSent(false);
+		setSelectedInvitees([]);
+		setInviteResult(null);
 	};
 
+	const toggleInvitee = (user) => {
+		setSelectedInvitees((prev) =>
+			prev.find((u) => u.id === user.id)
+				? prev.filter((u) => u.id !== user.id)
+				: [...prev, user],
+		);
+	};
+
+	const toggleAllInvitees = () => {
+		if (selectedInvitees.length === invitableUsers.length) {
+			setSelectedInvitees([]);
+		} else {
+			setSelectedInvitees([...invitableUsers]);
+		}
+	};
+
+	// Build jersey names list for display
+	const jerseyNames = default_jerseys.map((j) =>
+		typeof j === "string" ? j : j.name,
+	);
+
 	const hasBody =
-		members.length > 0 ||
-		(noMembers && noMembers.length > 0) ||
+		invitations.length > 0 ||
+		myInvitation !== null ||
 		!!comment ||
 		!!link ||
 		editMode;
@@ -235,7 +316,7 @@ export default function Event(props) {
 												fontWeight: key === eventType ? 700 : 400,
 											}}
 										>
-											{val.alias}
+											{val.label || val.alias}
 										</MenuItem>
 									))}
 								</Menu>
@@ -391,7 +472,7 @@ export default function Event(props) {
 										onClose={() => setJerseyAnchor(null)}
 										PaperProps={{ sx: { borderRadius: 2 } }}
 									>
-										{default_jerseys.map((j) => (
+										{jerseyNames.map((j) => (
 											<MenuItem
 												key={j}
 												selected={j === jersey}
@@ -451,7 +532,24 @@ export default function Event(props) {
 									)}
 								</>
 							)}
-							{!editMode && (
+							{authenticated && (
+								<Tooltip title="Person einladen">
+									<IconButton
+										size="small"
+										onClick={() => setInviteOpen(true)}
+										sx={{
+											color: "text.secondary",
+											"&:hover": {
+												bgcolor: "rgba(45,60,89,0.08)",
+												color: "primary.main",
+											},
+										}}
+									>
+										<PersonAddAltIcon fontSize="small" />
+									</IconButton>
+								</Tooltip>
+							)}
+							{authenticated && !editMode && (
 								<Tooltip title="Bearbeiten">
 									<IconButton
 										size="small"
@@ -477,131 +575,165 @@ export default function Event(props) {
 				{/* ── Body ── */}
 				{hasBody && (
 					<CardContent sx={{ pt: 1, pb: hasBody ? 2 : 0 }}>
-						{/* Member chips (view mode) */}
-						{!editMode &&
-							(members.length > 0 || (noMembers && noMembers.length > 0)) && (
-								<Box
-									sx={{
-										display: "flex",
-										flexWrap: "wrap",
-										gap: 0.75,
-										mt: 0.5,
-										mb: 0.5,
-									}}
-								>
-									{members.map((u) => (
-										<Chip
-											key={u}
-											label={u}
-											size="small"
-											sx={{
-												bgcolor: "#94A378",
-												color: "#fff",
-												fontWeight: 600,
-												fontSize: "0.75rem",
-											}}
-										/>
-									))}
-									{noMembers &&
-										noMembers.map((u) => (
+						{/* Einladungen: Statusanzeige */}
+						{invitations.length > 0 && (
+							<Box
+								sx={{
+									display: "flex",
+									flexWrap: "wrap",
+									gap: 0.75,
+									mt: 0.5,
+									mb: 0.5,
+								}}
+							>
+								{invitations.map((inv) => {
+									const label =
+										inv.invitee_name || inv.invitee_email.split("@")[0];
+									const canRevoke = authenticated;
+									if (inv.status === "accepted") {
+										return (
 											<Chip
-												key={u}
-												label={u}
+												key={inv.id}
+												label={label}
+												size="small"
+												icon={
+													<HowToRegIcon
+														sx={{ fontSize: "0.95rem !important" }}
+													/>
+												}
+												onDelete={
+													canRevoke ? () => handleRevoke(inv.id) : undefined
+												}
+												deleteIcon={
+													canRevoke ? (
+														<CloseIcon
+															sx={{ fontSize: "0.85rem !important" }}
+														/>
+													) : undefined
+												}
+												sx={{
+													bgcolor: "#94A378",
+													color: "#fff",
+													fontWeight: 600,
+													fontSize: "0.75rem",
+													"& .MuiChip-deleteIcon": {
+														color: "rgba(255,255,255,0.7)",
+														"&:hover": { color: "#fff" },
+													},
+												}}
+											/>
+										);
+									}
+									if (inv.status === "declined") {
+										return (
+											<Chip
+												key={inv.id}
+												label={label}
 												size="small"
 												variant="outlined"
+												onDelete={
+													canRevoke ? () => handleRevoke(inv.id) : undefined
+												}
+												deleteIcon={
+													canRevoke ? (
+														<CloseIcon
+															sx={{ fontSize: "0.85rem !important" }}
+														/>
+													) : undefined
+												}
 												sx={{
 													borderColor: "#D1855C",
 													color: "#D1855C",
 													fontWeight: 600,
 													fontSize: "0.75rem",
+													"& .MuiChip-deleteIcon": {
+														color: "rgba(209,133,92,0.6)",
+														"&:hover": { color: "#D1855C" },
+													},
 												}}
 											/>
-										))}
-								</Box>
-							)}
+										);
+									}
+									// pending
+									return (
+										<Chip
+											key={inv.id}
+											label={label}
+											size="small"
+											variant="outlined"
+											onDelete={
+												canRevoke ? () => handleRevoke(inv.id) : undefined
+											}
+											deleteIcon={
+												canRevoke ? (
+													<CloseIcon sx={{ fontSize: "0.85rem !important" }} />
+												) : undefined
+											}
+											sx={{
+												borderColor: "#E5BA41",
+												color: "#E5BA41",
+												fontWeight: 600,
+												fontSize: "0.75rem",
+												"& .MuiChip-deleteIcon": {
+													color: "rgba(229,186,65,0.6)",
+													"&:hover": { color: "#E5BA41" },
+												},
+											}}
+										/>
+									);
+								})}
+							</Box>
+						)}
 
-						{/* Edit mode: participants */}
-						{editMode && (
-							<Accordion
-								disableGutters
-								elevation={0}
+						{/* Inline-Antwort für eingeladene Nutzer */}
+						{myInvitation?.status === "pending" && (
+							<Box
 								sx={{
-									bgcolor: "rgba(45,60,89,0.03)",
-									borderRadius: 2,
 									mt: 1,
-									"&:before": { display: "none" },
+									p: 1.5,
+									borderRadius: 2,
+									bgcolor: "rgba(229,186,65,0.1)",
+									border: "1px solid rgba(229,186,65,0.4)",
+									display: "flex",
+									alignItems: "center",
+									gap: 1.5,
+									flexWrap: "wrap",
 								}}
 							>
-								<AccordionSummary
-									expandIcon={<ExpandMoreIcon />}
-									sx={{ borderRadius: 2, minHeight: 40 }}
+								<Typography
+									variant="body2"
+									sx={{ fontWeight: 600, flex: 1, color: "text.primary" }}
 								>
-									<Typography
-										variant="body2"
-										sx={{ fontWeight: 700, color: "text.primary" }}
-									>
-										Teilnehmer verwalten
-									</Typography>
-								</AccordionSummary>
-								<AccordionDetails sx={{ p: 0, pb: 1 }}>
-									<Stack spacing={0.25}>
-										{default_users.map((user) => {
-											const isYes = members.includes(user);
-											const isNo = noMembers.includes(user);
-											return (
-												<Box
-													key={user}
-													sx={{
-														display: "flex",
-														alignItems: "center",
-														px: 1.5,
-														py: 0.5,
-														borderRadius: 1.5,
-														bgcolor: isYes
-															? "rgba(148,163,120,0.15)"
-															: isNo
-																? "rgba(209,133,92,0.12)"
-																: "transparent",
-														transition: "background 0.15s",
-													}}
-												>
-													<Typography
-														variant="body2"
-														sx={{
-															flex: 1,
-															fontWeight: isYes || isNo ? 600 : 400,
-														}}
-													>
-														{user}
-													</Typography>
-													<IconButton
-														size="small"
-														sx={{
-															color: isYes ? "#94A378" : "rgba(0,0,0,0.25)",
-															"&:hover": { color: "#94A378" },
-														}}
-														onClick={() => handleSelectAdd(user)}
-														disabled={isYes}
-													>
-														<ThumbUpIcon fontSize="small" />
-													</IconButton>
-													<IconButton
-														size="small"
-														sx={{
-															color: isNo ? "#D1855C" : "rgba(0,0,0,0.25)",
-															"&:hover": { color: "#D1855C" },
-														}}
-														onClick={() => handleSelectRemove(user)}
-														disabled={isNo}
-													>
-														<ThumbDownIcon fontSize="small" />
-													</IconButton>
-												</Box>
-											);
-										})}
-									</Stack>
-								</AccordionDetails>
-							</Accordion>
+									Du wurdest eingeladen
+								</Typography>
+								<Button
+									size="small"
+									variant="contained"
+									disableElevation
+									onClick={() => handleRespond("accept")}
+									sx={{
+										bgcolor: "#94A378",
+										color: "#fff",
+										borderRadius: 2,
+										"&:hover": { bgcolor: "#7a8f61" },
+									}}
+								>
+									Teilnehmen
+								</Button>
+								<Button
+									size="small"
+									variant="outlined"
+									onClick={() => handleRespond("decline")}
+									sx={{
+										borderColor: "#D1855C",
+										color: "#D1855C",
+										borderRadius: 2,
+										"&:hover": { bgcolor: "rgba(209,133,92,0.08)" },
+									}}
+								>
+									Ablehnen
+								</Button>
+							</Box>
 						)}
 
 						{/* Comment */}
@@ -766,7 +898,7 @@ export default function Event(props) {
 				PaperProps={{ sx: { borderRadius: 3 } }}
 			>
 				<DialogTitle sx={{ fontWeight: 700, color: "text.primary", pr: 6 }}>
-					Person einladen
+					Personen einladen
 					<IconButton
 						onClick={handleInviteClose}
 						size="small"
@@ -780,55 +912,138 @@ export default function Event(props) {
 						<CloseIcon fontSize="small" />
 					</IconButton>
 				</DialogTitle>
-				<DialogContent>
+				<DialogContent sx={{ px: 0 }}>
 					{inviteSent ? (
-						<Box sx={{ textAlign: "center", py: 2 }}>
+						<Box sx={{ textAlign: "center", py: 2, px: 3 }}>
 							<Typography
 								variant="body1"
 								sx={{ fontWeight: 700, color: "primary.main", mb: 1 }}
 							>
-								✓ Einladung gesendet!
+								✓ {inviteResult?.sent || 0} Einladung
+								{(inviteResult?.sent || 0) !== 1 ? "en" : ""} gesendet!
 							</Typography>
-							<Typography variant="body2" color="text.secondary">
-								Eine E-Mail wurde verschickt.
-							</Typography>
+							{inviteResult?.results?.some((r) => !r.ok) && (
+								<Typography variant="body2" color="text.secondary">
+									{inviteResult.results.filter((r) => !r.ok).length} bereits
+									eingeladen
+								</Typography>
+							)}
 						</Box>
 					) : (
-						<Stack spacing={2} sx={{ pt: 0.5 }}>
-							<Typography variant="body2" color="text.secondary">
-								Gib die E-Mail-Adresse der Person ein, die du einladen möchtest.
-								Sie erhält eine Benachrichtigung per E-Mail.
-							</Typography>
-							<TextField
-								autoFocus
-								label="E-Mail-Adresse"
-								type="email"
-								size="small"
-								fullWidth
-								value={inviteEmail}
-								onChange={(e) => setInviteEmail(e.target.value)}
-								onKeyDown={(e) => e.key === "Enter" && handleInvite()}
-								error={!!inviteError}
-								helperText={inviteError}
-							/>
-							<Button
-								variant="contained"
-								disableElevation
-								onClick={handleInvite}
-								disabled={inviteLoading || !inviteEmail}
-								sx={{
-									bgcolor: "#E5BA41",
-									color: "#2D3C59",
-									fontWeight: 700,
-									borderRadius: 2,
-									"&:hover": { bgcolor: "#d4a92e" },
-								}}
+						<Stack spacing={0}>
+							<Box sx={{ px: 3, pb: 1 }}>
+								<TextField
+									size="small"
+									fullWidth
+									placeholder="Person suchen..."
+									autoFocus
+									value={inviteSearch}
+									onChange={(e) => setInviteSearch(e.target.value)}
+									InputProps={{ sx: { borderRadius: 2 } }}
+								/>
+							</Box>
+							{inviteError && (
+								<Typography
+									variant="body2"
+									color="error"
+									sx={{ fontWeight: 600, px: 3 }}
+								>
+									{inviteError}
+								</Typography>
+							)}
+							{/* Alle auswählen */}
+							<ListItem
+								disablePadding
+								sx={{ borderBottom: "1px solid rgba(45,60,89,0.08)" }}
 							>
-								{inviteLoading ? "Sende..." : "Einladen"}
-							</Button>
+								<ListItemButton
+									onClick={toggleAllInvitees}
+									dense
+									sx={{ px: 3, py: 0.75 }}
+								>
+									<Checkbox
+										checked={
+											selectedInvitees.length === invitableUsers.length &&
+											invitableUsers.length > 0
+										}
+										indeterminate={
+											selectedInvitees.length > 0 &&
+											selectedInvitees.length < invitableUsers.length
+										}
+										size="small"
+										sx={{ mr: 1 }}
+									/>
+									<ListItemText
+										primary="Alle auswählen"
+										primaryTypographyProps={{
+											fontWeight: 700,
+											fontSize: "0.9rem",
+										}}
+									/>
+								</ListItemButton>
+							</ListItem>
+							{/* Benutzerliste */}
+							<List dense sx={{ maxHeight: 300, overflow: "auto", py: 0 }}>
+								{invitableUsers
+									.filter((u) =>
+										u.name.toLowerCase().includes(inviteSearch.toLowerCase()),
+									)
+									.map((u) => {
+										const isChecked = selectedInvitees.some(
+											(s) => s.id === u.id,
+										);
+										return (
+											<ListItem key={u.id} disablePadding>
+												<ListItemButton
+													onClick={() => toggleInvitee(u)}
+													dense
+													sx={{ px: 3, py: 0.5 }}
+												>
+													<Checkbox
+														checked={isChecked}
+														size="small"
+														sx={{ mr: 1 }}
+													/>
+													<ListItemText primary={u.name} />
+												</ListItemButton>
+											</ListItem>
+										);
+									})}
+							</List>
 						</Stack>
 					)}
 				</DialogContent>
+				{!inviteSent && (
+					<DialogActions sx={{ px: 3, pb: 2 }}>
+						<Chip
+							label={`${selectedInvitees.length} ausgewählt`}
+							size="small"
+							sx={{ mr: "auto", fontWeight: 600 }}
+						/>
+						<Button
+							onClick={handleInviteClose}
+							color="inherit"
+							sx={{ color: "text.secondary" }}
+						>
+							Abbrechen
+						</Button>
+						<Button
+							variant="contained"
+							disableElevation
+							onClick={handleInviteSubmit}
+							disabled={inviteLoading || selectedInvitees.length === 0}
+							sx={{
+								bgcolor: "#E5BA41",
+								color: "#2D3C59",
+								fontWeight: 700,
+								borderRadius: 2,
+								"&:hover": { bgcolor: "#d4a92e" },
+							}}
+						>
+							{inviteLoading ? "Sende..." : "Einladen"}
+						</Button>
+					</DialogActions>
+				)}
 			</Dialog>
 		</>
 	);

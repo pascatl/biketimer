@@ -1,20 +1,20 @@
-# ── Production ────────────────────────────────────────────────────────────────
-# Start: docker compose up --build -d
+# ── Development ───────────────────────────────────────────────────────────────
+# Start: docker compose -f docker-compose.dev.yml up --build
 # .env is loaded from the project root (same directory as this file).
-# Ports: frontend 80 (nginx, public). backend + db are internal only.
+# Ports: frontend 5173 (Vite), backend 8000 (FastAPI+Swagger), db 5432 (internal only)
 # ──────────────────────────────────────────────────────────────────────────────
 
 services:
   db:
     image: postgres:16-alpine
-    container_name: biketimer-db
+    container_name: biketimer-db-dev
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${DB_USER:-biketimer}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-biketimer}
       POSTGRES_DB: ${DB_NAME:-biketimer}
     volumes:
-      - db_data:/var/lib/postgresql/data
+      - db_data_dev:/var/lib/postgresql/data
       - ./backend/migrations/001_init.sql:/docker-entrypoint-initdb.d/001_init.sql:ro
       - ./backend/migrations/002_users_jerseys_sports_push.sql:/docker-entrypoint-initdb.d/002_users_jerseys_sports_push.sql:ro
     healthcheck:
@@ -28,18 +28,24 @@ services:
       retries: 10
     networks:
       - biketimer-net
-    # Port 5432 is NOT published in production.
+    # Port 5432 intentionally not published – only accessible within the stack.
+    # To connect from host in dev: uncomment the line below.
+    # ports:
+    #   - "5432:5432"
 
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: biketimer-backend
-    # Port 8000 is NOT published in production – nginx proxies internally.
+    container_name: biketimer-backend-dev
+    ports:
+      - "${BACKEND_PORT:-8000}:8000" # exposed in dev for direct curl/Swagger
+    volumes:
+      - ./backend:/app
     env_file: .env
     environment:
       - DATABASE_URL=postgresql://${DB_USER:-biketimer}:${DB_PASSWORD:-biketimer}@db:5432/${DB_NAME:-biketimer}
-      - FRONTEND_ORIGINS=${FRONTEND_URL:-http://localhost}
+      - FRONTEND_ORIGINS=http://localhost:${FRONTEND_PORT:-5173}
     depends_on:
       db:
         condition: service_healthy
@@ -50,13 +56,21 @@ services:
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile
-    container_name: biketimer-frontend
+      dockerfile: Dockerfile.dev
+    container_name: biketimer-frontend-dev
     ports:
-      - "${PORT:-80}:80" # nginx, publicly accessible
-    env_file: .env
+      - "${FRONTEND_PORT:-5173}:5173" # Vite dev server
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules # keep container node_modules isolated
     environment:
-      - KEYCLOAK_URL=${KEYCLOAK_URL} # used by nginx envsubst for /kc proxy
+      - NODE_ENV=development
+      - KEYCLOAK_URL=${KEYCLOAK_URL} # used by vite.config.js proxy (server-side)
+      - VITE_KEYCLOAK_URL=${KEYCLOAK_URL}
+      - VITE_KEYCLOAK_REALM=${KEYCLOAK_REALM}
+      - VITE_KEYCLOAK_CLIENT_ID=${KEYCLOAK_CLIENT_ID_FRONTEND}
+      # /api and /kc are proxied by Vite → backend / Keycloak (see vite.config.js)
+    env_file: .env
     depends_on:
       - backend
     restart: unless-stopped
@@ -64,7 +78,7 @@ services:
       - biketimer-net
 
 volumes:
-  db_data:
+  db_data_dev:
 
 networks:
   biketimer-net:
