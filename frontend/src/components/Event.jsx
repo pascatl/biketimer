@@ -571,7 +571,7 @@ export default function Event(props) {
 									)}
 								</>
 							)}
-							{authenticated && (
+							{canEdit && (
 								<Tooltip title="Person einladen">
 									<IconButton
 										size="small"

@@ -147,6 +147,20 @@ def invite_users(
     if not event:
         raise HTTPException(status_code=404, detail="Event nicht gefunden")
 
+    # Only the creator or the current organizer may invite
+    sub = user["sub"]
+    current_leader = event.event_data.get("event_leader", "")
+    user_name = user.get("name") or user.get("preferred_username", "")
+    is_creator = event.creator_keycloak_id == sub
+    is_leader = bool(current_leader) and (
+        user_name == current_leader
+    )
+    if not is_creator and not is_leader and not user.get("is_admin"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Nur der Ersteller oder Organisator darf Personen einladen",
+        )
+
     results = []
     event_date = event.event_data.get("event_date", "")
     inviter_name = user.get("name") or user.get("preferred_username", "Unbekannt")
