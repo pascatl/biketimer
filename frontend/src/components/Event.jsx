@@ -23,6 +23,8 @@ import {
 	ListItemText,
 	Menu,
 	MenuItem,
+	Snackbar,
+	Alert,
 	Stack,
 	TextField,
 	Tooltip,
@@ -89,7 +91,6 @@ export default function Event(props) {
 	const [inviteOpen, setInviteOpen] = useState(false);
 	const [inviteLoading, setInviteLoading] = useState(false);
 	const [inviteError, setInviteError] = useState("");
-	const [inviteSent, setInviteSent] = useState(false);
 	const [inviteSearch, setInviteSearch] = useState("");
 
 	const [invitations, setInvitations] = useState([]);
@@ -99,6 +100,9 @@ export default function Event(props) {
 	const [withdrawOpen, setWithdrawOpen] = useState(false);
 	const [withdrawReason, setWithdrawReason] = useState("");
 	const [withdrawLoading, setWithdrawLoading] = useState(false);
+
+	// Toast notification
+	const [toast, setToast] = useState(null); // { message, severity }
 
 	const isMounted = useRef(false);
 
@@ -240,7 +244,6 @@ export default function Event(props) {
 	};
 
 	const [selectedInvitees, setSelectedInvitees] = useState([]);
-	const [inviteResult, setInviteResult] = useState(null);
 
 	const handleInviteSubmit = async () => {
 		if (selectedInvitees.length === 0) return;
@@ -249,9 +252,12 @@ export default function Event(props) {
 		try {
 			const ids = selectedInvitees.map((u) => u.id);
 			const res = await inviteUsersToEvent(eventId, ids);
-			setInviteResult(res);
-			setInviteSent(true);
-			setSelectedInvitees([]);
+			const sent = res?.sent ?? ids.length;
+			handleInviteClose();
+			setToast({
+				message: `${sent} Einladung${sent !== 1 ? "en" : ""} gesendet!`,
+				severity: "success",
+			});
 			await loadInvitations();
 		} catch (err) {
 			setInviteError(err.message);
@@ -263,9 +269,8 @@ export default function Event(props) {
 	const handleInviteClose = () => {
 		setInviteOpen(false);
 		setInviteError("");
-		setInviteSent(false);
 		setSelectedInvitees([]);
-		setInviteResult(null);
+		setInviteSearch("");
 	};
 
 	const toggleInvitee = (user) => {
@@ -998,34 +1003,17 @@ export default function Event(props) {
 					</IconButton>
 				</DialogTitle>
 				<DialogContent sx={{ px: 0 }}>
-					{inviteSent ? (
-						<Box sx={{ textAlign: "center", py: 2, px: 3 }}>
-							<Typography
-								variant="body1"
-								sx={{ fontWeight: 700, color: "primary.main", mb: 1 }}
-							>
-								✓ {inviteResult?.sent || 0} Einladung
-								{(inviteResult?.sent || 0) !== 1 ? "en" : ""} gesendet!
-							</Typography>
-							{inviteResult?.results?.some((r) => !r.ok) && (
-								<Typography variant="body2" color="text.secondary">
-									{inviteResult.results.filter((r) => !r.ok).length} bereits
-									eingeladen
-								</Typography>
-							)}
-						</Box>
-					) : (
-						<Stack spacing={0}>
-							<Box sx={{ px: 3, pb: 1 }}>
-								<TextField
-									size="small"
-									fullWidth
-									placeholder="Person suchen..."
-									autoFocus
-									value={inviteSearch}
-									onChange={(e) => setInviteSearch(e.target.value)}
-									InputProps={{ sx: { borderRadius: 2 } }}
-								/>
+					<Stack spacing={0}>
+						<Box sx={{ px: 3, pb: 1 }}>
+							<TextField
+								size="small"
+								fullWidth
+								placeholder="Person suchen..."
+								autoFocus
+								value={inviteSearch}
+								onChange={(e) => setInviteSearch(e.target.value)}
+								InputProps={{ sx: { borderRadius: 2 } }}
+							/>
 							</Box>
 							{inviteError && (
 								<Typography
@@ -1096,10 +1084,8 @@ export default function Event(props) {
 									})}
 							</List>
 						</Stack>
-					)}
 				</DialogContent>
-				{!inviteSent && (
-					<DialogActions sx={{ px: 3, pb: 2 }}>
+				<DialogActions sx={{ px: 3, pb: 2 }}>
 						<Chip
 							label={`${selectedInvitees.length} ausgewählt`}
 							size="small"
@@ -1128,7 +1114,6 @@ export default function Event(props) {
 							{inviteLoading ? "Sende..." : "Einladen"}
 						</Button>
 					</DialogActions>
-				)}
 			</Dialog>
 
 			{/* Withdrawal Dialog */}
@@ -1183,6 +1168,23 @@ export default function Event(props) {
 					</Button>
 				</DialogActions>
 			</Dialog>
+
+			{/* Toast notification */}
+			<Snackbar
+				open={!!toast}
+				autoHideDuration={4000}
+				onClose={() => setToast(null)}
+				anchorOrigin={{ vertical: "top", horizontal: "right" }}
+			>
+				<Alert
+					onClose={() => setToast(null)}
+					severity={toast?.severity || "success"}
+					variant="filled"
+					sx={{ borderRadius: 2, minWidth: 220 }}
+				>
+					{toast?.message}
+				</Alert>
+			</Snackbar>
 		</>
 	);
 }

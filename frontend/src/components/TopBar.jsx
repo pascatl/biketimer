@@ -84,6 +84,7 @@ const TopBar = ({
 								letterSpacing: 0.3,
 								lineHeight: 1.2,
 								color: "#fff",
+								display: { xs: "none", sm: "block" },
 							}}
 						>
 							Terminplaner
