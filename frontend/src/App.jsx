@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Container, Box, Stack } from "@mui/material";
+import { useNavigate, useParams } from "react-router-dom";
+import { Container, Box, Stack, IconButton, Tooltip, Typography, CircularProgress } from "@mui/material";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import Event from "./components/Event";
 import TopBar from "./components/TopBar";
 import InboxDrawer from "./components/InboxDrawer";
@@ -8,6 +10,7 @@ import StatsPanel from "./components/StatsPanel";
 import {
 	fetchEvents,
 	fetchMyEvents,
+	fetchEvent,
 	createEvent,
 	fetchMyInvitations,
 	fetchUsers,
@@ -21,6 +24,9 @@ import { useAuth } from "./auth/AuthContext";
 
 export default function App() {
 	const { user, authenticated } = useAuth();
+	const navigate = useNavigate();
+	const { id: urlEventId } = useParams();
+
 	const [currentEvents, setCurrentEvents] = useState([]);
 	const [invitations, setInvitations] = useState([]);
 	const [allUsers, setAllUsers] = useState([]);
@@ -31,6 +37,10 @@ export default function App() {
 	const [inboxOpen, setInboxOpen] = useState(false);
 	// Incremented whenever invitations are refreshed → tells Event cards to reload
 	const [eventRefreshKey, setEventRefreshKey] = useState(0);
+	// Detail view
+	const [detailEvent, setDetailEvent] = useState(null);
+	const [detailLoading, setDetailLoading] = useState(false);
+	const [detailError, setDetailError] = useState(null);
 
 	const allowedDays = [5]; // Friday
 	const default_startTime = "15:00";
@@ -184,6 +194,36 @@ export default function App() {
 	const userNames = allUsers.map((u) => u.name).sort();
 	const jerseyNames = jerseys.map((j) => j.name);
 
+	// ── Load event for detail view when URL has /events/:id ───
+	useEffect(() => {
+		if (!urlEventId) {
+			setDetailEvent(null);
+			setDetailError(null);
+			return;
+		}
+		setDetailLoading(true);
+		setDetailError(null);
+		fetchEvent(Number(urlEventId))
+			.then((ev) => {
+				setDetailEvent(ev);
+				setDetailLoading(false);
+			})
+			.catch((err) => {
+				setDetailError(err.message);
+				setDetailLoading(false);
+			});
+	}, [urlEventId]);
+
+	// When a user opens an event detail: update URL
+	const handleOpenDetail = (eventId) => {
+		navigate(`/events/${eventId}`);
+	};
+
+	// Back to list
+	const handleBackToList = () => {
+		navigate("/");
+	};
+
 	// ── Handlers ──────────────────────────────────────────────
 	const handleAddEvent = async (event) => {
 		try {
@@ -235,26 +275,66 @@ export default function App() {
 				onInboxOpen={() => setInboxOpen(true)}
 			/>
 			<Container maxWidth="md">
-				<Stack spacing={2} sx={{ mt: 3 }}>
-					{currentEvents.map((event) => (
-						<Event
-							key={event.id}
-							default_users={userNames}
-							default_jerseys={jerseyNames}
-							default_types={sportTypes}
-							allUsers={allUsers}
-							onDeleteEvent={handleDeleteEvent}
-							data={event}
-							refreshToken={eventRefreshKey}
-							onInvitationResponded={loadInvitations}
-						/>
-					))}
-				</Stack>
+				{urlEventId ? (
+					/* ── Detail view ── */
+					<Box sx={{ mt: 3 }}>
+						<Box sx={{ display: "flex", alignItems: "center", mb: 2, gap: 1 }}>
+							<Tooltip title="Zurück zur Liste">
+								<IconButton onClick={handleBackToList} size="small">
+									<ArrowBackIcon />
+								</IconButton>
+							</Tooltip>
+							<Typography variant="body2" color="text.secondary">
+								Event-Details
+							</Typography>
+						</Box>
+						{detailLoading && (
+							<Box sx={{ display: "flex", justifyContent: "center", mt: 6 }}>
+								<CircularProgress />
+							</Box>
+						)}
+						{detailError && (
+							<Typography color="error" sx={{ mt: 4, textAlign: "center" }}>
+								{detailError}
+							</Typography>
+						)}
+						{detailEvent && !detailLoading && (
+							<Event
+								data={detailEvent}
+								default_users={userNames}
+								default_jerseys={jerseyNames}
+								default_types={sportTypes}
+								allUsers={allUsers}
+								onDeleteEvent={() => handleBackToList()}
+								refreshToken={eventRefreshKey}
+								onInvitationResponded={loadInvitations}
+							/>
+						)}
+					</Box>
+				) : (
+					/* ── Event list ── */
+					<Stack spacing={2} sx={{ mt: 3 }}>
+						{currentEvents.map((event) => (
+							<Event
+								key={event.id}
+								default_users={userNames}
+								default_jerseys={jerseyNames}
+								default_types={sportTypes}
+								allUsers={allUsers}
+								onDeleteEvent={handleDeleteEvent}
+								data={event}
+								refreshToken={eventRefreshKey}
+								onInvitationResponded={loadInvitations}
+								onOpenDetail={handleOpenDetail}
+							/>
+						))}
+					</Stack>
+				)}
 			</Container>
 
 			{isAdmin && <AdminPanel open={adminOpen} onClose={handleAdminClose} />}
 
-		{authenticated && (
+			{authenticated && (
 				<StatsPanel open={statsOpen} onClose={() => setStatsOpen(false)} />
 			)}
 

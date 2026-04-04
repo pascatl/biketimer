@@ -42,6 +42,7 @@ import LandscapeIcon from "@mui/icons-material/Landscape";
 import SportsTennisIcon from "@mui/icons-material/SportsTennis";
 import PersonAddAltIcon from "@mui/icons-material/PersonAddAlt";
 import PersonIcon from "@mui/icons-material/Person";
+import ShareIcon from "@mui/icons-material/Share";
 import RouteWidget from "./RouteWidget";
 import {
 	updateEvent as apiUpdateEvent,
@@ -82,6 +83,7 @@ export default function Event(props) {
 	);
 	const [editMode, setEditMode] = useState(false);
 	const [currentEvent, setCurrentEvent] = useState(props.data);
+	const [typeAnchor, setTypeAnchor] = useState(null);
 	const [leaderAnchor, setLeaderAnchor] = useState(null);
 	const [jerseyAnchor, setJerseyAnchor] = useState(null);
 	const [inviteOpen, setInviteOpen] = useState(false);
@@ -201,6 +203,20 @@ export default function Event(props) {
 			console.error(err);
 		} finally {
 			setWithdrawLoading(false);
+		}
+	};
+
+	const handleShare = () => {
+		const url = `${window.location.origin}/events/${eventId}`;
+		if (navigator.share) {
+			navigator.share({
+				title: `Event ${date ? new Date(date + "T00:00:00").toLocaleDateString("de-DE") : ""}`,
+				url,
+			}).catch(() => {});
+		} else {
+			navigator.clipboard.writeText(url).then(() => {
+				setToast({ message: "Link kopiert!", severity: "success" });
+			});
 		}
 	};
 
@@ -405,7 +421,10 @@ export default function Event(props) {
 								/>
 							</Box>
 						) : (
-							<Box>
+							<Box
+								onClick={props.onOpenDetail ? () => props.onOpenDetail(eventId) : undefined}
+								sx={props.onOpenDetail ? { cursor: "pointer", "&:hover .event-date": { textDecoration: "underline" } } : {}}
+							>
 								<Typography
 									variant="overline"
 									sx={{
@@ -419,6 +438,7 @@ export default function Event(props) {
 									{date ? convertDate(date)[0] : ""}
 								</Typography>
 								<Typography
+									className="event-date"
 									variant="h5"
 									sx={{
 										fontWeight: 700,
@@ -606,6 +626,22 @@ export default function Event(props) {
 									</IconButton>
 								</Tooltip>
 							)}
+							<Tooltip title="Teilen / Link kopieren">
+								<IconButton
+									size="small"
+									onClick={handleShare}
+									sx={{
+										ml: 0.25,
+										color: "text.secondary",
+										"&:hover": {
+											bgcolor: "rgba(45,60,89,0.08)",
+											color: "primary.main",
+										},
+									}}
+								>
+									<ShareIcon fontSize="small" />
+								</IconButton>
+							</Tooltip>
 						</Box>
 					}
 					sx={{ pb: hasBody ? 0 : 2, pt: 2 }}

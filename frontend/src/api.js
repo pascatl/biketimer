@@ -24,6 +24,13 @@ export async function fetchMyEvents() {
 	return res.json();
 }
 
+export async function fetchEvent(id) {
+	const headers = authHeaders();
+	const res = await fetch(`${API_URL}/events/${id}`, { headers });
+	if (!res.ok) throw new Error(res.status === 403 ? "Kein Zugriff" : "Event nicht gefunden");
+	return res.json();
+}
+
 export async function createEvent(eventData) {
 	const headers = authHeaders();
 	const res = await fetch(`${API_URL}/events`, {

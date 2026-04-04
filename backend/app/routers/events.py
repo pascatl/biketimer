@@ -53,6 +53,42 @@ def get_my_events(
     )
 
 
+@router.get("/{event_id}", response_model=EventResponse)
+def get_event(
+    event_id: int,
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    event = db.query(Event).filter(Event.id == event_id).first()
+    if not event:
+        raise HTTPException(status_code=404, detail="Event nicht gefunden")
+
+    sub = user["sub"]
+    email = user.get("email")
+
+    # Creator always has access
+    if event.creator_keycloak_id == sub:
+        return event
+
+    # Check if user has an invitation
+    inv_conditions = [Invitation.invitee_keycloak_id == sub]
+    if email:
+        inv_conditions.append(Invitation.invitee_email == email)
+
+    has_invitation = (
+        db.query(Invitation)
+        .filter(
+            Invitation.event_id == event_id,
+            or_(*inv_conditions),
+        )
+        .first()
+    )
+    if not has_invitation:
+        raise HTTPException(status_code=403, detail="Kein Zugriff auf dieses Event")
+
+    return event
+
+
 @router.get("/{event_id}/invitations")
 def get_event_invitations(event_id: int, db: Session = Depends(get_db)):
     """Return all invitations for an event (no auth required)."""
