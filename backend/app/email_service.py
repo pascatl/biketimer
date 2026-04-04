@@ -1,7 +1,9 @@
 import os
 import smtplib
+from email.headerregistry import Address
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from email.utils import formataddr, formatdate, make_msgid
 
 SMTP_HOST = os.getenv("SMTP_HOST", "localhost")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
@@ -92,10 +94,24 @@ def send_invitation_email(
             frontend_url=FRONTEND_URL,
         )
 
+        text_body = (
+            f"Hallo,\n\n"
+            f"{inviter_name} hat dich zu einem Radausflug eingeladen!\n\n"
+            f"Datum: {event_date}\n"
+            f"Typ:   {event_type}\n\n"
+            f"Einladung annehmen oder ablehnen:\n{FRONTEND_URL}\n\n"
+            f"-- Biketimer"
+        )
+        _domain = SMTP_FROM.split("@")[-1] if "@" in SMTP_FROM else "biketimer.local"
+
         msg = MIMEMultipart("alternative")
         msg["Subject"] = f"Einladung zum Radausflug am {event_date}"
-        msg["From"] = SMTP_FROM
+        msg["From"] = formataddr(("Biketimer", SMTP_FROM))
         msg["To"] = invitee_email
+        msg["Message-ID"] = make_msgid(domain=_domain)
+        msg["Date"] = formatdate(localtime=True)
+        # plain text must come first so HTML is preferred fallback
+        msg.attach(MIMEText(text_body, "plain", "utf-8"))
         msg.attach(MIMEText(html_body, "html", "utf-8"))
 
         with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
@@ -169,10 +185,22 @@ def send_welcome_email(recipient_email: str, display_name: str) -> None:
             display_name=display_name or "neues Mitglied",
             frontend_url=FRONTEND_URL,
         )
+        text_body = (
+            f"Hallo {display_name or 'neues Mitglied'},\n\n"
+            f"willkommen bei Biketimer! Dein Konto wurde erfolgreich erstellt.\n\n"
+            f"Du kannst dich ab sofort anmelden und Events einsehen.\n\n"
+            f"{FRONTEND_URL}\n\n"
+            f"-- Biketimer"
+        )
+        _domain = SMTP_FROM.split("@")[-1] if "@" in SMTP_FROM else "biketimer.local"
+
         msg = MIMEMultipart("alternative")
         msg["Subject"] = "Willkommen bei Biketimer!"
-        msg["From"] = SMTP_FROM
+        msg["From"] = formataddr(("Biketimer", SMTP_FROM))
         msg["To"] = recipient_email
+        msg["Message-ID"] = make_msgid(domain=_domain)
+        msg["Date"] = formatdate(localtime=True)
+        msg.attach(MIMEText(text_body, "plain", "utf-8"))
         msg.attach(MIMEText(html_body, "html", "utf-8"))
 
         with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
