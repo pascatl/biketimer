@@ -1,16 +1,63 @@
 import uuid
 from sqlalchemy import (
+    Boolean,
     Column,
     DateTime,
     ForeignKey,
     Integer,
     String,
+    Text,
     func,
 )
 from sqlalchemy.dialects.postgresql import JSON, UUID
 from sqlalchemy.orm import relationship
 
 from .database import Base
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    keycloak_id = Column(String(255), unique=True, nullable=True)
+    name = Column(String(255), nullable=False)
+    email = Column(String(255), nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
+
+
+class Jersey(Base):
+    __tablename__ = "jerseys"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(255), nullable=False, unique=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+    sort_order = Column(Integer, default=0, nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
+
+
+class SportType(Base):
+    __tablename__ = "sport_types"
+
+    id = Column(Integer, primary_key=True, index=True)
+    key = Column(String(100), nullable=False, unique=True)
+    label = Column(String(255), nullable=False)
+    icon = Column(String(100), nullable=False, default="DirectionsBike")
+    color = Column(String(20), nullable=False, default="#2D3C59")
+    is_active = Column(Boolean, default=True, nullable=False)
+    sort_order = Column(Integer, default=0, nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
+
+
+class PushSubscription(Base):
+    __tablename__ = "push_subscriptions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    keycloak_id = Column(String(255), nullable=False)
+    endpoint = Column(Text, nullable=False, unique=True)
+    p256dh = Column(Text, nullable=False)
+    auth = Column(Text, nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
 
 
 class Event(Base):

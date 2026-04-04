@@ -8,15 +8,24 @@ import { ThemeProvider, CssBaseline } from "@mui/material";
 import theme from "./theme";
 import App from "./App";
 import "./index.css";
-import { AuthProvider } from "./auth/AuthContext";
+import { AuthProvider, useAuth } from "./auth/AuthContext";
 import LoginDialog from "./components/LoginDialog";
+
+function AuthGate() {
+	const { authenticated } = useAuth();
+	return (
+		<>
+			<LoginDialog />
+			{authenticated && <App />}
+		</>
+	);
+}
 
 ReactDOM.createRoot(document.getElementById("root")).render(
 	<ThemeProvider theme={theme}>
 		<CssBaseline />
 		<AuthProvider>
-			<LoginDialog />
-			<App />
+			<AuthGate />
 		</AuthProvider>
 	</ThemeProvider>,
 );

@@ -83,3 +83,28 @@ def decline_invitation(
     inv.responded_at = datetime.now(timezone.utc)
     db.commit()
     return {"ok": True}
+
+
+@router.delete("/{invitation_id}")
+def revoke_invitation(
+    invitation_id: int,
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    """Revoke/withdraw an invitation. Only the inviter or an admin can do this."""
+    inv = db.query(Invitation).filter(Invitation.id == invitation_id).first()
+    if not inv:
+        raise HTTPException(status_code=404, detail="Einladung nicht gefunden")
+
+    is_admin = user.get("is_admin", False)
+    is_inviter = inv.inviter_keycloak_id == user["sub"]
+
+    if not is_admin and not is_inviter:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Nur der Einladende oder ein Admin kann Einladungen zurücknehmen",
+        )
+
+    db.delete(inv)
+    db.commit()
+    return {"ok": True}

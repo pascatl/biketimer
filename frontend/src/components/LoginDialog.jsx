@@ -58,6 +58,17 @@ export default function LoginDialog() {
 			disableEscapeKeyDown={!authenticated}
 			maxWidth="xs"
 			fullWidth
+			slotProps={{
+				backdrop: {
+					sx: !authenticated
+						? {
+								bgcolor: "primary.main",
+								backgroundImage:
+									"radial-gradient(circle at 50% 30%, rgba(229,186,65,0.08) 0%, transparent 60%)",
+							}
+						: {},
+				},
+			}}
 			PaperProps={{
 				sx: {
 					borderRadius: 3,

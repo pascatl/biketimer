@@ -3,54 +3,33 @@ import { Container, Box, Stack } from "@mui/material";
 import Event from "./components/Event";
 import TopBar from "./components/TopBar";
 import InvitationsBanner from "./components/InvitationsBanner";
-import { fetchEvents, createEvent, fetchMyInvitations } from "./api";
+import AdminPanel from "./components/AdminPanel";
+import StatsPanel from "./components/StatsPanel";
 import {
-	faMountain,
-	faRoad,
-	faBaseball,
-} from "@fortawesome/free-solid-svg-icons";
+	fetchEvents,
+	createEvent,
+	fetchMyInvitations,
+	fetchUsers,
+	fetchJerseys,
+	fetchSportTypes,
+	fetchVapidPublicKey,
+	subscribePush,
+} from "./api";
 import { useAuth } from "./auth/AuthContext";
 
 export default function App() {
 	const { user, authenticated } = useAuth();
 	const [currentEvents, setCurrentEvents] = useState([]);
 	const [invitations, setInvitations] = useState([]);
+	const [allUsers, setAllUsers] = useState([]);
+	const [jerseys, setJerseys] = useState([]);
+	const [sportTypes, setSportTypes] = useState({});
+	const [adminOpen, setAdminOpen] = useState(false);
+	const [statsOpen, setStatsOpen] = useState(false);
 
 	const allowedDays = [5]; // Friday
 	const default_startTime = "15:00";
 	const defaultType = "rennrad";
-
-	const default_users = [
-		"Pascal",
-		"Flo",
-		"Jan",
-		"Max B.",
-		"Jonas",
-		"Samuel",
-		"Tom",
-		"Alex",
-		"David",
-		"Max H.",
-		"Gil",
-		"Tim",
-		"Miri",
-	].sort();
-
-	const default_types = {
-		rennrad: { alias: "Rennrad", icon: faRoad },
-		mtb: { alias: "MTB", icon: faMountain },
-		squash: { alias: "Squash", icon: faBaseball },
-	};
-
-	const jerseys = [
-		"McDonalds",
-		"FDJ",
-		"Deutschlandtour",
-		"Dr. Kamm",
-		"Cofidis",
-		"HTC",
-		"freie Auswahl",
-	];
 
 	const defaultEvent = {
 		id: null,
@@ -66,6 +45,50 @@ export default function App() {
 			event_link: "",
 		},
 	};
+
+	// ── Load users from DB ────────────────────────────────────
+	const loadUsers = useCallback(async () => {
+		try {
+			const data = await fetchUsers();
+			setAllUsers(data);
+		} catch (err) {
+			console.error("Fehler beim Laden der Benutzer:", err);
+		}
+	}, []);
+
+	// ── Load jerseys from DB ──────────────────────────────────
+	const loadJerseys = useCallback(async () => {
+		try {
+			const data = await fetchJerseys();
+			setJerseys(data);
+		} catch (err) {
+			console.error("Fehler beim Laden der Trikots:", err);
+		}
+	}, []);
+
+	// ── Load sport types from DB ──────────────────────────────
+	const loadSportTypes = useCallback(async () => {
+		try {
+			const data = await fetchSportTypes();
+			const typesMap = {};
+			data.forEach((t) => {
+				typesMap[t.key] = {
+					label: t.label,
+					icon: t.icon,
+					color: t.color,
+				};
+			});
+			setSportTypes(typesMap);
+		} catch (err) {
+			console.error("Fehler beim Laden der Sportarten:", err);
+		}
+	}, []);
+
+	useEffect(() => {
+		loadUsers();
+		loadJerseys();
+		loadSportTypes();
+	}, [loadUsers, loadJerseys, loadSportTypes]);
 
 	// ── Load events ───────────────────────────────────────────
 	const loadEvents = useCallback(async () => {
@@ -101,6 +124,44 @@ export default function App() {
 		loadInvitations();
 	}, [loadInvitations]);
 
+	// ── Register for push notifications ───────────────────────
+	useEffect(() => {
+		if (!authenticated) return;
+		const registerPush = async () => {
+			try {
+				if (!("serviceWorker" in navigator) || !("PushManager" in window))
+					return;
+				const vapidKey = await fetchVapidPublicKey();
+				if (!vapidKey) return;
+
+				const reg = await navigator.serviceWorker.ready;
+				let sub = await reg.pushManager.getSubscription();
+				if (!sub) {
+					const urlBase64ToUint8Array = (base64String) => {
+						const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+						const base64 = (base64String + padding)
+							.replace(/-/g, "+")
+							.replace(/_/g, "/");
+						const rawData = window.atob(base64);
+						return Uint8Array.from([...rawData].map((c) => c.charCodeAt(0)));
+					};
+					sub = await reg.pushManager.subscribe({
+						userVisibleOnly: true,
+						applicationServerKey: urlBase64ToUint8Array(vapidKey),
+					});
+				}
+				await subscribePush(sub);
+			} catch (err) {
+				console.log("Push registration skipped:", err.message);
+			}
+		};
+		registerPush();
+	}, [authenticated]);
+
+	// ── Derive simple lists for components ────────────────────
+	const userNames = allUsers.map((u) => u.name).sort();
+	const jerseyNames = jerseys.map((j) => j.name);
+
 	// ── Handlers ──────────────────────────────────────────────
 	const handleAddEvent = async (event) => {
 		try {
@@ -122,6 +183,16 @@ export default function App() {
 		setCurrentEvents((prev) => prev.filter((e) => e.id !== eventId));
 	};
 
+	const handleAdminClose = () => {
+		setAdminOpen(false);
+		// Reload data after admin changes
+		loadUsers();
+		loadJerseys();
+		loadSportTypes();
+	};
+
+	const isAdmin = user?.is_admin || false;
+
 	return (
 		<Box
 			sx={{
@@ -136,6 +207,9 @@ export default function App() {
 				onAddEvent={handleAddEvent}
 				defaultEvent={defaultEvent}
 				invitationCount={invitations.length}
+				isAdmin={isAdmin}
+				onAdminOpen={() => setAdminOpen(true)}
+				onStatsOpen={() => setStatsOpen(true)}
 			/>
 			<Container maxWidth="md">
 				<Stack spacing={2} sx={{ mt: 3 }}>
@@ -148,15 +222,22 @@ export default function App() {
 					{currentEvents.map((event) => (
 						<Event
 							key={event.id}
-							default_users={default_users}
-							default_jerseys={jerseys}
-							default_types={default_types}
+							default_users={userNames}
+							default_jerseys={jerseyNames}
+							default_types={sportTypes}
+							allUsers={allUsers}
 							onDeleteEvent={handleDeleteEvent}
 							data={event}
 						/>
 					))}
 				</Stack>
 			</Container>
+
+			{isAdmin && <AdminPanel open={adminOpen} onClose={handleAdminClose} />}
+
+			{authenticated && (
+				<StatsPanel open={statsOpen} onClose={() => setStatsOpen(false)} />
+			)}
 		</Box>
 	);
 }

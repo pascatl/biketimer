@@ -41,11 +41,15 @@ def _decode_token(token: str) -> dict:
         issuer=ISSUER,
         options={"verify_aud": False},
     )
+    # Extract realm roles
+    realm_roles = payload.get("realm_access", {}).get("roles", [])
     return {
         "sub": payload.get("sub"),
         "email": payload.get("email"),
         "name": payload.get("name") or payload.get("preferred_username", ""),
         "preferred_username": payload.get("preferred_username", ""),
+        "roles": realm_roles,
+        "is_admin": "admin" in realm_roles,
     }
 
 
@@ -75,3 +79,13 @@ def get_current_user_optional(
         return _decode_token(token)
     except Exception:
         return None
+
+
+def require_admin(user: dict = Depends(get_current_user)) -> dict:
+    """Dependency that requires the user to have the 'admin' realm role."""
+    if not user.get("is_admin"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin-Berechtigung erforderlich",
+        )
+    return user

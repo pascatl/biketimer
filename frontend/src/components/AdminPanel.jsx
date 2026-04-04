@@ -1,0 +1,839 @@
+import React, { useCallback, useEffect, useState } from "react";
+import {
+	Box,
+	Button,
+	Card,
+	CardContent,
+	Chip,
+	Dialog,
+	DialogActions,
+	DialogContent,
+	DialogTitle,
+	Divider,
+	IconButton,
+	List,
+	ListItem,
+	ListItemSecondaryAction,
+	ListItemText,
+	Stack,
+	Tab,
+	Tabs,
+	TextField,
+	Tooltip,
+	Typography,
+} from "@mui/material";
+import AddIcon from "@mui/icons-material/Add";
+import CloseIcon from "@mui/icons-material/Close";
+import DeleteIcon from "@mui/icons-material/Delete";
+import EditIcon from "@mui/icons-material/Edit";
+import SaveIcon from "@mui/icons-material/Save";
+import PeopleIcon from "@mui/icons-material/People";
+import CheckroomIcon from "@mui/icons-material/Checkroom";
+import SportsTennisIcon from "@mui/icons-material/SportsTennis";
+import SettingsIcon from "@mui/icons-material/Settings";
+import {
+	adminFetchUsers,
+	adminCreateUser,
+	adminUpdateUser,
+	adminDeleteUser,
+	adminFetchJerseys,
+	adminCreateJersey,
+	adminUpdateJersey,
+	adminDeleteJersey,
+	adminFetchSportTypes,
+	adminCreateSportType,
+	adminUpdateSportType,
+	adminDeleteSportType,
+} from "../api";
+
+function TabPanel({ children, value, index }) {
+	return value === index ? <Box sx={{ pt: 2 }}>{children}</Box> : null;
+}
+
+// ── User Management ──────────────────────────────────────────
+function UserManager() {
+	const [users, setUsers] = useState([]);
+	const [editId, setEditId] = useState(null);
+	const [editData, setEditData] = useState({});
+	const [addOpen, setAddOpen] = useState(false);
+	const [newName, setNewName] = useState("");
+	const [newEmail, setNewEmail] = useState("");
+
+	const load = useCallback(async () => {
+		try {
+			setUsers(await adminFetchUsers());
+		} catch (e) {
+			console.error(e);
+		}
+	}, []);
+
+	useEffect(() => {
+		load();
+	}, [load]);
+
+	const handleAdd = async () => {
+		if (!newName.trim()) return;
+		try {
+			await adminCreateUser({
+				name: newName.trim(),
+				email: newEmail.trim() || null,
+			});
+			setNewName("");
+			setNewEmail("");
+			setAddOpen(false);
+			load();
+		} catch (e) {
+			alert(e.message);
+		}
+	};
+
+	const handleSave = async (id) => {
+		try {
+			await adminUpdateUser(id, editData);
+			setEditId(null);
+			load();
+		} catch (e) {
+			alert(e.message);
+		}
+	};
+
+	const handleDelete = async (id) => {
+		if (!confirm("Benutzer wirklich löschen?")) return;
+		try {
+			await adminDeleteUser(id);
+			load();
+		} catch (e) {
+			alert(e.message);
+		}
+	};
+
+	const startEdit = (u) => {
+		setEditId(u.id);
+		setEditData({ name: u.name, email: u.email || "", is_active: u.is_active });
+	};
+
+	return (
+		<Box>
+			<Box
+				sx={{
+					display: "flex",
+					justifyContent: "space-between",
+					alignItems: "center",
+					mb: 2,
+				}}
+			>
+				<Typography variant="h6" sx={{ fontWeight: 700 }}>
+					Personen
+				</Typography>
+				<Button
+					startIcon={<AddIcon />}
+					variant="contained"
+					size="small"
+					disableElevation
+					onClick={() => setAddOpen(true)}
+					sx={{
+						bgcolor: "#E5BA41",
+						color: "#2D3C59",
+						fontWeight: 700,
+						"&:hover": { bgcolor: "#d4a92e" },
+					}}
+				>
+					Hinzufügen
+				</Button>
+			</Box>
+			<List dense>
+				{users.map((u) => (
+					<ListItem
+						key={u.id}
+						sx={{
+							bgcolor: !u.is_active ? "rgba(0,0,0,0.04)" : "transparent",
+							borderRadius: 1,
+							mb: 0.5,
+						}}
+					>
+						{editId === u.id ? (
+							<Box
+								sx={{ display: "flex", gap: 1, flex: 1, alignItems: "center" }}
+							>
+								<TextField
+									size="small"
+									label="Name"
+									value={editData.name}
+									onChange={(e) =>
+										setEditData({ ...editData, name: e.target.value })
+									}
+									sx={{ flex: 1 }}
+								/>
+								<TextField
+									size="small"
+									label="E-Mail"
+									value={editData.email}
+									onChange={(e) =>
+										setEditData({ ...editData, email: e.target.value })
+									}
+									sx={{ flex: 1 }}
+								/>
+								<Tooltip title={editData.is_active ? "Aktiv" : "Inaktiv"}>
+									<Chip
+										label={editData.is_active ? "Aktiv" : "Inaktiv"}
+										size="small"
+										onClick={() =>
+											setEditData({
+												...editData,
+												is_active: !editData.is_active,
+											})
+										}
+										sx={{
+											cursor: "pointer",
+											bgcolor: editData.is_active ? "#94A378" : "#D1855C",
+											color: "#fff",
+											fontWeight: 600,
+										}}
+									/>
+								</Tooltip>
+								<IconButton size="small" onClick={() => handleSave(u.id)}>
+									<SaveIcon fontSize="small" />
+								</IconButton>
+								<IconButton size="small" onClick={() => setEditId(null)}>
+									<CloseIcon fontSize="small" />
+								</IconButton>
+							</Box>
+						) : (
+							<>
+								<ListItemText
+									primary={u.name}
+									secondary={u.email || "–"}
+									sx={{ opacity: u.is_active ? 1 : 0.5 }}
+								/>
+								<ListItemSecondaryAction>
+									{!u.is_active && (
+										<Chip
+											label="Inaktiv"
+											size="small"
+											sx={{ mr: 1, fontSize: "0.7rem" }}
+										/>
+									)}
+									<IconButton size="small" onClick={() => startEdit(u)}>
+										<EditIcon fontSize="small" />
+									</IconButton>
+									<IconButton size="small" onClick={() => handleDelete(u.id)}>
+										<DeleteIcon fontSize="small" />
+									</IconButton>
+								</ListItemSecondaryAction>
+							</>
+						)}
+					</ListItem>
+				))}
+			</List>
+			{/* Add Dialog */}
+			<Dialog
+				open={addOpen}
+				onClose={() => setAddOpen(false)}
+				maxWidth="xs"
+				fullWidth
+				PaperProps={{ sx: { borderRadius: 3 } }}
+			>
+				<DialogTitle sx={{ fontWeight: 700 }}>Person hinzufügen</DialogTitle>
+				<DialogContent>
+					<Stack spacing={2} sx={{ pt: 1 }}>
+						<TextField
+							label="Name"
+							size="small"
+							fullWidth
+							value={newName}
+							onChange={(e) => setNewName(e.target.value)}
+							autoFocus
+						/>
+						<TextField
+							label="E-Mail (optional)"
+							size="small"
+							fullWidth
+							value={newEmail}
+							onChange={(e) => setNewEmail(e.target.value)}
+						/>
+					</Stack>
+				</DialogContent>
+				<DialogActions sx={{ px: 3, pb: 2 }}>
+					<Button onClick={() => setAddOpen(false)} color="inherit">
+						Abbrechen
+					</Button>
+					<Button
+						onClick={handleAdd}
+						variant="contained"
+						disableElevation
+						disabled={!newName.trim()}
+						sx={{
+							bgcolor: "#E5BA41",
+							color: "#2D3C59",
+							fontWeight: 700,
+							"&:hover": { bgcolor: "#d4a92e" },
+						}}
+					>
+						Hinzufügen
+					</Button>
+				</DialogActions>
+			</Dialog>
+		</Box>
+	);
+}
+
+// ── Jersey Management ────────────────────────────────────────
+function JerseyManager() {
+	const [jerseys, setJerseys] = useState([]);
+	const [editId, setEditId] = useState(null);
+	const [editData, setEditData] = useState({});
+	const [addOpen, setAddOpen] = useState(false);
+	const [newName, setNewName] = useState("");
+
+	const load = useCallback(async () => {
+		try {
+			setJerseys(await adminFetchJerseys());
+		} catch (e) {
+			console.error(e);
+		}
+	}, []);
+
+	useEffect(() => {
+		load();
+	}, [load]);
+
+	const handleAdd = async () => {
+		if (!newName.trim()) return;
+		try {
+			await adminCreateJersey({
+				name: newName.trim(),
+				sort_order: jerseys.length,
+			});
+			setNewName("");
+			setAddOpen(false);
+			load();
+		} catch (e) {
+			alert(e.message);
+		}
+	};
+
+	const handleSave = async (id) => {
+		try {
+			await adminUpdateJersey(id, editData);
+			setEditId(null);
+			load();
+		} catch (e) {
+			alert(e.message);
+		}
+	};
+
+	const handleDelete = async (id) => {
+		if (!confirm("Trikot wirklich löschen?")) return;
+		try {
+			await adminDeleteJersey(id);
+			load();
+		} catch (e) {
+			alert(e.message);
+		}
+	};
+
+	return (
+		<Box>
+			<Box
+				sx={{
+					display: "flex",
+					justifyContent: "space-between",
+					alignItems: "center",
+					mb: 2,
+				}}
+			>
+				<Typography variant="h6" sx={{ fontWeight: 700 }}>
+					Trikots
+				</Typography>
+				<Button
+					startIcon={<AddIcon />}
+					variant="contained"
+					size="small"
+					disableElevation
+					onClick={() => setAddOpen(true)}
+					sx={{
+						bgcolor: "#E5BA41",
+						color: "#2D3C59",
+						fontWeight: 700,
+						"&:hover": { bgcolor: "#d4a92e" },
+					}}
+				>
+					Hinzufügen
+				</Button>
+			</Box>
+			<List dense>
+				{jerseys.map((j) => (
+					<ListItem
+						key={j.id}
+						sx={{
+							bgcolor: !j.is_active ? "rgba(0,0,0,0.04)" : "transparent",
+							borderRadius: 1,
+							mb: 0.5,
+						}}
+					>
+						{editId === j.id ? (
+							<Box
+								sx={{ display: "flex", gap: 1, flex: 1, alignItems: "center" }}
+							>
+								<TextField
+									size="small"
+									label="Name"
+									value={editData.name}
+									onChange={(e) =>
+										setEditData({ ...editData, name: e.target.value })
+									}
+									sx={{ flex: 1 }}
+								/>
+								<Chip
+									label={editData.is_active ? "Aktiv" : "Inaktiv"}
+									size="small"
+									onClick={() =>
+										setEditData({ ...editData, is_active: !editData.is_active })
+									}
+									sx={{
+										cursor: "pointer",
+										bgcolor: editData.is_active ? "#94A378" : "#D1855C",
+										color: "#fff",
+										fontWeight: 600,
+									}}
+								/>
+								<IconButton size="small" onClick={() => handleSave(j.id)}>
+									<SaveIcon fontSize="small" />
+								</IconButton>
+								<IconButton size="small" onClick={() => setEditId(null)}>
+									<CloseIcon fontSize="small" />
+								</IconButton>
+							</Box>
+						) : (
+							<>
+								<ListItemText
+									primary={j.name}
+									sx={{ opacity: j.is_active ? 1 : 0.5 }}
+								/>
+								<ListItemSecondaryAction>
+									{!j.is_active && (
+										<Chip
+											label="Inaktiv"
+											size="small"
+											sx={{ mr: 1, fontSize: "0.7rem" }}
+										/>
+									)}
+									<IconButton
+										size="small"
+										onClick={() => {
+											setEditId(j.id);
+											setEditData({ name: j.name, is_active: j.is_active });
+										}}
+									>
+										<EditIcon fontSize="small" />
+									</IconButton>
+									<IconButton size="small" onClick={() => handleDelete(j.id)}>
+										<DeleteIcon fontSize="small" />
+									</IconButton>
+								</ListItemSecondaryAction>
+							</>
+						)}
+					</ListItem>
+				))}
+			</List>
+			<Dialog
+				open={addOpen}
+				onClose={() => setAddOpen(false)}
+				maxWidth="xs"
+				fullWidth
+				PaperProps={{ sx: { borderRadius: 3 } }}
+			>
+				<DialogTitle sx={{ fontWeight: 700 }}>Trikot hinzufügen</DialogTitle>
+				<DialogContent>
+					<TextField
+						label="Name"
+						size="small"
+						fullWidth
+						value={newName}
+						onChange={(e) => setNewName(e.target.value)}
+						autoFocus
+						sx={{ mt: 1 }}
+					/>
+				</DialogContent>
+				<DialogActions sx={{ px: 3, pb: 2 }}>
+					<Button onClick={() => setAddOpen(false)} color="inherit">
+						Abbrechen
+					</Button>
+					<Button
+						onClick={handleAdd}
+						variant="contained"
+						disableElevation
+						disabled={!newName.trim()}
+						sx={{
+							bgcolor: "#E5BA41",
+							color: "#2D3C59",
+							fontWeight: 700,
+							"&:hover": { bgcolor: "#d4a92e" },
+						}}
+					>
+						Hinzufügen
+					</Button>
+				</DialogActions>
+			</Dialog>
+		</Box>
+	);
+}
+
+// ── Sport Type Management ────────────────────────────────────
+function SportTypeManager() {
+	const [types, setTypes] = useState([]);
+	const [editId, setEditId] = useState(null);
+	const [editData, setEditData] = useState({});
+	const [addOpen, setAddOpen] = useState(false);
+	const [newData, setNewData] = useState({
+		key: "",
+		label: "",
+		icon: "DirectionsBike",
+		color: "#2D3C59",
+	});
+
+	const load = useCallback(async () => {
+		try {
+			setTypes(await adminFetchSportTypes());
+		} catch (e) {
+			console.error(e);
+		}
+	}, []);
+
+	useEffect(() => {
+		load();
+	}, [load]);
+
+	const iconOptions = ["DirectionsBike", "Landscape", "SportsTennis"];
+
+	const handleAdd = async () => {
+		if (!newData.key.trim() || !newData.label.trim()) return;
+		try {
+			await adminCreateSportType({ ...newData, sort_order: types.length });
+			setNewData({
+				key: "",
+				label: "",
+				icon: "DirectionsBike",
+				color: "#2D3C59",
+			});
+			setAddOpen(false);
+			load();
+		} catch (e) {
+			alert(e.message);
+		}
+	};
+
+	const handleSave = async (id) => {
+		try {
+			await adminUpdateSportType(id, editData);
+			setEditId(null);
+			load();
+		} catch (e) {
+			alert(e.message);
+		}
+	};
+
+	const handleDelete = async (id) => {
+		if (!confirm("Sportart wirklich löschen?")) return;
+		try {
+			await adminDeleteSportType(id);
+			load();
+		} catch (e) {
+			alert(e.message);
+		}
+	};
+
+	return (
+		<Box>
+			<Box
+				sx={{
+					display: "flex",
+					justifyContent: "space-between",
+					alignItems: "center",
+					mb: 2,
+				}}
+			>
+				<Typography variant="h6" sx={{ fontWeight: 700 }}>
+					Sportarten
+				</Typography>
+				<Button
+					startIcon={<AddIcon />}
+					variant="contained"
+					size="small"
+					disableElevation
+					onClick={() => setAddOpen(true)}
+					sx={{
+						bgcolor: "#E5BA41",
+						color: "#2D3C59",
+						fontWeight: 700,
+						"&:hover": { bgcolor: "#d4a92e" },
+					}}
+				>
+					Hinzufügen
+				</Button>
+			</Box>
+			<List dense>
+				{types.map((t) => (
+					<ListItem
+						key={t.id}
+						sx={{
+							bgcolor: !t.is_active ? "rgba(0,0,0,0.04)" : "transparent",
+							borderRadius: 1,
+							mb: 0.5,
+						}}
+					>
+						{editId === t.id ? (
+							<Box
+								sx={{
+									display: "flex",
+									gap: 1,
+									flex: 1,
+									flexWrap: "wrap",
+									alignItems: "center",
+								}}
+							>
+								<TextField
+									size="small"
+									label="Key"
+									value={editData.key}
+									onChange={(e) =>
+										setEditData({ ...editData, key: e.target.value })
+									}
+									sx={{ width: 100 }}
+								/>
+								<TextField
+									size="small"
+									label="Label"
+									value={editData.label}
+									onChange={(e) =>
+										setEditData({ ...editData, label: e.target.value })
+									}
+									sx={{ flex: 1 }}
+								/>
+								<TextField
+									size="small"
+									label="Farbe"
+									type="color"
+									value={editData.color}
+									onChange={(e) =>
+										setEditData({ ...editData, color: e.target.value })
+									}
+									sx={{ width: 80 }}
+								/>
+								<Chip
+									label={editData.is_active ? "Aktiv" : "Inaktiv"}
+									size="small"
+									onClick={() =>
+										setEditData({ ...editData, is_active: !editData.is_active })
+									}
+									sx={{
+										cursor: "pointer",
+										bgcolor: editData.is_active ? "#94A378" : "#D1855C",
+										color: "#fff",
+										fontWeight: 600,
+									}}
+								/>
+								<IconButton size="small" onClick={() => handleSave(t.id)}>
+									<SaveIcon fontSize="small" />
+								</IconButton>
+								<IconButton size="small" onClick={() => setEditId(null)}>
+									<CloseIcon fontSize="small" />
+								</IconButton>
+							</Box>
+						) : (
+							<>
+								<Box
+									sx={{
+										width: 16,
+										height: 16,
+										borderRadius: "50%",
+										bgcolor: t.color,
+										mr: 1.5,
+										flexShrink: 0,
+									}}
+								/>
+								<ListItemText
+									primary={t.label}
+									secondary={t.key}
+									sx={{ opacity: t.is_active ? 1 : 0.5 }}
+								/>
+								<ListItemSecondaryAction>
+									{!t.is_active && (
+										<Chip
+											label="Inaktiv"
+											size="small"
+											sx={{ mr: 1, fontSize: "0.7rem" }}
+										/>
+									)}
+									<IconButton
+										size="small"
+										onClick={() => {
+											setEditId(t.id);
+											setEditData({
+												key: t.key,
+												label: t.label,
+												icon: t.icon,
+												color: t.color,
+												is_active: t.is_active,
+											});
+										}}
+									>
+										<EditIcon fontSize="small" />
+									</IconButton>
+									<IconButton size="small" onClick={() => handleDelete(t.id)}>
+										<DeleteIcon fontSize="small" />
+									</IconButton>
+								</ListItemSecondaryAction>
+							</>
+						)}
+					</ListItem>
+				))}
+			</List>
+			<Dialog
+				open={addOpen}
+				onClose={() => setAddOpen(false)}
+				maxWidth="xs"
+				fullWidth
+				PaperProps={{ sx: { borderRadius: 3 } }}
+			>
+				<DialogTitle sx={{ fontWeight: 700 }}>Sportart hinzufügen</DialogTitle>
+				<DialogContent>
+					<Stack spacing={2} sx={{ pt: 1 }}>
+						<TextField
+							label="Key (z.B. rennrad)"
+							size="small"
+							fullWidth
+							value={newData.key}
+							onChange={(e) => setNewData({ ...newData, key: e.target.value })}
+							autoFocus
+						/>
+						<TextField
+							label="Anzeigename"
+							size="small"
+							fullWidth
+							value={newData.label}
+							onChange={(e) =>
+								setNewData({ ...newData, label: e.target.value })
+							}
+						/>
+						<TextField
+							label="Farbe"
+							type="color"
+							size="small"
+							value={newData.color}
+							onChange={(e) =>
+								setNewData({ ...newData, color: e.target.value })
+							}
+						/>
+					</Stack>
+				</DialogContent>
+				<DialogActions sx={{ px: 3, pb: 2 }}>
+					<Button onClick={() => setAddOpen(false)} color="inherit">
+						Abbrechen
+					</Button>
+					<Button
+						onClick={handleAdd}
+						variant="contained"
+						disableElevation
+						disabled={!newData.key.trim() || !newData.label.trim()}
+						sx={{
+							bgcolor: "#E5BA41",
+							color: "#2D3C59",
+							fontWeight: 700,
+							"&:hover": { bgcolor: "#d4a92e" },
+						}}
+					>
+						Hinzufügen
+					</Button>
+				</DialogActions>
+			</Dialog>
+		</Box>
+	);
+}
+
+// ── Main Admin Panel ─────────────────────────────────────────
+export default function AdminPanel({ open, onClose }) {
+	const [tab, setTab] = useState(0);
+
+	return (
+		<Dialog
+			open={open}
+			onClose={onClose}
+			maxWidth="sm"
+			fullWidth
+			PaperProps={{
+				sx: {
+					borderRadius: 3,
+					minHeight: 500,
+					boxShadow: "0 8px 32px rgba(45,60,89,0.18)",
+				},
+			}}
+		>
+			{/* Header */}
+			<Box
+				sx={{
+					bgcolor: "primary.main",
+					px: 3,
+					py: 2,
+					display: "flex",
+					alignItems: "center",
+					gap: 1.5,
+				}}
+			>
+				<SettingsIcon sx={{ color: "#E5BA41", fontSize: 22 }} />
+				<Typography
+					variant="h6"
+					sx={{ fontWeight: 700, color: "#fff", flex: 1 }}
+				>
+					Admin-Bereich
+				</Typography>
+				<IconButton
+					onClick={onClose}
+					size="small"
+					sx={{ color: "rgba(255,255,255,0.6)", "&:hover": { color: "#fff" } }}
+				>
+					<CloseIcon fontSize="small" />
+				</IconButton>
+			</Box>
+
+			<Divider sx={{ borderColor: "#E5BA41", borderBottomWidth: 3 }} />
+
+			<DialogContent sx={{ px: 3, py: 0 }}>
+				<Tabs
+					value={tab}
+					onChange={(_, v) => setTab(v)}
+					sx={{
+						borderBottom: "1px solid rgba(45,60,89,0.1)",
+						"& .MuiTab-root": { fontWeight: 600, textTransform: "none" },
+					}}
+				>
+					<Tab
+						icon={<PeopleIcon sx={{ fontSize: 18 }} />}
+						iconPosition="start"
+						label="Personen"
+					/>
+					<Tab
+						icon={<CheckroomIcon sx={{ fontSize: 18 }} />}
+						iconPosition="start"
+						label="Trikots"
+					/>
+					<Tab
+						icon={<SportsTennisIcon sx={{ fontSize: 18 }} />}
+						iconPosition="start"
+						label="Sportarten"
+					/>
+				</Tabs>
+
+				<TabPanel value={tab} index={0}>
+					<UserManager />
+				</TabPanel>
+				<TabPanel value={tab} index={1}>
+					<JerseyManager />
+				</TabPanel>
+				<TabPanel value={tab} index={2}>
+					<SportTypeManager />
+				</TabPanel>
+			</DialogContent>
+		</Dialog>
+	);
+}

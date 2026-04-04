@@ -4,6 +4,9 @@ from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, EmailStr
 
 
+# ── Event schemas ─────────────────────────────────────────────
+
+
 class EventData(BaseModel):
     event_date: str
     event_startTime: Optional[str] = "15:00"
@@ -34,8 +37,11 @@ class EventResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+# ── Invitation schemas ────────────────────────────────────────
+
+
 class InvitationCreate(BaseModel):
-    invitee_email: EmailStr
+    invitee_user_ids: List[int]
 
 
 class InvitationResponse(BaseModel):
@@ -46,5 +52,101 @@ class InvitationResponse(BaseModel):
     status: str
     created_at: Optional[datetime] = None
     event_data: Optional[Dict[str, Any]] = None
+
+    model_config = {"from_attributes": True}
+
+
+# ── User schemas ──────────────────────────────────────────────
+
+
+class UserCreate(BaseModel):
+    name: str
+    email: Optional[str] = None
+    keycloak_id: Optional[str] = None
+
+
+class UserUpdate(BaseModel):
+    name: Optional[str] = None
+    email: Optional[str] = None
+    keycloak_id: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+class UserResponse(BaseModel):
+    id: int
+    keycloak_id: Optional[str] = None
+    name: str
+    email: Optional[str] = None
+    is_active: bool
+
+    model_config = {"from_attributes": True}
+
+
+# ── Jersey schemas ────────────────────────────────────────────
+
+
+class JerseyCreate(BaseModel):
+    name: str
+    sort_order: Optional[int] = 0
+
+
+class JerseyUpdate(BaseModel):
+    name: Optional[str] = None
+    is_active: Optional[bool] = None
+    sort_order: Optional[int] = None
+
+
+class JerseyResponse(BaseModel):
+    id: int
+    name: str
+    is_active: bool
+    sort_order: int
+
+    model_config = {"from_attributes": True}
+
+
+# ── SportType schemas ─────────────────────────────────────────
+
+
+class SportTypeCreate(BaseModel):
+    key: str
+    label: str
+    icon: Optional[str] = "DirectionsBike"
+    color: Optional[str] = "#2D3C59"
+    sort_order: Optional[int] = 0
+
+
+class SportTypeUpdate(BaseModel):
+    key: Optional[str] = None
+    label: Optional[str] = None
+    icon: Optional[str] = None
+    color: Optional[str] = None
+    is_active: Optional[bool] = None
+    sort_order: Optional[int] = None
+
+
+class SportTypeResponse(BaseModel):
+    id: int
+    key: str
+    label: str
+    icon: str
+    color: str
+    is_active: bool
+    sort_order: int
+
+    model_config = {"from_attributes": True}
+
+
+# ── Push subscription schemas ─────────────────────────────────
+
+
+class PushSubscriptionCreate(BaseModel):
+    endpoint: str
+    keys: Dict[str, str]  # { p256dh, auth }
+
+
+class PushSubscriptionResponse(BaseModel):
+    id: int
+    endpoint: str
 
     model_config = {"from_attributes": True}

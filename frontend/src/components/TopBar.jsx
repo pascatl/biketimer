@@ -16,6 +16,8 @@ import DirectionsBikeIcon from "@mui/icons-material/DirectionsBike";
 import LogoutIcon from "@mui/icons-material/Logout";
 import LoginIcon from "@mui/icons-material/Login";
 import MailOutlineIcon from "@mui/icons-material/MailOutline";
+import SettingsIcon from "@mui/icons-material/Settings";
+import BarChartIcon from "@mui/icons-material/BarChart";
 import ControlButtons from "./ControlButtons";
 import { useAuth } from "../auth/AuthContext";
 
@@ -33,6 +35,9 @@ const TopBar = ({
 	onAddEvent,
 	defaultEvent,
 	invitationCount,
+	isAdmin,
+	onAdminOpen,
+	onStatsOpen,
 }) => {
 	const { user, authenticated, openLogin, logout } = useAuth();
 	const userName = user?.name || user?.preferred_username || "";
@@ -130,6 +135,36 @@ const TopBar = ({
 										}}
 									/>
 								)}
+								{isAdmin && (
+									<Tooltip title="Admin-Bereich">
+										<Button
+											size="small"
+											onClick={onAdminOpen}
+											sx={{
+												color: "rgba(255,255,255,0.75)",
+												minWidth: 0,
+												px: 0.75,
+												"&:hover": { color: "#E5BA41" },
+											}}
+										>
+											<SettingsIcon sx={{ fontSize: "1.2rem" }} />
+										</Button>
+									</Tooltip>
+								)}
+								<Tooltip title="Statistiken">
+									<Button
+										size="small"
+										onClick={onStatsOpen}
+										sx={{
+											color: "rgba(255,255,255,0.75)",
+											minWidth: 0,
+											px: 0.75,
+											"&:hover": { color: "#E5BA41" },
+										}}
+									>
+										<BarChartIcon sx={{ fontSize: "1.2rem" }} />
+									</Button>
+								</Tooltip>
 								<Tooltip title="Abmelden">
 									<Button
 										size="small"

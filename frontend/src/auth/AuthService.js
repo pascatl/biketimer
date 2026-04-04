@@ -110,11 +110,14 @@ export function isAuthenticated() {
 export function getUserInfo() {
 	if (!_accessToken) return null;
 	const payload = decodeJwt(_accessToken);
+	const realmRoles = payload.realm_access?.roles || [];
 	return {
 		sub: payload.sub,
 		email: payload.email || "",
 		name: payload.name || payload.preferred_username || "",
 		preferred_username: payload.preferred_username || "",
+		roles: realmRoles,
+		is_admin: realmRoles.includes("admin"),
 	};
 }
 

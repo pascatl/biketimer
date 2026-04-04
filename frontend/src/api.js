@@ -9,7 +9,7 @@ function authHeaders() {
 	return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-// Events
+// ── Events ───────────────────────────────────────────────────
 
 export async function fetchEvents() {
 	const res = await fetch(`${API_URL}/events`);
@@ -52,12 +52,12 @@ export async function deleteEvent(id) {
 	return res.json();
 }
 
-export async function inviteUser(eventId, email) {
+export async function inviteUsersToEvent(eventId, userIds) {
 	const headers = authHeaders();
 	const res = await fetch(`${API_URL}/events/${eventId}/invite`, {
 		method: "POST",
 		headers: { "Content-Type": "application/json", ...headers },
-		body: JSON.stringify({ invitee_email: email }),
+		body: JSON.stringify({ invitee_user_ids: userIds }),
 	});
 	if (!res.ok) {
 		const body = await res.json().catch(() => ({}));
@@ -72,7 +72,7 @@ export async function fetchEventInvitations(eventId) {
 	return res.json();
 }
 
-// Invitations
+// ── Invitations ──────────────────────────────────────────────
 
 export async function fetchMyInvitations() {
 	const headers = authHeaders();
@@ -88,5 +88,191 @@ export async function respondInvitation(invitationId, action) {
 		headers,
 	});
 	if (!res.ok) throw new Error("Fehler beim Antworten auf die Einladung");
+	return res.json();
+}
+
+export async function revokeInvitation(invitationId) {
+	const headers = authHeaders();
+	const res = await fetch(`${API_URL}/invitations/${invitationId}`, {
+		method: "DELETE",
+		headers,
+	});
+	if (!res.ok) throw new Error("Fehler beim Zurücknehmen der Einladung");
+	return res.json();
+}
+
+// ── Statistics ───────────────────────────────────────────────
+
+export async function fetchStats() {
+	const headers = authHeaders();
+	const res = await fetch(`${API_URL}/stats`, { headers });
+	if (!res.ok) throw new Error("Fehler beim Laden der Statistiken");
+	return res.json();
+}
+
+// ── Users ────────────────────────────────────────────────────
+
+export async function fetchUsers() {
+	const res = await fetch(`${API_URL}/users`);
+	if (!res.ok) throw new Error("Fehler beim Laden der Benutzer");
+	return res.json();
+}
+
+// ── Data (jerseys, sport types) ──────────────────────────────
+
+export async function fetchJerseys() {
+	const res = await fetch(`${API_URL}/jerseys`);
+	if (!res.ok) throw new Error("Fehler beim Laden der Trikots");
+	return res.json();
+}
+
+export async function fetchSportTypes() {
+	const res = await fetch(`${API_URL}/sport-types`);
+	if (!res.ok) throw new Error("Fehler beim Laden der Sportarten");
+	return res.json();
+}
+
+export async function fetchVapidPublicKey() {
+	const res = await fetch(`${API_URL}/vapid-public-key`);
+	if (!res.ok) return null;
+	const data = await res.json();
+	return data.publicKey || null;
+}
+
+// ── Push Subscriptions ───────────────────────────────────────
+
+export async function subscribePush(subscription) {
+	const headers = authHeaders();
+	const res = await fetch(`${API_URL}/push/subscribe`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json", ...headers },
+		body: JSON.stringify({
+			endpoint: subscription.endpoint,
+			keys: {
+				p256dh: subscription.toJSON().keys.p256dh,
+				auth: subscription.toJSON().keys.auth,
+			},
+		}),
+	});
+	if (!res.ok) throw new Error("Fehler beim Registrieren für Push");
+	return res.json();
+}
+
+// ── Admin ────────────────────────────────────────────────────
+
+export async function adminFetchUsers() {
+	const headers = authHeaders();
+	const res = await fetch(`${API_URL}/admin/users`, { headers });
+	if (!res.ok) throw new Error("Fehler beim Laden der Benutzer");
+	return res.json();
+}
+
+export async function adminCreateUser(data) {
+	const headers = authHeaders();
+	const res = await fetch(`${API_URL}/admin/users`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json", ...headers },
+		body: JSON.stringify(data),
+	});
+	if (!res.ok) throw new Error("Fehler beim Erstellen");
+	return res.json();
+}
+
+export async function adminUpdateUser(id, data) {
+	const headers = authHeaders();
+	const res = await fetch(`${API_URL}/admin/users/${id}`, {
+		method: "PUT",
+		headers: { "Content-Type": "application/json", ...headers },
+		body: JSON.stringify(data),
+	});
+	if (!res.ok) throw new Error("Fehler beim Aktualisieren");
+	return res.json();
+}
+
+export async function adminDeleteUser(id) {
+	const headers = authHeaders();
+	const res = await fetch(`${API_URL}/admin/users/${id}`, {
+		method: "DELETE",
+		headers,
+	});
+	if (!res.ok) throw new Error("Fehler beim Löschen");
+	return res.json();
+}
+
+export async function adminFetchJerseys() {
+	const headers = authHeaders();
+	const res = await fetch(`${API_URL}/admin/jerseys`, { headers });
+	if (!res.ok) throw new Error("Fehler beim Laden der Trikots");
+	return res.json();
+}
+
+export async function adminCreateJersey(data) {
+	const headers = authHeaders();
+	const res = await fetch(`${API_URL}/admin/jerseys`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json", ...headers },
+		body: JSON.stringify(data),
+	});
+	if (!res.ok) throw new Error("Fehler beim Erstellen");
+	return res.json();
+}
+
+export async function adminUpdateJersey(id, data) {
+	const headers = authHeaders();
+	const res = await fetch(`${API_URL}/admin/jerseys/${id}`, {
+		method: "PUT",
+		headers: { "Content-Type": "application/json", ...headers },
+		body: JSON.stringify(data),
+	});
+	if (!res.ok) throw new Error("Fehler beim Aktualisieren");
+	return res.json();
+}
+
+export async function adminDeleteJersey(id) {
+	const headers = authHeaders();
+	const res = await fetch(`${API_URL}/admin/jerseys/${id}`, {
+		method: "DELETE",
+		headers,
+	});
+	if (!res.ok) throw new Error("Fehler beim Löschen");
+	return res.json();
+}
+
+export async function adminFetchSportTypes() {
+	const headers = authHeaders();
+	const res = await fetch(`${API_URL}/admin/sport-types`, { headers });
+	if (!res.ok) throw new Error("Fehler beim Laden der Sportarten");
+	return res.json();
+}
+
+export async function adminCreateSportType(data) {
+	const headers = authHeaders();
+	const res = await fetch(`${API_URL}/admin/sport-types`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json", ...headers },
+		body: JSON.stringify(data),
+	});
+	if (!res.ok) throw new Error("Fehler beim Erstellen");
+	return res.json();
+}
+
+export async function adminUpdateSportType(id, data) {
+	const headers = authHeaders();
+	const res = await fetch(`${API_URL}/admin/sport-types/${id}`, {
+		method: "PUT",
+		headers: { "Content-Type": "application/json", ...headers },
+		body: JSON.stringify(data),
+	});
+	if (!res.ok) throw new Error("Fehler beim Aktualisieren");
+	return res.json();
+}
+
+export async function adminDeleteSportType(id) {
+	const headers = authHeaders();
+	const res = await fetch(`${API_URL}/admin/sport-types/${id}`, {
+		method: "DELETE",
+		headers,
+	});
+	if (!res.ok) throw new Error("Fehler beim Löschen");
 	return res.json();
 }
