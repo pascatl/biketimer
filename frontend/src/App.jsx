@@ -7,6 +7,7 @@ import TopBar from "./components/TopBar";
 import InboxDrawer from "./components/InboxDrawer";
 import AdminPanel from "./components/AdminPanel";
 import StatsPanel from "./components/StatsPanel";
+import Footer from "./components/Footer";
 import {
 	fetchEvents,
 	fetchMyEvents,
@@ -346,6 +347,8 @@ export default function App() {
 					onRefresh={loadInvitations}
 				/>
 			)}
+
+			<Footer />
 		</Box>
 	);
 }
