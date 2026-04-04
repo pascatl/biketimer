@@ -22,7 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-
+__pycache__
 .env
 
 backend/app/routers/__pycache__/
