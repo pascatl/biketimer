@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..kc_admin import get_admin_token, KEYCLOAK_URL, KEYCLOAK_REALM, ADMIN_USER, ADMIN_PASSWORD
 from ..models import User
+from ..email_service import send_welcome_email
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -115,4 +116,12 @@ def register_user(body: RegisterRequest, db: Session = Depends(get_db)):
         db.add(db_user)
         db.commit()
 
+    # Send welcome email if we have an address
+    if body.email:
+        try:
+            send_welcome_email(body.email, display)
+        except Exception:
+            pass
+
     return {"ok": True, "message": "Registrierung erfolgreich. Du kannst dich jetzt einloggen."}
+

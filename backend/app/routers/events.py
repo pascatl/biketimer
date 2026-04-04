@@ -9,6 +9,7 @@ from ..database import get_db
 from ..models import Event, Invitation, User, PushSubscription
 from ..schemas import EventCreate, EventResponse, EventUpdate, InvitationCreate
 from ..push_service import send_push_notification
+from ..email_service import send_invitation_email
 
 router = APIRouter(prefix="/events", tags=["events"])
 
@@ -247,6 +248,17 @@ def invite_users(
         db.commit()
         db.refresh(invitation)
         results.append({"user_id": uid, "ok": True, "invitation_id": invitation.id})
+
+        # Send email notification if invitee has a real email
+        if invitee.email and not invitee.email.endswith("@local"):
+            try:
+                send_invitation_email(
+                    invitee_email=invitee.email,
+                    inviter_name=inviter_name,
+                    event_data=event.event_data,
+                )
+            except Exception:
+                pass
 
         # Send push notification to invitee if they have a subscription
         if invitee.keycloak_id:
