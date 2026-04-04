@@ -461,194 +461,156 @@ export default function Event(props) {
 							</Box>
 						)
 					}
-					action={
-						<Box
-							sx={{
-								display: "flex",
-								gap: 0.75,
-								alignItems: "center",
-								flexWrap: "wrap",
-								mt: 1,
-								mr: 0.5,
-								maxWidth: 260,
-								justifyContent: "flex-end",
-							}}
-						>
-							{editMode ? (
-								<>
+					sx={{ pb: 0.5, pt: 2 }}
+				/>
+
+				{/* ── Toolbar Row (Chips + Icons) ── */}
+				<Box
+					sx={{
+						display: "flex",
+						alignItems: "center",
+						flexWrap: "wrap",
+						gap: 0.75,
+						px: 2,
+						pb: 1,
+						justifyContent: "space-between",
+					}}
+				>
+					{/* Chips – linke Seite */}
+					<Box sx={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 0.75 }}>
+						{editMode ? (
+							<>
+								<Chip
+									icon={<EmojiPeopleIcon sx={{ fontSize: "0.95rem !important" }} />}
+									label={leader || "Organisator"}
+									onClick={(e) => setLeaderAnchor(e.currentTarget)}
+									variant="outlined"
+									size="small"
+									clickable
+									sx={{
+										borderColor: "primary.main",
+										color: "primary.main",
+										fontWeight: 600,
+									}}
+								/>
+								<Menu
+									anchorEl={leaderAnchor}
+									open={Boolean(leaderAnchor)}
+									onClose={() => setLeaderAnchor(null)}
+									PaperProps={{ sx: { borderRadius: 2 } }}
+								>
+									{default_users.map((user) => (
+										<MenuItem
+											key={user}
+											selected={user === leader}
+											onClick={() => { setLeader(user); setLeaderAnchor(null); }}
+											sx={{ fontFamily: '"' + 'Josefin Sans", sans-serif' }}
+										>
+											{user}
+										</MenuItem>
+									))}
+								</Menu>
+								<Chip
+									icon={<CheckroomIcon sx={{ fontSize: "0.95rem !important" }} />}
+									label={jersey || "Trikot"}
+									onClick={(e) => setJerseyAnchor(e.currentTarget)}
+									variant="outlined"
+									size="small"
+									clickable
+									sx={{
+										borderColor: "text.secondary",
+										color: "text.secondary",
+										fontWeight: 600,
+									}}
+								/>
+								<Menu
+									anchorEl={jerseyAnchor}
+									open={Boolean(jerseyAnchor)}
+									onClose={() => setJerseyAnchor(null)}
+									PaperProps={{ sx: { borderRadius: 2 } }}
+								>
+									{jerseyNames.map((j) => (
+										<MenuItem
+											key={j}
+											selected={j === jersey}
+											onClick={() => { setJersey(j); setJerseyAnchor(null); }}
+											sx={{ fontFamily: '"' + 'Josefin Sans", sans-serif' }}
+										>
+											{j}
+										</MenuItem>
+									))}
+								</Menu>
+							</>
+						) : (
+							<>
+								{leader && (
 									<Chip
-										icon={
-											<EmojiPeopleIcon
-												sx={{ fontSize: "0.95rem !important" }}
-											/>
-										}
-										label={leader || "Organisator"}
-										onClick={(e) => setLeaderAnchor(e.currentTarget)}
+										icon={<EmojiPeopleIcon sx={{ fontSize: "1.5rem !important" }} />}
+										label={leader}
 										variant="outlined"
-										size="small"
-										clickable
 										sx={{
 											borderColor: "primary.main",
 											color: "primary.main",
-											fontWeight: 600,
+											fontWeight: 700,
+											height: 36,
+											"& .MuiChip-label": { fontSize: "0.9rem", px: 1 },
+											"& .MuiChip-icon": { fontSize: "1.2rem" },
 										}}
 									/>
-									<Menu
-										anchorEl={leaderAnchor}
-										open={Boolean(leaderAnchor)}
-										onClose={() => setLeaderAnchor(null)}
-										PaperProps={{ sx: { borderRadius: 2 } }}
-									>
-										{default_users.map((user) => (
-											<MenuItem
-												key={user}
-												selected={user === leader}
-												onClick={() => {
-													setLeader(user);
-													setLeaderAnchor(null);
-												}}
-												sx={{ fontFamily: '"Josefin Sans", sans-serif' }}
-											>
-												{user}
-											</MenuItem>
-										))}
-									</Menu>
+								)}
+								{jersey && (
 									<Chip
-										icon={
-											<CheckroomIcon sx={{ fontSize: "0.95rem !important" }} />
-										}
-										label={jersey || "Trikot"}
-										onClick={(e) => setJerseyAnchor(e.currentTarget)}
-										variant="outlined"
-										size="small"
-										clickable
+										icon={<CheckroomIcon sx={{ fontSize: "1.2rem !important" }} />}
+										label={jersey}
 										sx={{
-											borderColor: "text.secondary",
-											color: "text.secondary",
-											fontWeight: 600,
+											bgcolor: "#E5BA41",
+											color: "#2D3C59",
+											fontWeight: 700,
+											border: "none",
+											height: 36,
+											"& .MuiChip-label": { fontSize: "0.9rem", px: 1 },
+											"& .MuiChip-icon": { fontSize: "1.2rem", color: "#2D3C59" },
 										}}
 									/>
-									<Menu
-										anchorEl={jerseyAnchor}
-										open={Boolean(jerseyAnchor)}
-										onClose={() => setJerseyAnchor(null)}
-										PaperProps={{ sx: { borderRadius: 2 } }}
-									>
-										{jerseyNames.map((j) => (
-											<MenuItem
-												key={j}
-												selected={j === jersey}
-												onClick={() => {
-													setJersey(j);
-													setJerseyAnchor(null);
-												}}
-												sx={{ fontFamily: '"Josefin Sans", sans-serif' }}
-											>
-												{j}
-											</MenuItem>
-										))}
-									</Menu>
-								</>
-							) : (
-								<>
-									{leader && (
-										<Chip
-											icon={
-												<EmojiPeopleIcon
-													sx={{ fontSize: "1.5rem !important" }}
-												/>
-											}
-											label={leader}
-											variant="outlined"
-											sx={{
-												borderColor: "primary.main",
-												color: "primary.main",
-												fontWeight: 700,
-												height: 44,
-												px: 0.5,
-												"& .MuiChip-label": { fontSize: "1.05rem", px: 1.5 },
-												"& .MuiChip-icon": { fontSize: "1.5rem" },
-											}}
-										/>
-									)}
-									{jersey && (
-										<Chip
-											icon={
-												<CheckroomIcon sx={{ fontSize: "1.5rem !important" }} />
-											}
-											label={jersey}
-											sx={{
-												bgcolor: "#E5BA41",
-												color: "#2D3C59",
-												fontWeight: 700,
-												border: "none",
-												height: 44,
-												px: 0.5,
-												"& .MuiChip-label": { fontSize: "1.05rem", px: 1.5 },
-												"& .MuiChip-icon": {
-													fontSize: "1.5rem",
-													color: "#2D3C59",
-												},
-											}}
-										/>
-									)}
-								</>
-							)}
-							{canEdit && (
-								<Tooltip title="Person einladen">
-									<IconButton
-										size="small"
-										onClick={() => setInviteOpen(true)}
-										sx={{
-											color: "text.secondary",
-											"&:hover": {
-												bgcolor: "rgba(45,60,89,0.08)",
-												color: "primary.main",
-											},
-										}}
-									>
-										<PersonAddAltIcon fontSize="small" />
-									</IconButton>
-								</Tooltip>
-							)}
-							{canEdit && !editMode && (
-								<Tooltip title="Bearbeiten">
-									<IconButton
-										size="small"
-										onClick={() => setEditMode(true)}
-										sx={{
-											ml: 0.5,
-											color: "text.secondary",
-											"&:hover": {
-												bgcolor: "rgba(45,60,89,0.08)",
-												color: "primary.main",
-											},
-										}}
-									>
-										<EditIcon fontSize="small" />
-									</IconButton>
-								</Tooltip>
-							)}
-							<Tooltip title="Teilen / Link kopieren">
+								)}
+							</>
+						)}
+					</Box>
+					{/* Icon-Buttons – rechte Seite */}
+					<Box sx={{ display: "flex", alignItems: "center", gap: 0.25 }}>
+						{canEdit && (
+							<Tooltip title="Person einladen">
 								<IconButton
 									size="small"
-									onClick={handleShare}
-									sx={{
-										ml: 0.25,
-										color: "text.secondary",
-										"&:hover": {
-											bgcolor: "rgba(45,60,89,0.08)",
-											color: "primary.main",
-										},
-									}}
+									onClick={() => setInviteOpen(true)}
+									sx={{ color: "text.secondary", "&:hover": { bgcolor: "rgba(45,60,89,0.08)", color: "primary.main" } }}
 								>
-									<ShareIcon fontSize="small" />
+									<PersonAddAltIcon fontSize="small" />
 								</IconButton>
 							</Tooltip>
-						</Box>
-					}
-					sx={{ pb: hasBody ? 0 : 2, pt: 2 }}
-				/>
+						)}
+						{canEdit && !editMode && (
+							<Tooltip title="Bearbeiten">
+								<IconButton
+									size="small"
+									onClick={() => setEditMode(true)}
+									sx={{ color: "text.secondary", "&:hover": { bgcolor: "rgba(45,60,89,0.08)", color: "primary.main" } }}
+								>
+									<EditIcon fontSize="small" />
+								</IconButton>
+							</Tooltip>
+						)}
+						<Tooltip title="Teilen / Link kopieren">
+							<IconButton
+								size="small"
+								onClick={handleShare}
+								sx={{ color: "text.secondary", "&:hover": { bgcolor: "rgba(45,60,89,0.08)", color: "primary.main" } }}
+							>
+								<ShareIcon fontSize="small" />
+							</IconButton>
+						</Tooltip>
+					</Box>
+				</Box>
 
 				{/* ── Body ── */}
 				{hasBody && (
