@@ -1,0 +1,9 @@
+# ── Local Dev Override ────────────────────────────────────────────────────────
+# Exposes the DB port to the host for tools like DBeaver, psql, etc.
+# This file is automatically picked up by docker compose (no -f needed).
+# Do NOT commit this to version control if working in a team.
+# ─────────────────────────────────────────────────────────────────────────────
+services:
+  db:
+    ports:
+      - "5434:5432" # host 5434 → container 5432 (5432 is taken by postgresql-17)

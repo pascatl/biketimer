@@ -1,6 +1,7 @@
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from ..auth import get_current_user, get_current_user_optional
@@ -15,6 +16,41 @@ router = APIRouter(prefix="/events", tags=["events"])
 @router.get("", response_model=List[EventResponse])
 def get_events(db: Session = Depends(get_db)):
     return db.query(Event).order_by(Event.id.asc()).all()
+
+
+@router.get("/mine", response_model=List[EventResponse])
+def get_my_events(
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    """Return events where the user is the creator or has any invitation."""
+    sub = user["sub"]
+    email = user.get("email")
+
+    # Subquery: event_ids via invitations
+    inv_conditions = [Invitation.invitee_keycloak_id == sub]
+    if email:
+        inv_conditions.append(Invitation.invitee_email == email)
+
+    invited_event_ids = [
+        row[0]
+        for row in db.query(Invitation.event_id)
+        .filter(or_(*inv_conditions))
+        .distinct()
+        .all()
+    ]
+
+    return (
+        db.query(Event)
+        .filter(
+            or_(
+                Event.creator_keycloak_id == sub,
+                Event.id.in_(invited_event_ids),
+            )
+        )
+        .order_by(Event.id.asc())
+        .all()
+    )
 
 
 @router.get("/{event_id}/invitations")
@@ -41,6 +77,8 @@ def get_event_invitations(event_id: int, db: Session = Depends(get_db)):
             {
                 "id": inv.id,
                 "invitee_email": inv.invitee_email,
+                "invitee_keycloak_id": inv.invitee_keycloak_id,
+                "inviter_keycloak_id": inv.inviter_keycloak_id,
                 "invitee_name": display_name,
                 "inviter_name": inv.inviter_name,
                 "status": inv.status,

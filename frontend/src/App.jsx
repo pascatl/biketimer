@@ -2,11 +2,12 @@ import React, { useCallback, useEffect, useState } from "react";
 import { Container, Box, Stack } from "@mui/material";
 import Event from "./components/Event";
 import TopBar from "./components/TopBar";
-import InvitationsBanner from "./components/InvitationsBanner";
+import InboxDrawer from "./components/InboxDrawer";
 import AdminPanel from "./components/AdminPanel";
 import StatsPanel from "./components/StatsPanel";
 import {
 	fetchEvents,
+	fetchMyEvents,
 	createEvent,
 	fetchMyInvitations,
 	fetchUsers,
@@ -14,6 +15,7 @@ import {
 	fetchSportTypes,
 	fetchVapidPublicKey,
 	subscribePush,
+	registerMe,
 } from "./api";
 import { useAuth } from "./auth/AuthContext";
 
@@ -26,6 +28,9 @@ export default function App() {
 	const [sportTypes, setSportTypes] = useState({});
 	const [adminOpen, setAdminOpen] = useState(false);
 	const [statsOpen, setStatsOpen] = useState(false);
+	const [inboxOpen, setInboxOpen] = useState(false);
+	// Incremented whenever invitations are refreshed → tells Event cards to reload
+	const [eventRefreshKey, setEventRefreshKey] = useState(0);
 
 	const allowedDays = [5]; // Friday
 	const default_startTime = "15:00";
@@ -93,7 +98,7 @@ export default function App() {
 	// ── Load events ───────────────────────────────────────────
 	const loadEvents = useCallback(async () => {
 		try {
-			const data = await fetchEvents();
+			const data = authenticated ? await fetchMyEvents() : await fetchEvents();
 			const sorted = [...data].sort(
 				(a, b) =>
 					new Date(a.event_data?.event_date) -
@@ -103,11 +108,17 @@ export default function App() {
 		} catch (err) {
 			console.error("Fehler beim Laden der Events:", err);
 		}
-	}, []);
+	}, [authenticated]);
 
 	useEffect(() => {
 		loadEvents();
 	}, [loadEvents]);
+
+	// ── Link Keycloak account to DB on login ─────────────────
+	useEffect(() => {
+		if (!authenticated) return;
+		registerMe().catch(console.error);
+	}, [authenticated]);
 
 	// ── Load invitations (only when logged in) ────────────────
 	const loadInvitations = useCallback(async () => {
@@ -115,14 +126,25 @@ export default function App() {
 		try {
 			const data = await fetchMyInvitations();
 			setInvitations(data);
+			// Signal Event cards to re-fetch their invitation lists
+			setEventRefreshKey((k) => k + 1);
+			// Reload event list so newly received invitations appear immediately
+			loadEvents();
 		} catch (err) {
 			console.error("Fehler beim Laden der Einladungen:", err);
 		}
-	}, [authenticated]);
+	}, [authenticated, loadEvents]);
 
 	useEffect(() => {
 		loadInvitations();
 	}, [loadInvitations]);
+
+	// ── Poll for new invitations every 30 s ───────────────────
+	useEffect(() => {
+		if (!authenticated) return;
+		const id = setInterval(loadInvitations, 30_000);
+		return () => clearInterval(id);
+	}, [authenticated, loadInvitations]);
 
 	// ── Register for push notifications ───────────────────────
 	useEffect(() => {
@@ -210,15 +232,10 @@ export default function App() {
 				isAdmin={isAdmin}
 				onAdminOpen={() => setAdminOpen(true)}
 				onStatsOpen={() => setStatsOpen(true)}
+				onInboxOpen={() => setInboxOpen(true)}
 			/>
 			<Container maxWidth="md">
 				<Stack spacing={2} sx={{ mt: 3 }}>
-					{authenticated && invitations.length > 0 && (
-						<InvitationsBanner
-							invitations={invitations}
-							onRefresh={loadInvitations}
-						/>
-					)}
 					{currentEvents.map((event) => (
 						<Event
 							key={event.id}
@@ -228,6 +245,8 @@ export default function App() {
 							allUsers={allUsers}
 							onDeleteEvent={handleDeleteEvent}
 							data={event}
+							refreshToken={eventRefreshKey}
+							onInvitationResponded={loadInvitations}
 						/>
 					))}
 				</Stack>
@@ -235,8 +254,17 @@ export default function App() {
 
 			{isAdmin && <AdminPanel open={adminOpen} onClose={handleAdminClose} />}
 
-			{authenticated && (
+		{authenticated && (
 				<StatsPanel open={statsOpen} onClose={() => setStatsOpen(false)} />
+			)}
+
+			{authenticated && (
+				<InboxDrawer
+					open={inboxOpen}
+					onClose={() => setInboxOpen(false)}
+					invitations={invitations}
+					onRefresh={loadInvitations}
+				/>
 			)}
 		</Box>
 	);

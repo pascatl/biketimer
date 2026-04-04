@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from ..auth import get_current_user
@@ -16,13 +17,17 @@ def get_my_invitations(
     db: Session = Depends(get_db),
     user: dict = Depends(get_current_user),
 ):
+    sub = user["sub"]
     email = user.get("email")
-    if not email:
-        return []
+
+    # Match by keycloak_id (most reliable) OR by stored e-mail
+    conditions = [Invitation.invitee_keycloak_id == sub]
+    if email:
+        conditions.append(Invitation.invitee_email == email)
 
     rows = (
         db.query(Invitation)
-        .filter(Invitation.invitee_email == email, Invitation.status == "pending")
+        .filter(or_(*conditions), Invitation.status == "pending")
         .all()
     )
 

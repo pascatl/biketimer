@@ -5,7 +5,7 @@
 -- ============================================================
 
 -- ── Users table ──────────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS rad_terminplaner.users (
+CREATE TABLE IF NOT EXISTS users (
     id               SERIAL PRIMARY KEY,
     keycloak_id      VARCHAR(255) UNIQUE,
     name             VARCHAR(255) NOT NULL,
@@ -14,11 +14,11 @@ CREATE TABLE IF NOT EXISTS rad_terminplaner.users (
     created_at       TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_users_keycloak_id ON rad_terminplaner.users(keycloak_id);
-CREATE INDEX IF NOT EXISTS idx_users_name ON rad_terminplaner.users(name);
+CREATE INDEX IF NOT EXISTS idx_users_keycloak_id ON users(keycloak_id);
+CREATE INDEX IF NOT EXISTS idx_users_name ON users(name);
 
 -- ── Jerseys table ────────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS rad_terminplaner.jerseys (
+CREATE TABLE IF NOT EXISTS jerseys (
     id               SERIAL PRIMARY KEY,
     name             VARCHAR(255) NOT NULL UNIQUE,
     is_active        BOOLEAN NOT NULL DEFAULT TRUE,
@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS rad_terminplaner.jerseys (
 );
 
 -- ── Sport types table ────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS rad_terminplaner.sport_types (
+CREATE TABLE IF NOT EXISTS sport_types (
     id               SERIAL PRIMARY KEY,
     key              VARCHAR(100) NOT NULL UNIQUE,
     label            VARCHAR(255) NOT NULL,
@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS rad_terminplaner.sport_types (
 );
 
 -- ── Push subscriptions table ─────────────────────────────────
-CREATE TABLE IF NOT EXISTS rad_terminplaner.push_subscriptions (
+CREATE TABLE IF NOT EXISTS push_subscriptions (
     id               SERIAL PRIMARY KEY,
     keycloak_id      VARCHAR(255) NOT NULL,
     endpoint         TEXT NOT NULL UNIQUE,
@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS rad_terminplaner.push_subscriptions (
     created_at       TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_push_subscriptions_keycloak_id ON rad_terminplaner.push_subscriptions(keycloak_id);
+CREATE INDEX IF NOT EXISTS idx_push_subscriptions_keycloak_id ON push_subscriptions(keycloak_id);
 
 -- ── Seed default data ────────────────────────────────────────
 

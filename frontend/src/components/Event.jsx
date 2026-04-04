@@ -100,6 +100,8 @@ export default function Event(props) {
 	const default_types = props.default_types || {};
 	const default_jerseys = props.default_jerseys || [];
 	const allUsers = props.allUsers || [];
+	const refreshToken = props.refreshToken;
+	const onInvitationResponded = props.onInvitationResponded; // notify parent
 
 	// Exclude logged-in user from invite list
 	const invitableUsers = allUsers.filter((u) => {
@@ -138,20 +140,28 @@ export default function Event(props) {
 	const loadInvitations = useCallback(async () => {
 		const list = await fetchEventInvitations(eventId);
 		setInvitations(list);
-		if (user?.email) {
-			setMyInvitation(list.find((i) => i.invitee_email === user.email) ?? null);
+		if (user?.email || user?.sub) {
+			setMyInvitation(
+				list.find(
+					(i) =>
+						(user.sub && i.invitee_keycloak_id === user.sub) ||
+						(user.email && i.invitee_email === user.email),
+				) ?? null,
+			);
 		}
-	}, [eventId, user?.email]);
+	}, [eventId, user?.email, user?.sub]);
 
 	useEffect(() => {
 		loadInvitations();
-	}, [loadInvitations]);
+	}, [loadInvitations, refreshToken]); // re-fetch whenever parent signals a refresh
 
 	const handleRespond = async (action) => {
 		if (!myInvitation) return;
 		try {
 			await respondInvitation(myInvitation.id, action);
 			await loadInvitations();
+			// Also notify App.jsx so global inbox + all other event cards refresh
+			onInvitationResponded?.();
 		} catch (err) {
 			console.error(err);
 		}
@@ -589,7 +599,9 @@ export default function Event(props) {
 								{invitations.map((inv) => {
 									const label =
 										inv.invitee_name || inv.invitee_email.split("@")[0];
-									const canRevoke = authenticated;
+									// Only the inviter can revoke an invitation
+									const canRevoke =
+										authenticated && user?.sub === inv.inviter_keycloak_id;
 									if (inv.status === "accepted") {
 										return (
 											<Chip

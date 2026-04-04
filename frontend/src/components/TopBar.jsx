@@ -2,7 +2,6 @@ import React from "react";
 import {
 	AppBar,
 	Avatar,
-	Badge,
 	Box,
 	Button,
 	Chip,
@@ -15,10 +14,10 @@ import {
 import DirectionsBikeIcon from "@mui/icons-material/DirectionsBike";
 import LogoutIcon from "@mui/icons-material/Logout";
 import LoginIcon from "@mui/icons-material/Login";
-import MailOutlineIcon from "@mui/icons-material/MailOutline";
 import SettingsIcon from "@mui/icons-material/Settings";
 import BarChartIcon from "@mui/icons-material/BarChart";
 import ControlButtons from "./ControlButtons";
+import { InboxButton } from "./InboxDrawer";
 import { useAuth } from "../auth/AuthContext";
 
 function HideOnScroll({ children }) {
@@ -38,6 +37,7 @@ const TopBar = ({
 	isAdmin,
 	onAdminOpen,
 	onStatsOpen,
+	onInboxOpen,
 }) => {
 	const { user, authenticated, openLogin, logout } = useAuth();
 	const userName = user?.name || user?.preferred_username || "";
@@ -92,21 +92,9 @@ const TopBar = ({
 
 					{/* ── Right: auth + add ── */}
 					<Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-						{/* Invitation badge */}
-						{authenticated && invitationCount > 0 && (
-							<Tooltip
-								title={`${invitationCount} offene Einladung${invitationCount > 1 ? "en" : ""}`}
-							>
-								<Badge
-									badgeContent={invitationCount}
-									color="warning"
-									sx={{ mr: 0.5 }}
-								>
-									<MailOutlineIcon
-										sx={{ color: "rgba(255,255,255,0.8)", fontSize: 22 }}
-									/>
-								</Badge>
-							</Tooltip>
+{/* Inbox button */}
+					{authenticated && (
+						<InboxButton count={invitationCount} onClick={onInboxOpen} />
 						)}
 
 						{authenticated ? (

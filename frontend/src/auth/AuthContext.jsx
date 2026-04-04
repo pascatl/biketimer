@@ -33,6 +33,7 @@ export function AuthProvider({ children }) {
 		svcLogout();
 		stopAutoRefresh();
 		setUser(null);
+		setLoginOpen(true); // immediately show login dialog after logout
 	}, []);
 
 	const openLogin = useCallback(() => setLoginOpen(true), []);

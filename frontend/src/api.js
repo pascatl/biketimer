@@ -17,6 +17,13 @@ export async function fetchEvents() {
 	return res.json();
 }
 
+export async function fetchMyEvents() {
+	const headers = authHeaders();
+	const res = await fetch(`${API_URL}/events/mine`, { headers });
+	if (!res.ok) throw new Error("Fehler beim Laden der Events");
+	return res.json();
+}
+
 export async function createEvent(eventData) {
 	const headers = authHeaders();
 	const res = await fetch(`${API_URL}/events`, {
@@ -115,6 +122,17 @@ export async function fetchStats() {
 export async function fetchUsers() {
 	const res = await fetch(`${API_URL}/users`);
 	if (!res.ok) throw new Error("Fehler beim Laden der Benutzer");
+	return res.json();
+}
+
+export async function registerMe() {
+	/** Called on every login to link/create the Keycloak account in the DB. */
+	const headers = authHeaders();
+	const res = await fetch(`${API_URL}/users/me`, {
+		method: "POST",
+		headers,
+	});
+	if (!res.ok) return null;
 	return res.json();
 }
 
