@@ -17,6 +17,7 @@ services:
       - db_data:/var/lib/postgresql/data
       - ./backend/migrations/001_init.sql:/docker-entrypoint-initdb.d/001_init.sql:ro
       - ./backend/migrations/002_users_jerseys_sports_push.sql:/docker-entrypoint-initdb.d/002_users_jerseys_sports_push.sql:ro
+      - ./backend/migrations/003_invitation_decline_reason.sql:/docker-entrypoint-initdb.d/003_invitation_decline_reason.sql:ro
     healthcheck:
       test:
         [

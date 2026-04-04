@@ -87,8 +87,9 @@ class Invitation(Base):
     inviter_name = Column(String(255), nullable=True)
     invitee_email = Column(String(255), nullable=False)
     invitee_keycloak_id = Column(String(255), nullable=True)
-    status = Column(String(20), default="pending")  # pending | accepted | declined
+    status = Column(String(20), default="pending")  # pending | accepted | declined | withdrawn
     token = Column(UUID(as_uuid=True), default=uuid.uuid4, unique=True)
+    decline_reason = Column(Text, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
     responded_at = Column(DateTime, nullable=True)
 

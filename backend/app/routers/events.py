@@ -82,6 +82,7 @@ def get_event_invitations(event_id: int, db: Session = Depends(get_db)):
                 "invitee_name": display_name,
                 "inviter_name": inv.inviter_name,
                 "status": inv.status,
+                "decline_reason": inv.decline_reason,
             }
         )
     return result

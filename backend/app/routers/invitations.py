@@ -57,13 +57,14 @@ def accept_invitation(
     inv = db.query(Invitation).filter(Invitation.id == invitation_id).first()
     if not inv:
         raise HTTPException(status_code=404, detail="Einladung nicht gefunden")
-    if inv.invitee_email != user.get("email"):
+    if inv.invitee_email != user.get("email") and inv.invitee_keycloak_id != user["sub"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="Nicht berechtigt"
         )
 
     inv.status = "accepted"
     inv.invitee_keycloak_id = user["sub"]
+    inv.decline_reason = None
     inv.responded_at = datetime.now(timezone.utc)
     db.commit()
     return {"ok": True}
@@ -78,13 +79,41 @@ def decline_invitation(
     inv = db.query(Invitation).filter(Invitation.id == invitation_id).first()
     if not inv:
         raise HTTPException(status_code=404, detail="Einladung nicht gefunden")
-    if inv.invitee_email != user.get("email"):
+    if inv.invitee_email != user.get("email") and inv.invitee_keycloak_id != user["sub"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="Nicht berechtigt"
         )
 
     inv.status = "declined"
     inv.invitee_keycloak_id = user["sub"]
+    inv.responded_at = datetime.now(timezone.utc)
+    db.commit()
+    return {"ok": True}
+
+
+@router.post("/{invitation_id}/withdraw")
+def withdraw_invitation(
+    invitation_id: int,
+    body: dict,
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    """Allow an invitee who already accepted to withdraw their attendance, with a reason."""
+    inv = db.query(Invitation).filter(Invitation.id == invitation_id).first()
+    if not inv:
+        raise HTTPException(status_code=404, detail="Einladung nicht gefunden")
+    if inv.invitee_email != user.get("email") and inv.invitee_keycloak_id != user["sub"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Nicht berechtigt"
+        )
+    if inv.status != "accepted":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Nur angenommene Einladungen können abgesagt werden",
+        )
+
+    inv.status = "withdrawn"
+    inv.decline_reason = body.get("reason", "")
     inv.responded_at = datetime.now(timezone.utc)
     db.commit()
     return {"ok": True}

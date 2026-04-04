@@ -48,6 +48,7 @@ import {
 	fetchEventInvitations,
 	respondInvitation,
 	revokeInvitation,
+	withdrawInvitation,
 } from "../api";
 import { useAuth } from "../auth/AuthContext";
 
@@ -94,6 +95,11 @@ export default function Event(props) {
 	const [invitations, setInvitations] = useState([]);
 	const [myInvitation, setMyInvitation] = useState(null);
 
+	// Withdrawal dialog
+	const [withdrawOpen, setWithdrawOpen] = useState(false);
+	const [withdrawReason, setWithdrawReason] = useState("");
+	const [withdrawLoading, setWithdrawLoading] = useState(false);
+
 	const isMounted = useRef(false);
 
 	const default_users = props.default_users || [];
@@ -102,6 +108,12 @@ export default function Event(props) {
 	const allUsers = props.allUsers || [];
 	const refreshToken = props.refreshToken;
 	const onInvitationResponded = props.onInvitationResponded; // notify parent
+
+	// Edit permission: creator or current organizer
+	const canEdit =
+		authenticated &&
+		(user?.sub === props.data.creator_keycloak_id ||
+			(leader && (user?.name === leader || user?.preferred_username === leader)));
 
 	// Exclude logged-in user from invite list
 	const invitableUsers = allUsers.filter((u) => {
@@ -173,6 +185,22 @@ export default function Event(props) {
 			await loadInvitations();
 		} catch (err) {
 			console.error(err);
+		}
+	};
+
+	const handleWithdraw = async () => {
+		if (!myInvitation) return;
+		setWithdrawLoading(true);
+		try {
+			await withdrawInvitation(myInvitation.id, withdrawReason);
+			setWithdrawOpen(false);
+			setWithdrawReason("");
+			await loadInvitations();
+			onInvitationResponded?.();
+		} catch (err) {
+			console.error(err);
+		} finally {
+			setWithdrawLoading(false);
 		}
 	};
 
@@ -559,7 +587,7 @@ export default function Event(props) {
 									</IconButton>
 								</Tooltip>
 							)}
-							{authenticated && !editMode && (
+							{canEdit && !editMode && (
 								<Tooltip title="Bearbeiten">
 									<IconButton
 										size="small"
@@ -602,6 +630,10 @@ export default function Event(props) {
 									// Only the inviter can revoke an invitation
 									const canRevoke =
 										authenticated && user?.sub === inv.inviter_keycloak_id;
+									const reasonTip = inv.decline_reason
+										? `Absage: ${inv.decline_reason}`
+										: null;
+
 									if (inv.status === "accepted") {
 										return (
 											<Chip
@@ -636,34 +668,38 @@ export default function Event(props) {
 											/>
 										);
 									}
-									if (inv.status === "declined") {
+									if (inv.status === "declined" || inv.status === "withdrawn") {
 										return (
-											<Chip
+											<Tooltip
 												key={inv.id}
-												label={label}
-												size="small"
-												variant="outlined"
-												onDelete={
-													canRevoke ? () => handleRevoke(inv.id) : undefined
-												}
-												deleteIcon={
-													canRevoke ? (
-														<CloseIcon
-															sx={{ fontSize: "0.85rem !important" }}
-														/>
-													) : undefined
-												}
-												sx={{
-													borderColor: "#D1855C",
-													color: "#D1855C",
-													fontWeight: 600,
-													fontSize: "0.75rem",
-													"& .MuiChip-deleteIcon": {
-														color: "rgba(209,133,92,0.6)",
-														"&:hover": { color: "#D1855C" },
-													},
-												}}
-											/>
+												title={reasonTip || (inv.status === "withdrawn" ? "Abgesagt" : "")}
+											>
+												<Chip
+													label={label}
+													size="small"
+													variant="outlined"
+													onDelete={
+														canRevoke ? () => handleRevoke(inv.id) : undefined
+													}
+													deleteIcon={
+														canRevoke ? (
+															<CloseIcon
+																sx={{ fontSize: "0.85rem !important" }}
+															/>
+														) : undefined
+													}
+													sx={{
+														borderColor: "#D1855C",
+														color: "#D1855C",
+														fontWeight: 600,
+														fontSize: "0.75rem",
+														"& .MuiChip-deleteIcon": {
+															color: "rgba(209,133,92,0.6)",
+															"&:hover": { color: "#D1855C" },
+														},
+													}}
+												/>
+											</Tooltip>
 										);
 									}
 									// pending
@@ -744,6 +780,43 @@ export default function Event(props) {
 									}}
 								>
 									Ablehnen
+								</Button>
+							</Box>
+						)}
+
+						{/* Withdrawal option for accepted invitations */}
+						{myInvitation?.status === "accepted" && (
+							<Box
+								sx={{
+									mt: 1,
+									p: 1.5,
+									borderRadius: 2,
+									bgcolor: "rgba(148,163,120,0.1)",
+									border: "1px solid rgba(148,163,120,0.4)",
+									display: "flex",
+									alignItems: "center",
+									gap: 1.5,
+									flexWrap: "wrap",
+								}}
+							>
+								<Typography
+									variant="body2"
+									sx={{ fontWeight: 600, flex: 1, color: "text.primary" }}
+								>
+									Du hast zugesagt
+								</Typography>
+								<Button
+									size="small"
+									variant="outlined"
+									onClick={() => setWithdrawOpen(true)}
+									sx={{
+										borderColor: "#D1855C",
+										color: "#D1855C",
+										borderRadius: 2,
+										"&:hover": { bgcolor: "rgba(209,133,92,0.08)" },
+									}}
+								>
+									Absagen
 								</Button>
 							</Box>
 						)}
@@ -1056,6 +1129,59 @@ export default function Event(props) {
 						</Button>
 					</DialogActions>
 				)}
+			</Dialog>
+
+			{/* Withdrawal Dialog */}
+			<Dialog
+				open={withdrawOpen}
+				onClose={() => { setWithdrawOpen(false); setWithdrawReason(""); }}
+				maxWidth="xs"
+				fullWidth
+				PaperProps={{ sx: { borderRadius: 3 } }}
+			>
+				<DialogTitle sx={{ fontWeight: 700, color: "text.primary" }}>
+					Zusage zurückziehen
+				</DialogTitle>
+				<DialogContent>
+					<Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+						Bitte gib einen kurzen Grund an, damit die anderen Bescheid wissen.
+					</Typography>
+					<TextField
+						label="Begründung"
+						placeholder="z.B. krank, Urlaub, anderweitig verhindert…"
+						multiline
+						rows={2}
+						fullWidth
+						autoFocus
+						value={withdrawReason}
+						onChange={(e) => setWithdrawReason(e.target.value)}
+						InputProps={{ sx: { borderRadius: 2 } }}
+					/>
+				</DialogContent>
+				<DialogActions sx={{ px: 3, pb: 2 }}>
+					<Button
+						onClick={() => { setWithdrawOpen(false); setWithdrawReason(""); }}
+						color="inherit"
+						sx={{ color: "text.secondary" }}
+					>
+						Abbrechen
+					</Button>
+					<Button
+						onClick={handleWithdraw}
+						disabled={withdrawLoading || !withdrawReason.trim()}
+						variant="contained"
+						disableElevation
+						sx={{
+							bgcolor: "#D1855C",
+							color: "#fff",
+							fontWeight: 700,
+							borderRadius: 2,
+							"&:hover": { bgcolor: "#b8693f" },
+						}}
+					>
+						{withdrawLoading ? "Wird gesendet…" : "Absagen"}
+					</Button>
+				</DialogActions>
 			</Dialog>
 		</>
 	);

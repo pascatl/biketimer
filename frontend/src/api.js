@@ -108,6 +108,17 @@ export async function revokeInvitation(invitationId) {
 	return res.json();
 }
 
+export async function withdrawInvitation(invitationId, reason) {
+	const headers = authHeaders();
+	const res = await fetch(`${API_URL}/invitations/${invitationId}/withdraw`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json", ...headers },
+		body: JSON.stringify({ reason }),
+	});
+	if (!res.ok) throw new Error("Fehler beim Absagen der Einladung");
+	return res.json();
+}
+
 // ── Statistics ───────────────────────────────────────────────
 
 export async function fetchStats() {
