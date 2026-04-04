@@ -51,7 +51,6 @@ def register_user(body: RegisterRequest, db: Session = Depends(get_db)):
         "enabled": True,
         "emailVerified": True,
         "firstName": display,
-        "lastName": display,   # avoids "profile incomplete" prompt on first login
         "requiredActions": [],  # ensure no pending actions block login
         "credentials": [
             {
