@@ -650,126 +650,92 @@ export default function Event(props) {
 				{/* ── Body ── */}
 				{hasBody && (
 					<CardContent sx={{ pt: 1, pb: hasBody ? 2 : 0 }}>
-						{/* Einladungen: Statusanzeige */}
-						{invitations.length > 0 && (
-							<Box
-								sx={{
-									display: "flex",
-									flexWrap: "wrap",
-									gap: 0.75,
-									mt: 0.5,
-									mb: 0.5,
-								}}
-							>
-								{invitations.map((inv) => {
-									const rawFallback = inv.invitee_email?.endsWith("@local")
-										? inv.invitee_email.replace("@local", "")
-										: inv.invitee_email?.split("@")[0] || "?";
-									const label = inv.invitee_name || rawFallback;
-									// Only the inviter can revoke an invitation
-									const canRevoke =
-										authenticated && user?.sub === inv.inviter_keycloak_id;
-									const reasonTip = inv.decline_reason
-										? `Absage: ${inv.decline_reason}`
-										: null;
+						{/* Einladungen: strukturierte Statusanzeige */}
+						{invitations.length > 0 && (() => {
+							const accepted = invitations.filter((i) => i.status === "accepted");
+							const declined = invitations.filter((i) => i.status === "declined" || i.status === "withdrawn");
+							const pending  = invitations.filter((i) => i.status === "pending");
 
-									if (inv.status === "accepted") {
-										return (
-											<Chip
-												key={inv.id}
-												label={label}
-												size="small"
-												icon={
-													<HowToRegIcon
-														sx={{ fontSize: "0.95rem !important" }}
-													/>
-												}
-												onDelete={
-													canRevoke ? () => handleRevoke(inv.id) : undefined
-												}
-												deleteIcon={
-													canRevoke ? (
-														<CloseIcon
-															sx={{ fontSize: "0.85rem !important" }}
-														/>
-													) : undefined
-												}
-												sx={{
-													bgcolor: "#94A378",
-													color: "#fff",
-													fontWeight: 600,
-													fontSize: "0.75rem",
-													"& .MuiChip-deleteIcon": {
-														color: "rgba(255,255,255,0.7)",
-														"&:hover": { color: "#fff" },
-													},
-												}}
-											/>
-										);
-									}
-									if (inv.status === "declined" || inv.status === "withdrawn") {
-										return (
-											<Tooltip
-												key={inv.id}
-												title={reasonTip || (inv.status === "withdrawn" ? "Abgesagt" : "Abgelehnt")}
-											>
-												<Chip
-													label={label}
-													size="small"
-													onDelete={
-														canRevoke ? () => handleRevoke(inv.id) : undefined
-													}
-													deleteIcon={
-														canRevoke ? (
-															<CloseIcon
-																sx={{ fontSize: "0.85rem !important" }}
-															/>
-														) : undefined
-													}
-													sx={{
-														bgcolor: "#D1855C",
-														color: "#fff",
-														fontWeight: 600,
-														fontSize: "0.75rem",
-														"& .MuiChip-deleteIcon": {
-															color: "rgba(255,255,255,0.7)",
-															"&:hover": { color: "#fff" },
-														},
-													}}
-												/>
-											</Tooltip>
-										);
-									}
+							const buildChip = (inv) => {
+								const rawFallback = inv.invitee_email?.endsWith("@local")
+									? inv.invitee_email.replace("@local", "")
+									: inv.invitee_email?.split("@")[0] || "?";
+								const label = inv.invitee_name || rawFallback;
+								const canRevoke = authenticated && user?.sub === inv.inviter_keycloak_id;
+								const reasonTip = inv.decline_reason
+									? `Absage: ${inv.decline_reason}`
+									: inv.status === "withdrawn" ? "Abgesagt" : inv.status === "declined" ? "Abgelehnt" : null;
+
+								let chipSx = {};
+								let icon = undefined;
+								let variant = "filled";
+
+								if (inv.status === "accepted") {
+									chipSx = {
+										bgcolor: "#94A378", color: "#fff", fontWeight: 600, fontSize: "0.75rem",
+										"& .MuiChip-deleteIcon": { color: "rgba(255,255,255,0.7)", "&:hover": { color: "#fff" } },
+									};
+									icon = <HowToRegIcon sx={{ fontSize: "0.95rem !important" }} />;
+								} else if (inv.status === "declined" || inv.status === "withdrawn") {
+									chipSx = {
+										bgcolor: "#D1855C", color: "#fff", fontWeight: 600, fontSize: "0.75rem",
+										"& .MuiChip-deleteIcon": { color: "rgba(255,255,255,0.7)", "&:hover": { color: "#fff" } },
+									};
+								} else {
 									// pending
-									return (
-										<Chip
-											key={inv.id}
-											label={label}
-											size="small"
-											variant="outlined"
-											onDelete={
-												canRevoke ? () => handleRevoke(inv.id) : undefined
-											}
-											deleteIcon={
-												canRevoke ? (
-													<CloseIcon sx={{ fontSize: "0.85rem !important" }} />
-												) : undefined
-											}
-											sx={{
-												borderColor: "#E5BA41",
-												color: "#E5BA41",
-												fontWeight: 600,
-												fontSize: "0.75rem",
-												"& .MuiChip-deleteIcon": {
-													color: "rgba(229,186,65,0.6)",
-													"&:hover": { color: "#E5BA41" },
-												},
-											}}
-										/>
-									);
-								})}
-							</Box>
-						)}
+									variant = "outlined";
+									chipSx = {
+										borderColor: "#E5BA41", color: "#E5BA41", fontWeight: 600, fontSize: "0.75rem",
+										"& .MuiChip-deleteIcon": { color: "rgba(229,186,65,0.6)", "&:hover": { color: "#E5BA41" } },
+									};
+								}
+
+								const chip = (
+									<Chip
+										key={inv.id}
+										label={label}
+										size="small"
+										variant={variant}
+										icon={icon}
+										onDelete={canRevoke ? () => handleRevoke(inv.id) : undefined}
+										deleteIcon={canRevoke ? <CloseIcon sx={{ fontSize: "0.85rem !important" }} /> : undefined}
+										sx={chipSx}
+									/>
+								);
+								return reasonTip
+									? <Tooltip key={inv.id} title={reasonTip}>{chip}</Tooltip>
+									: chip;
+							};
+
+							return (
+								<Box sx={{ display: "flex", flexDirection: "column", gap: 0.75, mt: 0.5, mb: 0.5 }}>
+									{accepted.length > 0 && (
+										<Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 0.75 }}>
+											<Typography variant="caption" sx={{ color: "#94A378", fontWeight: 700, minWidth: 72, flexShrink: 0 }}>
+												Zugesagt
+											</Typography>
+											{accepted.map(buildChip)}
+										</Box>
+									)}
+									{declined.length > 0 && (
+										<Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 0.75 }}>
+											<Typography variant="caption" sx={{ color: "#D1855C", fontWeight: 700, minWidth: 72, flexShrink: 0 }}>
+												Abgesagt
+											</Typography>
+											{declined.map(buildChip)}
+										</Box>
+									)}
+									{pending.length > 0 && (
+										<Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 0.75 }}>
+											<Typography variant="caption" sx={{ color: "#E5BA41", fontWeight: 700, minWidth: 72, flexShrink: 0 }}>
+												Eingeladen
+											</Typography>
+											{pending.map(buildChip)}
+										</Box>
+									)}
+								</Box>
+							);
+						})()}
 
 						{/* Inline-Antwort für eingeladene Nutzer */}
 						{myInvitation?.status === "pending" && (
