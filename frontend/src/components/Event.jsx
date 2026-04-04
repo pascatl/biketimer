@@ -825,6 +825,44 @@ export default function Event(props) {
 							</Box>
 						)}
 
+						{/* Re-accept option after declining/withdrawing */}
+						{(myInvitation?.status === "declined" || myInvitation?.status === "withdrawn") && (
+							<Box
+								sx={{
+									mt: 1,
+									p: 1.5,
+									borderRadius: 2,
+									bgcolor: "rgba(209,133,92,0.08)",
+									border: "1px solid rgba(209,133,92,0.35)",
+									display: "flex",
+									alignItems: "center",
+									gap: 1.5,
+									flexWrap: "wrap",
+								}}
+							>
+								<Typography
+									variant="body2"
+									sx={{ fontWeight: 600, flex: 1, color: "text.primary" }}
+								>
+									Du hast abgesagt
+								</Typography>
+								<Button
+									size="small"
+									variant="contained"
+									disableElevation
+									onClick={() => handleRespond("accept")}
+									sx={{
+										bgcolor: "#94A378",
+										color: "#fff",
+										borderRadius: 2,
+										"&:hover": { bgcolor: "#7a8f61" },
+									}}
+								>
+									Zusagen
+								</Button>
+							</Box>
+						)}
+
 						{/* Comment */}
 						{editMode ? (
 							<TextField
