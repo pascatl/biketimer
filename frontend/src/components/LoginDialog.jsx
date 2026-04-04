@@ -93,10 +93,9 @@ export default function LoginDialog() {
 				password: regPassword,
 				display_name: regDisplayName,
 			});
-			setSuccess("Registrierung erfolgreich! Du kannst dich jetzt anmelden.");
-			// Pre-fill login username and switch mode
-			setUsername(regUsername);
-			setMode("login");
+			// Auto-login immediately after registration
+			await login(regUsername, regPassword, rememberMe);
+			reset();
 		} catch (err) {
 			setError(err.message || "Registrierung fehlgeschlagen");
 		} finally {
