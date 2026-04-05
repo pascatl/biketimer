@@ -20,6 +20,7 @@ import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { de } from "date-fns/locale";
 import { format } from "date-fns";
+import MeetingPointPicker from "./MeetingPointPicker";
 
 // Default event title per sport-type key
 const TYPE_DEFAULT_TITLES = {
@@ -48,6 +49,9 @@ const [selectedDate, setSelectedDate] = useState(null);
 const [selectedTime, setSelectedTime] = useState(DEFAULT_TIME);
 const [selectedTitle, setSelectedTitle] = useState(getDefaultTitle(firstTypeKey));
 const [selectedType, setSelectedType] = useState(firstTypeKey);
+const [selectedMeetingText, setSelectedMeetingText] = useState("");
+const [selectedMeetingLat, setSelectedMeetingLat] = useState(null);
+const [selectedMeetingLon, setSelectedMeetingLon] = useState(null);
 
 const handleTypeChange = (key) => {
 // Auto-update title only if it's still a default or empty
@@ -72,6 +76,9 @@ event_date: isoDate,
 event_title: selectedTitle.trim(),
 event_type: selectedType || firstTypeKey,
 ...(isoTime && { event_startTime: isoTime }),
+event_meeting_text: selectedMeetingText,
+event_meeting_lat: selectedMeetingLat,
+event_meeting_lon: selectedMeetingLon,
 },
 };
 props.onAddEvent(new_event);
@@ -80,6 +87,9 @@ setSelectedDate(null);
 setSelectedTime(DEFAULT_TIME);
 setSelectedTitle(getDefaultTitle(firstTypeKey));
 setSelectedType(firstTypeKey);
+setSelectedMeetingText("");
+setSelectedMeetingLat(null);
+setSelectedMeetingLon(null);
 };
 
 const handleClose = () => {
@@ -88,6 +98,9 @@ setSelectedDate(null);
 setSelectedTime(DEFAULT_TIME);
 setSelectedTitle(getDefaultTitle(firstTypeKey));
 setSelectedType(firstTypeKey);
+setSelectedMeetingText("");
+setSelectedMeetingLat(null);
+setSelectedMeetingLon(null);
 };
 
 return (
@@ -216,6 +229,23 @@ slotProps={{ textField: { size: "small", fullWidth: true } }}
 />
 </Box>
 
+<Divider />
+
+{/* Treffpunkt */}
+<Box>
+<Typography variant="body2" sx={{ color: "text.secondary", mb: 1, fontWeight: 600 }}>
+Treffpunkt
+</Typography>
+<MeetingPointPicker
+lat={selectedMeetingLat}
+lon={selectedMeetingLon}
+text={selectedMeetingText}
+onChangeLat={setSelectedMeetingLat}
+onChangeLon={setSelectedMeetingLon}
+onChangeText={setSelectedMeetingText}
+/>
+</Box>
+
 {/* Bestätigen */}
 {selectedDate && (
 <Box
@@ -267,6 +297,7 @@ Anlegen
 </Button>
 </Box>
 )}
+
 </Stack>
 </DialogContent>
 </Dialog>

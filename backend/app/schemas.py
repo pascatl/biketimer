@@ -18,6 +18,9 @@ class EventData(BaseModel):
     event_type: Optional[str] = "rennrad"
     event_comment: Optional[str] = ""
     event_link: Optional[str] = ""
+    event_meeting_text: Optional[str] = ""
+    event_meeting_lat: Optional[float] = None
+    event_meeting_lon: Optional[float] = None
 
 
 class EventCreate(BaseModel):

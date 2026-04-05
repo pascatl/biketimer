@@ -160,7 +160,7 @@ const TopBar = ({
 										size="small"
 										onClick={handleLogout}
 										startIcon={
-											<LogoutIcon sx={{ fontSize: "1rem !important" }} />
+											<LogoutIcon sx={{ fontSize: "1rem " }} />
 										}
 										sx={{
 											color: "rgba(255,255,255,0.75)",
@@ -185,7 +185,7 @@ const TopBar = ({
 								size="small"
 								variant="outlined"
 								onClick={handleLogin}
-								startIcon={<LoginIcon sx={{ fontSize: "1rem !important" }} />}
+								startIcon={<LoginIcon sx={{ fontSize: "1rem " }} />}
 								sx={{
 									color: "#fff",
 									borderColor: "rgba(255,255,255,0.4)",

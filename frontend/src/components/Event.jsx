@@ -51,6 +51,7 @@ import HistoryIcon from "@mui/icons-material/History";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import RouteWidget from "./RouteWidget";
+import MeetingPointPicker from "./MeetingPointPicker";
 import {
 	updateEvent as apiUpdateEvent,
 	deleteEvent as apiDeleteEvent,
@@ -84,6 +85,9 @@ export default function Event(props) {
 	const [startTime, setStartTime] = useState(event_data.event_startTime);
 	const [comment, setComment] = useState(event_data.event_comment);
 	const [link, setLink] = useState(event_data.event_link);
+	const [meetingText, setMeetingText] = useState(event_data.event_meeting_text || "");
+	const [meetingLat, setMeetingLat] = useState(event_data.event_meeting_lat ?? null);
+	const [meetingLon, setMeetingLon] = useState(event_data.event_meeting_lon ?? null);
 	const [leader, setLeader] = useState(event_data.event_leader);
 	const [jersey, setJersey] = useState(event_data.event_jersey);
 	const [eventType, setEventType] = useState(
@@ -243,6 +247,9 @@ export default function Event(props) {
 				event_type: eventType,
 				event_comment: comment,
 				event_link: link,
+				event_meeting_text: meetingText,
+				event_meeting_lat: meetingLat,
+				event_meeting_lon: meetingLon,
 			},
 		});
 	};
@@ -276,6 +283,9 @@ export default function Event(props) {
 		setJersey(currentEvent.event_data.event_jersey);
 		setComment(currentEvent.event_data.event_comment);
 		setLink(currentEvent.event_data.event_link);
+		setMeetingText(currentEvent.event_data.event_meeting_text || "");
+		setMeetingLat(currentEvent.event_data.event_meeting_lat ?? null);
+		setMeetingLon(currentEvent.event_data.event_meeting_lon ?? null);
 		setEditMode(false);
 	};
 
@@ -445,7 +455,7 @@ export default function Event(props) {
 					<Box sx={{ display: "flex", alignItems: "center", gap: 0.25, mt: 0.5 }}>
 						{isPast && (
 							<Chip
-								icon={<HistoryIcon sx={{ fontSize: "0.85rem !important" }} />}
+								icon={<HistoryIcon sx={{ fontSize: "0.85rem " }} />}
 								label="Vergangen"
 								size="small"
 								sx={{
@@ -495,7 +505,7 @@ export default function Event(props) {
 					<Box sx={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 0.75, px: 2, pb: 1 }}>
 						{leader && (
 							<Chip
-								icon={<EmojiPeopleIcon sx={{ fontSize: "1.2rem !important" }} />}
+								icon={<EmojiPeopleIcon sx={{ fontSize: "1.2rem " }} />}
 								label={leader}
 								variant="outlined"
 								sx={{
@@ -510,7 +520,7 @@ export default function Event(props) {
 						)}
 						{jersey && (
 							<Chip
-								icon={<CheckroomIcon sx={{ fontSize: "1.2rem !important" }} />}
+								icon={<CheckroomIcon sx={{ fontSize: "1.2rem " }} />}
 								label={jersey}
 								sx={{
 									bgcolor: "#E5BA41",
@@ -530,6 +540,16 @@ export default function Event(props) {
 			{/* ── Body ── */}
 			{hasBody && (
 				<CardContent sx={{ pt: 1, pb: hasBody ? 2 : 0 }}>
+						{/* Meeting Point */}
+						{(meetingText || meetingLat != null) && (
+							<MeetingPointPicker
+								lat={meetingLat}
+								lon={meetingLon}
+								text={meetingText}
+								readOnly
+							/>
+						)}
+
 						{/* Einladungen: strukturierte Statusanzeige */}
 						{invitations.length > 0 && (() => {
 							const accepted = invitations.filter((i) => i.status === "accepted");
@@ -555,7 +575,7 @@ export default function Event(props) {
 										bgcolor: "#94A378", color: "#fff", fontWeight: 600, fontSize: "0.75rem",
 										"& .MuiChip-deleteIcon": { color: "rgba(255,255,255,0.7)", "&:hover": { color: "#fff" } },
 									};
-									icon = <HowToRegIcon sx={{ fontSize: "0.95rem !important" }} />;
+									icon = <HowToRegIcon sx={{ fontSize: "0.95rem " }} />;
 								} else if (inv.status === "declined" || inv.status === "withdrawn") {
 									chipSx = {
 										bgcolor: "#D1855C", color: "#fff", fontWeight: 600, fontSize: "0.75rem",
@@ -578,7 +598,7 @@ export default function Event(props) {
 										variant={variant}
 										icon={icon}
 										onDelete={canRevoke ? () => handleRevoke(inv.id) : undefined}
-										deleteIcon={canRevoke ? <CloseIcon sx={{ fontSize: "0.85rem !important" }} /> : undefined}
+										deleteIcon={canRevoke ? <CloseIcon sx={{ fontSize: "0.85rem " }} /> : undefined}
 										sx={chipSx}
 									/>
 								);
@@ -768,7 +788,7 @@ export default function Event(props) {
 									rel="noopener noreferrer"
 									variant="outlined"
 									size="small"
-									endIcon={<OpenInNewIcon sx={{ fontSize: "0.8rem !important" }} />}
+									endIcon={<OpenInNewIcon sx={{ fontSize: "0.8rem " }} />}
 									sx={{
 										mt: 1.5, borderRadius: 2, textTransform: "none",
 										fontSize: "0.78rem", borderColor: "rgba(45,60,89,0.25)",
@@ -930,6 +950,23 @@ export default function Event(props) {
 							size="small"
 							placeholder="https://www.komoot.com/tour/..."
 						/>
+
+						<Divider />
+
+						{/* Treffpunkt */}
+						<Box>
+							<Typography variant="body2" sx={{ color: "text.secondary", mb: 1, fontWeight: 600 }}>
+								Treffpunkt
+							</Typography>
+							<MeetingPointPicker
+								lat={meetingLat}
+								lon={meetingLon}
+								text={meetingText}
+								onChangeLat={setMeetingLat}
+								onChangeLon={setMeetingLon}
+								onChangeText={setMeetingText}
+							/>
+						</Box>
 
 					</Stack>
 				</DialogContent>

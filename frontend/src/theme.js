@@ -42,7 +42,12 @@ const theme = createTheme({
 		},
 		MuiButton: {
 			styleOverrides: {
-				root: { borderRadius: 8, fontWeight: 600 },
+				root: {
+					borderRadius: 8,
+					fontWeight: 600,
+					"& .MuiButton-startIcon": { display: "flex", alignItems: "center" },
+					"& .MuiButton-endIcon": { display: "flex", alignItems: "center" },
+				},
 				containedPrimary: {
 					background: "#2D3C59",
 					"&:hover": { background: "#1E2B42" },
