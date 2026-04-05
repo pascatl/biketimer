@@ -125,7 +125,7 @@ if (loading) {
 return (
 <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, py: 1.5 }}>
 <CircularProgress size={18} />
-<Typography variant="caption" color="text.secondary">Route wird geladen\u2026</Typography>
+<Typography variant="caption" color="text.secondary">Route wird geladen</Typography>
 </Box>
 );
 }
@@ -135,7 +135,7 @@ return (
 <Button component="a" href={link} target="_blank" rel="noopener noreferrer"
 variant="outlined" size="small" endIcon={<OpenInNewIcon fontSize="small" />}
 sx={{ mt: 1, borderRadius: 2, textTransform: "none", fontSize: "0.8rem" }}>
-Route \u00f6ffnen
+Route öffnen
 </Button>
 );
 }
@@ -191,7 +191,7 @@ bgcolor: meta.color, color: "#fff", borderRadius: 2,
 textTransform: "none", fontWeight: 700, fontSize: "0.8rem", px: 2,
 "&:hover": { opacity: 0.88, bgcolor: meta.color },
 }}>
-In {meta.label} \u00f6ffnen
+In {meta.label} öffnen
 </Button>
 </Box>
 </Box>
