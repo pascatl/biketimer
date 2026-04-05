@@ -18,6 +18,7 @@ services:
       - ./backend/migrations/001_init.sql:/docker-entrypoint-initdb.d/001_init.sql:ro
       - ./backend/migrations/002_users_jerseys_sports_push.sql:/docker-entrypoint-initdb.d/002_users_jerseys_sports_push.sql:ro
       - ./backend/migrations/003_invitation_decline_reason.sql:/docker-entrypoint-initdb.d/003_invitation_decline_reason.sql:ro
+      - ./backend/migrations/004_creator_self_invite.sql:/docker-entrypoint-initdb.d/004_creator_self_invite.sql:ro
     healthcheck:
       test:
         [

@@ -37,7 +37,7 @@ _EMAIL_HTML = """<!DOCTYPE html>
             <td style="background:#fff;padding:32px;">
               <p style="margin:0 0 12px;color:#222;font-size:16px;">Hallo,</p>
               <p style="margin:0 0 20px;color:#444;font-size:15px;line-height:1.6;">
-                <strong style="color:#2D3C59;">{inviter_name}</strong> hat dich zu einem Radausflug eingeladen!
+                <strong style="color:#2D3C59;">{inviter_name}</strong> hat dich zu einem Event eingeladen!
               </p>
               <!-- Event box -->
               <table width="100%" style="border-radius:8px;overflow:hidden;margin-bottom:24px;">
@@ -116,7 +116,7 @@ def send_invitation_email(
 
         text_body = (
             f"Hallo,\n\n"
-            f"{inviter_name} hat dich zu einem Radausflug eingeladen!\n\n"
+            f"{inviter_name} hat dich zu einem Event eingeladen!\n\n"
             f"Datum: {event_date}\n"
             f"Typ:   {event_type}\n\n"
             f"Zusagen: {accept_url}\n"
@@ -126,7 +126,7 @@ def send_invitation_email(
         _domain = SMTP_FROM.split("@")[-1] if "@" in SMTP_FROM else "biketimer.local"
 
         msg = MIMEMultipart("alternative")
-        msg["Subject"] = f"Einladung zum Radausflug am {event_date}"
+        msg["Subject"] = f"Einladung zum Event am {event_date}"
         msg["From"] = formataddr(("Biketimer", SMTP_FROM))
         msg["To"] = invitee_email
         msg["Message-ID"] = make_msgid(domain=_domain)

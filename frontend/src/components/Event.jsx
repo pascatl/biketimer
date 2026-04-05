@@ -649,7 +649,7 @@ export default function Event(props) {
 					<PersonIcon sx={{ fontSize: "0.75rem", color: "text.disabled" }} />
 					<Typography variant="caption" sx={{ color: "text.disabled", fontSize: "0.68rem" }}>
 						{props.data.creator_name ? `Erstellt von ${props.data.creator_name}` : ""}
-						{props.data.creator_name && props.data.created_at ? " · " : ""}
+						{props.data.creator_name && props.data.created_at ? " am " : ""}
 						{props.data.created_at
 							? new Date(props.data.created_at).toLocaleDateString("de-DE", {
 								day: "2-digit",
