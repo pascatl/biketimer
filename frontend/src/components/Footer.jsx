@@ -1,7 +1,9 @@
 import React, { useState } from "react";
 import {
+	Avatar,
 	Box,
 	Button,
+	Chip,
 	Dialog,
 	DialogContent,
 	DialogTitle,
@@ -14,12 +16,16 @@ import {
 import GitHubIcon from "@mui/icons-material/GitHub";
 import BugReportIcon from "@mui/icons-material/BugReport";
 import CloseIcon from "@mui/icons-material/Close";
+import { useAuth } from "../auth/AuthContext";
 
 const GITHUB_REPO = "https://github.com/pascatl/biketimer";
 const GITHUB_ISSUE = `${GITHUB_REPO}/issues/new`;
 
 export default function Footer() {
 	const [impOpen, setImpOpen] = useState(false);
+	const { user, authenticated } = useAuth();
+	const userName = user?.name || user?.preferred_username || "";
+	const isAdmin = user?.is_admin || false;
 
 	return (
 		<>
@@ -36,9 +42,7 @@ export default function Footer() {
 					borderTop: "1px solid rgba(45,60,89,0.1)",
 					display: "flex",
 					alignItems: "center",
-				justifyContent: "center",
-					flexWrap: "wrap",
-					gap: 1,
+					justifyContent: "space-between",
 					zIndex: 1100,
 				}}
 			>
@@ -59,7 +63,7 @@ export default function Footer() {
 					Impressum
 				</Button>
 
-				{/* Right: GitHub links */}
+				{/* Right: GitHub links + user chip */}
 				<Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
 					<Tooltip title="GitHub-Repository">
 						<IconButton
@@ -85,6 +89,23 @@ export default function Footer() {
 							<BugReportIcon fontSize="small" />
 						</IconButton>
 					</Tooltip>
+					{authenticated && userName && (
+						<Chip
+							avatar={
+								<Avatar sx={{ fontSize: "0.7rem !important" }}>
+									{userName.charAt(0).toUpperCase()}
+								</Avatar>
+							}
+							label={isAdmin ? `${userName} (Admin)` : userName}
+							size="small"
+							sx={{
+								ml: 0.5,
+								fontWeight: 600,
+								fontSize: "0.75rem",
+								color: "text.secondary",
+							}}
+						/>
+					)}
 				</Box>
 			</Box>
 

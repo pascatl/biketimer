@@ -1,10 +1,8 @@
 import React, { useState } from "react";
 import {
 	AppBar,
-	Avatar,
 	Box,
 	Button,
-	Chip,
 	Slide,
 	Toolbar,
 	Tooltip,
@@ -42,8 +40,7 @@ const TopBar = ({
 	onStatsOpen,
 	onInboxOpen,
 }) => {
-	const { user, authenticated, openLogin, logout } = useAuth();
-	const userName = user?.name || user?.preferred_username || "";
+	const { authenticated, openLogin, logout } = useAuth();
 	const [notifOpen, setNotifOpen] = useState(false);
 
 	const handleLogin = () => openLogin();
@@ -123,30 +120,6 @@ const TopBar = ({
 
 						{authenticated ? (
 							<>
-								{userName && (
-									<Chip
-										avatar={
-											<Avatar
-												sx={{
-													bgcolor: "rgba(255,255,255,0.25)",
-													color: "#fff",
-													fontSize: "0.75rem",
-												}}
-											>
-												{userName.charAt(0).toUpperCase()}
-											</Avatar>
-										}
-										label={isAdmin ? `${userName} (Admin)` : userName}
-										size="small"
-										sx={{
-											color: "#fff",
-											bgcolor: "rgba(255,255,255,0.12)",
-											fontWeight: 600,
-											fontSize: "0.8rem",
-											display: { xs: "none", sm: "flex" },
-										}}
-									/>
-								)}
 								{isAdmin && (
 									<Tooltip title="Admin-Bereich">
 										<Button
