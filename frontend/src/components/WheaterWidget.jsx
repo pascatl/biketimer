@@ -1,107 +1,98 @@
-import React, { useState, useEffect } from "react";
-import PropTypes from "prop-types";
+import React, { useEffect, useState } from "react";
+import { Box, Tooltip, Typography, CircularProgress } from "@mui/material";
 
-const WeatherWidget = (props) => {
-  const [weatherData, setWeatherData] = useState(null);
-  const [weatherIcon, setWeatherIcon] = useState(null);
-  const [searchDate, setSearchDate] = useState(props.searchDate);
-  const [searchTime, setSearchTime] = useState(props.searchTime);
+/**
+ * WeatherWidget – compact inline forecast badge.
+ *
+ * Props:
+ *   date        – "YYYY-MM-DD"
+ *   time        – "HH:MM"  (optional, defaults to "15:00")
+ *   lat, lon    – coordinates for the forecast location
+ *                 (fall back to a default location when not provided)
+ *
+ * Renders nothing when:
+ *   - no API key is configured on the backend
+ *   - the date is more than 5 days out (OWM forecast limit)
+ *   - the date is in the past
+ */
+
+const DEFAULT_LAT = 49.583332;
+const DEFAULT_LON = 11.016667;
+
+function isWithinForecastWindow(dateStr) {
+  if (!dateStr) return false;
+  const eventDate = new Date(dateStr + "T00:00:00");
+  const now = new Date();
+  const diffDays = (eventDate - now) / (1000 * 60 * 60 * 24);
+  return diffDays >= 0 && diffDays <= 5;
+}
+
+export default function WeatherWidget({ date, time = "15:00", lat, lon, iconSize = 28 }) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const useLat = lat ?? DEFAULT_LAT;
+  const useLon = lon ?? DEFAULT_LON;
 
   useEffect(() => {
-    // Fetch weather data for the given city using an API
-    fetch(
-      `https://api.openweathermap.org/data/2.5/forecast?appid=3e512fd69b5b93d2c11e8a0c425e8efb&units=metric&lang=de&lat=49.583332&lon=11.016667`
-    )
-      .then((response) => response.json())
-      .then((data) => {
-        let list = data.list;
+    if (!date || !isWithinForecastWindow(date)) return;
 
-        // let dt = searchDate + " " + getNextClosestTime(searchTime) + ":00";
-        let dt = searchDate + " " + "15:00" + ":00";
-        // console.log(dt);
-        list.forEach((element) => {
-          if (element.dt_txt == dt) {
-            console.log("treffer");
-            console.log(element);
-            console.log(searchTime);
-            setWeatherData(element);
-            setWeatherIcon(
-              `https://openweathermap.org/img/w/${element.weather[0].icon}.png`
-            );
-          }
-        });
+    setLoading(true);
+    setError(null);
+
+    const params = new URLSearchParams({
+      lat: useLat,
+      lon: useLon,
+      date,
+      time: time || "15:00",
+    });
+
+    fetch(`/api/weather/forecast?${params}`, {
+      headers: { "Content-Type": "application/json" },
+    })
+      .then((r) => {
+        if (!r.ok) throw new Error(r.status);
+        return r.json();
+      })
+      .then((d) => {
+        setData(d);
+        setLoading(false);
+      })
+      .catch(() => {
+        setError(true);
+        setLoading(false);
       });
-  }, []);
+  }, [date, time, useLat, useLon]);
 
-  //   if (!weatherData) {
-  //     return <div>Loading weather data...</div>;
-  //   }
-
-  const format = "YYYY-MM-DD HH:MM:SS";
-
-  //   function getNextClosestTime(time) {
-  //     const times = [
-  //       "00:00",
-  //       "03:00",
-  //       "06:00",
-  //       "09:00",
-  //       "12:00",
-  //       "15:00",
-  //       "18:00",
-  //       "21:00",
-  //     ];
-  //     // wandeln die Zeit in einen String um, falls es sich um eine Zahl handelt
-  //     if (typeof time === "number") {
-  //       time = time.toString();
-  //     }
-
-  //     // time = String(time); // Umwandlung von number in string
-
-  //     const [hours, minutes] = time.split(":").map(Number);
-  //     const totalMinutes = hours * 60 + minutes;
-
-  //     let closestTime = times[0];
-  //     let closestTimeMinutes = getDifference(totalMinutes, times[0]);
-
-  //     for (let i = 1; i < times.length; i++) {
-  //       const currentTimeMinutes = getMinutes(times[i]);
-  //       const difference = getDifference(totalMinutes, currentTimeMinutes);
-
-  //       if (difference < closestTimeMinutes) {
-  //         closestTime = times[i];
-  //         closestTimeMinutes = difference;
-  //       }
-  //     }
-
-  //     return closestTime;
-  //   }
-
-  //   function getMinutes(time) {
-  //     if (typeof time === "number") {
-  //       time = time.toString();
-  //     }
-  //     const [hours, minutes] = time.split(":").map(Number);
-  //     return hours * 60 + minutes;
-  //   }
-
-  //   function getDifference(time1, time2) {
-  //     const minutesInDay = 1440;
-  //     const diff = getMinutes(time2) - time1;
-  //     return diff < 0 ? diff + minutesInDay : diff;
-  //   }
+  if (!date || !isWithinForecastWindow(date)) return null;
+  if (loading) return <CircularProgress size={14} sx={{ ml: 1 }} />;
+  if (error || !data) return null;
 
   return (
-    weatherData && (
-      <div>
-        <div>
-          <img src={weatherIcon} />
-        </div>
-        <div>{weatherData.weather[0].description}</div>
-        <div>{Math.round(weatherData.main.temp)}°C</div>
-        {/* <div>{weatherData.wind.speed}</div> */}
-      </div>
-    )
+    <Tooltip
+      title={`${data.description} · gefühlt ${data.feels_like}°C (${data.dt_txt.slice(11, 16)} Uhr)`}
+      placement="bottom"
+    >
+      <Box
+        sx={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 0.25,
+          cursor: "default",
+          userSelect: "none",
+        }}
+      >
+        <Box
+          component="img"
+          src={data.icon_url}
+          alt={data.description}
+          sx={{ width: iconSize, height: iconSize }}
+        />
+        <Typography variant="body2" sx={{ fontWeight: 700, color: "text.secondary", fontSize: "0.82rem" }}>
+          {data.temp}°C
+        </Typography>
+      </Box>
+    </Tooltip>
   );
-};
-
-export default WeatherWidget;
+}

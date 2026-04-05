@@ -52,6 +52,7 @@ import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import RouteWidget from "./RouteWidget";
 import MeetingPointPicker from "./MeetingPointPicker";
+import WeatherWidget from "./WheaterWidget";
 import {
 	updateEvent as apiUpdateEvent,
 	deleteEvent as apiDeleteEvent,
@@ -456,7 +457,8 @@ export default function Event(props) {
 						</Box>
 					}
 					action={
-					<Box sx={{ display: "flex", alignItems: "center", gap: 0.25, mt: 0.5 }}>
+					<Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 0.5, mt: 0.5 }}>
+						<Box sx={{ display: "flex", alignItems: "center", gap: 0.25 }}>
 						{isPast && (
 							<Chip
 								icon={<HistoryIcon sx={{ fontSize: "0.85rem " }} />}
@@ -499,6 +501,8 @@ export default function Event(props) {
 								<ShareIcon fontSize="small" />
 							</IconButton>
 						</Tooltip>
+						</Box>
+						<WeatherWidget date={date} time={startTime} lat={meetingLat} lon={meetingLon} iconSize={36} />
 					</Box>
 				}
 				sx={{ pb: 0.5, pt: 2 }}
