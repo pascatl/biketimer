@@ -50,6 +50,7 @@ import PersonAddAltIcon from "@mui/icons-material/PersonAddAlt";
 import PersonIcon from "@mui/icons-material/Person";
 import ShareIcon from "@mui/icons-material/Share";
 import HistoryIcon from "@mui/icons-material/History";
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import RouteWidget from "./RouteWidget";
 import {
@@ -546,22 +547,23 @@ export default function Event(props) {
 					}}
 				>
 					{/* Chips – linke Seite */}
-					<Box sx={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 0.75 }}>
+					<Box sx={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 0.75, width: editMode ? "100%" : "auto" }}>
 						{editMode ? (
-							<>
-								<Chip
-									icon={<EmojiPeopleIcon sx={{ fontSize: "0.95rem !important" }} />}
-									label={leader || "Organisator"}
-									onClick={(e) => setLeaderAnchor(e.currentTarget)}
+							<Box sx={{ display: "flex", gap: 1, width: "100%", flexWrap: "wrap" }}>
+								<Button
 									variant="outlined"
-									size="small"
-									clickable
+									onClick={(e) => setLeaderAnchor(e.currentTarget)}
+									startIcon={<EmojiPeopleIcon sx={{ fontSize: "1rem !important" }} />}
+									endIcon={<KeyboardArrowDownIcon />}
 									sx={{
-										borderColor: "primary.main",
-										color: "primary.main",
-										fontWeight: 600,
+										flex: 1, minWidth: 140, justifyContent: "space-between",
+										textTransform: "none", fontWeight: 600, fontSize: "0.85rem",
+										borderRadius: 2, borderColor: "primary.main", color: "primary.main",
+										py: 0.75, "&:hover": { bgcolor: "rgba(45,60,89,0.04)" },
 									}}
-								/>
+								>
+									{leader || "Organisator …"}
+								</Button>
 								<Menu
 									anchorEl={leaderAnchor}
 									open={Boolean(leaderAnchor)}
@@ -569,29 +571,27 @@ export default function Event(props) {
 									PaperProps={{ sx: { borderRadius: 2 } }}
 								>
 									{default_users.map((user) => (
-										<MenuItem
-											key={user}
-											selected={user === leader}
+										<MenuItem key={user} selected={user === leader}
 											onClick={() => { setLeader(user); setLeaderAnchor(null); }}
-											sx={{ fontFamily: '"' + 'Josefin Sans", sans-serif' }}
-										>
+											sx={{ fontFamily: '"' + 'Josefin Sans", sans-serif' }}>
 											{user}
 										</MenuItem>
 									))}
 								</Menu>
-								<Chip
-									icon={<CheckroomIcon sx={{ fontSize: "0.95rem !important" }} />}
-									label={jersey || "Trikot"}
-									onClick={(e) => setJerseyAnchor(e.currentTarget)}
+								<Button
 									variant="outlined"
-									size="small"
-									clickable
+									onClick={(e) => setJerseyAnchor(e.currentTarget)}
+									startIcon={<CheckroomIcon sx={{ fontSize: "1rem !important" }} />}
+									endIcon={<KeyboardArrowDownIcon />}
 									sx={{
-										borderColor: "text.secondary",
-										color: "text.secondary",
-										fontWeight: 600,
+										flex: 1, minWidth: 120, justifyContent: "space-between",
+										textTransform: "none", fontWeight: 600, fontSize: "0.85rem",
+										borderRadius: 2, borderColor: "divider", color: "text.secondary",
+										py: 0.75, "&:hover": { bgcolor: "rgba(45,60,89,0.04)" },
 									}}
-								/>
+								>
+									{jersey || "Trikot …"}
+								</Button>
 								<Menu
 									anchorEl={jerseyAnchor}
 									open={Boolean(jerseyAnchor)}
@@ -599,17 +599,14 @@ export default function Event(props) {
 									PaperProps={{ sx: { borderRadius: 2 } }}
 								>
 									{jerseyNames.map((j) => (
-										<MenuItem
-											key={j}
-											selected={j === jersey}
+										<MenuItem key={j} selected={j === jersey}
 											onClick={() => { setJersey(j); setJerseyAnchor(null); }}
-											sx={{ fontFamily: '"' + 'Josefin Sans", sans-serif' }}
-										>
+											sx={{ fontFamily: '"' + 'Josefin Sans", sans-serif' }}>
 											{j}
 										</MenuItem>
 									))}
 								</Menu>
-							</>
+							</Box>
 						) : (
 							<>
 								{leader && (
@@ -1122,11 +1119,11 @@ export default function Event(props) {
 				</DialogTitle>
 				<DialogContent>
 					<Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-						Bitte gib einen kurzen Grund an, damit die anderen Bescheid wissen.
+						Bitte gib einen Grund an, damit die anderen Bescheid wissen, warum du an einem Event nicht teilnimmst, zu dem du schon zugesagt hattest.
 					</Typography>
 					<TextField
 						label="Begründung"
-						placeholder="z.B. krank, Urlaub, anderweitig verhindert…"
+						placeholder="z.B. kein Bock, krank, mimimimi, wichtige Termine, etc."
 						multiline
 						rows={2}
 						fullWidth
