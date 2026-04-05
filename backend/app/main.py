@@ -7,6 +7,7 @@ from sqlalchemy import text
 from .database import engine
 from .models import Base
 from .routers import events, invitations, users, admin, data, push, stats, auth, weather
+from .config import APP_NAME
 
 # Create tables that don't exist yet (safe with existing DB)
 Base.metadata.create_all(bind=engine)
@@ -104,7 +105,7 @@ FRONTEND_ORIGINS = os.getenv(
     "http://localhost:5173,http://localhost:4173",
 ).split(",")
 
-app = FastAPI(title="Biketimer API", version="2.0.0")
+app = FastAPI(title=f"{APP_NAME} API", version="2.0.0")
 
 app.add_middleware(
     CORSMiddleware,

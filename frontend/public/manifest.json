@@ -1,6 +1,6 @@
 {
-    "name": "Biketimer Terminplaner",
-    "short_name": "Biketimer",
+    "name": "BikeTimer Terminplaner",
+    "short_name": "BikeTimer",
     "description": "Fahrttermine planen und verwalten",
     "start_url": "/",
     "display": "standalone",

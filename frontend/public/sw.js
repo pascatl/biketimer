@@ -51,7 +51,7 @@ self.addEventListener("fetch", (event) => {
 
 // Push notification handler
 self.addEventListener("push", (event) => {
-	let data = { title: "Biketimer", body: "Neue Benachrichtigung" };
+	let data = { title: "BikeTimer", body: "Neue Benachrichtigung" };
 
 	if (event.data) {
 		try {

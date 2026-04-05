@@ -23,6 +23,7 @@ import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import { useAuth } from "../auth/AuthContext";
 import { registerUser } from "../api";
 import { KC_REALM } from "../auth/AuthService";
+import { APP_NAME } from "../config";
 
 const RESET_URL = `/kc/realms/${KC_REALM}/login-actions/reset-credentials`;
 
@@ -169,7 +170,7 @@ export default function LoginDialog() {
 						variant="caption"
 						sx={{ color: "rgba(255,255,255,0.65)", letterSpacing: 1.5 }}
 					>
-						BIKETIMER
+						{APP_NAME.toUpperCase()}
 					</Typography>
 				</Box>
 				{authenticated && (

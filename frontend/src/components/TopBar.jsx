@@ -19,6 +19,7 @@ import ControlButtons from "./ControlButtons";
 import { InboxButton } from "./InboxDrawer";
 import NotifPrefsDrawer from "./NotifPrefsDrawer";
 import { useAuth } from "../auth/AuthContext";
+import { APP_NAME } from "../config";
 
 function HideOnScroll({ children }) {
 	const trigger = useScrollTrigger();
@@ -89,7 +90,7 @@ const TopBar = ({
 								display: { xs: "none", sm: "block" },
 							}}
 						>
-							Terminplaner
+							{APP_NAME}
 						</Typography>
 					</Box>
 
