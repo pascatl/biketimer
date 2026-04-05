@@ -47,23 +47,25 @@ export default function Footer() {
 				}}
 			>
 				{/* Left: Impressum */}
-				<Button
-					variant="text"
-					size="small"
-					onClick={() => setImpOpen(true)}
-					sx={{
-						color: "text.secondary",
-						textTransform: "none",
-						fontSize: "0.75rem",
-						p: 0,
-						minWidth: 0,
-						"&:hover": { color: "text.primary", background: "none" },
-					}}
-				>
-					Impressum
-				</Button>
+				<Box sx={{ flex: 1, display: "flex", justifyContent: "flex-start" }}>
+					<Button
+						variant="text"
+						size="small"
+						onClick={() => setImpOpen(true)}
+						sx={{
+							color: "text.secondary",
+							textTransform: "none",
+							fontSize: "0.75rem",
+							p: 0,
+							minWidth: 0,
+							"&:hover": { color: "text.primary", background: "none" },
+						}}
+					>
+						Impressum
+					</Button>
+				</Box>
 
-				{/* Right: GitHub links + user chip */}
+				{/* Center: GitHub links */}
 				<Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
 					<Tooltip title="GitHub-Repository">
 						<IconButton
@@ -89,6 +91,10 @@ export default function Footer() {
 							<BugReportIcon fontSize="small" />
 						</IconButton>
 					</Tooltip>
+				</Box>
+
+				{/* Right: user chip */}
+				<Box sx={{ flex: 1, display: "flex", justifyContent: "flex-end" }}>
 					{authenticated && userName && (
 						<Chip
 							avatar={
