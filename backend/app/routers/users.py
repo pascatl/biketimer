@@ -23,6 +23,15 @@ def _push_with_pref(db, keycloak_id: str, pref_key: str, title: str, body: str):
                 pass
 
 
+def _notify_admins_new_user(db, new_sub: str, name: str):
+    """Send admin_user_registered push to all other active users."""
+    all_users = db.query(User).filter(User.is_active == True).all()
+    for au in all_users:
+        if au.keycloak_id and au.keycloak_id != new_sub:
+            _push_with_pref(db, au.keycloak_id, "admin_user_registered",
+                            "Neuer Benutzer", f"{name} hat sich registriert.")
+
+
 @router.get("", response_model=List[UserResponse])
 def get_users(db: Session = Depends(get_db)):
     """Return all active users (for user selection lists)."""
@@ -68,6 +77,7 @@ def register_or_link_me(
             db.commit()
             _migrate_invitations(db, by_email, sub, email)
             db.refresh(by_email)
+            _notify_admins_new_user(db, sub, by_email.name)
             return by_email
 
     # 3. Match by display name (seeded users have no keycloak_id)
@@ -84,6 +94,7 @@ def register_or_link_me(
             db.commit()
             _migrate_invitations(db, by_name, sub, email)
             db.refresh(by_name)
+            _notify_admins_new_user(db, sub, by_name.name)
             return by_name
 
     # 4. No match – create a new user
@@ -91,14 +102,7 @@ def register_or_link_me(
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
-
-    # Notify admins about new registration
-    all_users = db.query(User).filter(User.is_active == True).all()
-    for au in all_users:
-        if au.keycloak_id and au.keycloak_id != sub:
-            _push_with_pref(db, au.keycloak_id, "admin_user_registered",
-                            "Neuer Benutzer", f"{name} hat sich registriert.")
-
+    _notify_admins_new_user(db, sub, name)
     return new_user
 
 
