@@ -5,12 +5,10 @@ import {
 	Box,
 	Button,
 	Card,
-	CardActions,
 	CardContent,
 	CardHeader,
 	Checkbox,
 	Chip,
-	Collapse,
 	Dialog,
 	DialogActions,
 	DialogContent,
@@ -93,7 +91,6 @@ export default function Event(props) {
 	);
 	const [editMode, setEditMode] = useState(false);
 	const [currentEvent, setCurrentEvent] = useState(props.data);
-	const [typeAnchor, setTypeAnchor] = useState(null);
 	const [leaderAnchor, setLeaderAnchor] = useState(null);
 	const [jerseyAnchor, setJerseyAnchor] = useState(null);
 	const [inviteOpen, setInviteOpen] = useState(false);
@@ -270,6 +267,18 @@ export default function Event(props) {
 			.catch(console.error);
 	};
 
+	const handleCancelEdit = () => {
+		setTitle(currentEvent.event_data.event_title || "");
+		setDate(currentEvent.event_data.event_date);
+		setStartTime(currentEvent.event_data.event_startTime);
+		setEventType(currentEvent.event_data.event_type || "rennrad");
+		setLeader(currentEvent.event_data.event_leader);
+		setJersey(currentEvent.event_data.event_jersey);
+		setComment(currentEvent.event_data.event_comment);
+		setLink(currentEvent.event_data.event_link);
+		setEditMode(false);
+	};
+
 	const [selectedInvitees, setSelectedInvitees] = useState([]);
 
 	const handleInviteSubmit = async () => {
@@ -325,8 +334,7 @@ export default function Event(props) {
 		invitations.length > 0 ||
 		myInvitation !== null ||
 		!!comment ||
-		!!link ||
-		editMode;
+		!!link;
 
 	return (
 		<>
@@ -365,159 +373,64 @@ export default function Event(props) {
 				{/* ── Header ── */}
 				<CardHeader
 					avatar={
-						editMode ? (
-							<>
-								<Tooltip title="Typ ändern">
-									<Avatar
-										sx={{
-											bgcolor: typeMeta.color,
-											cursor: "pointer",
-											width: 48,
-											height: 48,
-											boxShadow: `0 2px 8px ${typeMeta.color}55`,
-										}}
-										onClick={(e) => setTypeAnchor(e.currentTarget)}
-									>
-										{typeMeta.icon}
-									</Avatar>
-								</Tooltip>
-								<Menu
-									anchorEl={typeAnchor}
-									open={Boolean(typeAnchor)}
-									onClose={() => setTypeAnchor(null)}
-									PaperProps={{
-										sx: {
-											borderRadius: 2,
-											boxShadow: "0 4px 20px rgba(45,60,89,0.15)",
-										},
-									}}
-								>
-									{Object.entries(default_types).map(([key, val]) => (
-										<MenuItem
-											key={key}
-											selected={key === eventType}
-											onClick={() => {
-												setEventType(key);
-												setTypeAnchor(null);
-											}}
-											sx={{
-												fontFamily: '"Josefin Sans", sans-serif',
-												fontWeight: key === eventType ? 700 : 400,
-											}}
-										>
-											{val.label || val.alias}
-										</MenuItem>
-									))}
-								</Menu>
-							</>
-						) : (
-							<Tooltip title={typeMeta.label}>
-								<Avatar
-									sx={{
-										bgcolor: typeMeta.color,
-										width: 48,
-										height: 48,
-										boxShadow: `0 2px 8px ${typeMeta.color}44`,
-									}}
-								>
-									{typeMeta.icon}
-								</Avatar>
-							</Tooltip>
-						)
-					}
+					<Tooltip title={typeMeta.label}>
+						<Avatar
+							sx={{
+								bgcolor: typeMeta.color,
+								width: 48,
+								height: 48,
+								boxShadow: `0 2px 8px ${typeMeta.color}44`,
+							}}
+						>
+							{typeMeta.icon}
+						</Avatar>
+					</Tooltip>
+				}
 					title={
-						editMode ? (
-							<LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={de}>
-								<Box
-									sx={{
-										display: "flex",
-										flexDirection: "column",
-										gap: 1,
-									}}
-								>
-									<TextField
-										label="Titel (optional)"
-										value={title}
-										onChange={(e) => setTitle(e.target.value)}
-										size="small"
-										fullWidth
-										placeholder="z. B. Freitagsrunde, Wochenendtour…"
-										inputProps={{ maxLength: 80 }}
-									/>
-									<Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap", alignItems: "center" }}>
-										<DatePicker
-											label="Datum"
-											value={date ? parseISO(date) : null}
-											onChange={(d) => setDate(d ? formatFns(d, "yyyy-MM-dd") : "")}
-											slotProps={{ textField: { size: "small", sx: { maxWidth: 180 } } }}
-										/>
-										<TimePicker
-											label="Uhrzeit"
-											value={startTime ? parseFns(startTime, "HH:mm", new Date()) : null}
-											onChange={(t) => setStartTime(t ? formatFns(t, "HH:mm") : "")}
-											ampm={false}
-											slotProps={{ textField: { size: "small", sx: { maxWidth: 150 } } }}
-										/>
-									</Box>
-								</Box>
-							</LocalizationProvider>
-						) : (
-							<Box
-								onClick={props.onOpenDetail ? () => props.onOpenDetail(eventId) : undefined}
-								sx={props.onOpenDetail ? { cursor: "pointer", "&:hover .event-date": { textDecoration: "underline" } } : {}}
+						<Box
+							onClick={props.onOpenDetail ? () => props.onOpenDetail(eventId) : undefined}
+							sx={props.onOpenDetail ? { cursor: "pointer", "&:hover .event-date": { textDecoration: "underline" } } : {}}
+						>
+							<Typography
+								variant="overline"
+								sx={{
+									color: typeMeta.color,
+									fontWeight: 700,
+									letterSpacing: 1.5,
+									lineHeight: 1,
+									fontSize: "0.68rem",
+								}}
 							>
-								<Typography
-									variant="overline"
-									sx={{
-										color: typeMeta.color,
-										fontWeight: 700,
-										letterSpacing: 1.5,
-										lineHeight: 1,
-										fontSize: "0.68rem",
-									}}
-								>
-									{date ? convertDate(date)[0] : ""}
-								</Typography>
-								{title ? (
-									<>
-										<Typography
-											className="event-date"
-											variant="h5"
-											sx={{ fontWeight: 700, lineHeight: 1.15, color: "text.primary", mt: 0.25 }}
-										>
-											{title}
-										</Typography>
-										<Typography
-											variant="body2"
-											sx={{ color: "text.secondary", mt: 0.25 }}
-										>
-											{date ? convertDate(date)[1] : "Kein Datum"} · {startTime || "Uhrzeit offen"}
-										</Typography>
-									</>
-								) : (
-									<>
-										<Typography
-											className="event-date"
-											variant="h5"
-											sx={{
-												fontWeight: 700,
-												lineHeight: 1.15,
-												color: "text.primary",
-												mt: 0.25,
-											}}
-										>
-											{date ? convertDate(date)[1] : "Kein Datum"}
-										</Typography>
-										<Typography
-											variant="body2"
-											sx={{ color: "text.secondary", mt: 0.25 }}
-										>
-											{startTime || "Uhrzeit offen"}
-										</Typography>
-									</>
-								)}
-							</Box>
-						)
+								{date ? convertDate(date)[0] : ""}
+							</Typography>
+							{title ? (
+								<>
+									<Typography
+										className="event-date"
+										variant="h5"
+										sx={{ fontWeight: 700, lineHeight: 1.15, color: "text.primary", mt: 0.25 }}
+									>
+										{title}
+									</Typography>
+									<Typography variant="body2" sx={{ color: "text.secondary", mt: 0.25 }}>
+										{date ? convertDate(date)[1] : "Kein Datum"} · {startTime || "Uhrzeit offen"}
+									</Typography>
+								</>
+							) : (
+								<>
+									<Typography
+										className="event-date"
+										variant="h5"
+										sx={{ fontWeight: 700, lineHeight: 1.15, color: "text.primary", mt: 0.25 }}
+									>
+										{date ? convertDate(date)[1] : "Kein Datum"}
+									</Typography>
+									<Typography variant="body2" sx={{ color: "text.secondary", mt: 0.25 }}>
+										{startTime || "Uhrzeit offen"}
+									</Typography>
+								</>
+							)}
+						</Box>
 					}
 					action={
 					<Box sx={{ display: "flex", alignItems: "center", gap: 0.25, mt: 0.5 }}>
@@ -569,113 +482,40 @@ export default function Event(props) {
 				/>
 
 				{/* ── Chip Row (Organisator / Trikot) ── */}
-				<Box
-					sx={{
-						display: "flex",
-						alignItems: "center",
-						flexWrap: "wrap",
-						gap: 0.75,
-						px: 2,
-						pb: 1,
-					}}
-				>
-					{/* Chips – linke Seite */}
-					<Box sx={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 0.75, width: editMode ? "100%" : "auto" }}>
-						{editMode ? (
-							<Box sx={{ display: "flex", gap: 1, width: "100%", flexWrap: "wrap" }}>
-								<Button
-									variant="outlined"
-									onClick={(e) => setLeaderAnchor(e.currentTarget)}
-									startIcon={<EmojiPeopleIcon sx={{ fontSize: "1rem !important" }} />}
-									endIcon={<KeyboardArrowDownIcon />}
-									sx={{
-										flex: 1, minWidth: 140, justifyContent: "space-between",
-										textTransform: "none", fontWeight: 600, fontSize: "0.85rem",
-										borderRadius: 2, borderColor: "primary.main", color: "primary.main",
-										py: 0.75, "&:hover": { bgcolor: "rgba(45,60,89,0.04)" },
-									}}
-								>
-									{leader || "Organisator …"}
-								</Button>
-								<Menu
-									anchorEl={leaderAnchor}
-									open={Boolean(leaderAnchor)}
-									onClose={() => setLeaderAnchor(null)}
-									PaperProps={{ sx: { borderRadius: 2 } }}
-								>
-									{default_users.map((user) => (
-										<MenuItem key={user} selected={user === leader}
-											onClick={() => { setLeader(user); setLeaderAnchor(null); }}
-											sx={{ fontFamily: '"' + 'Josefin Sans", sans-serif' }}>
-											{user}
-										</MenuItem>
-									))}
-								</Menu>
-								<Button
-									variant="outlined"
-									onClick={(e) => setJerseyAnchor(e.currentTarget)}
-									startIcon={<CheckroomIcon sx={{ fontSize: "1rem !important" }} />}
-									endIcon={<KeyboardArrowDownIcon />}
-									sx={{
-										flex: 1, minWidth: 120, justifyContent: "space-between",
-										textTransform: "none", fontWeight: 600, fontSize: "0.85rem",
-										borderRadius: 2, borderColor: "divider", color: "text.secondary",
-										py: 0.75, "&:hover": { bgcolor: "rgba(45,60,89,0.04)" },
-									}}
-								>
-									{jersey || "Trikot …"}
-								</Button>
-								<Menu
-									anchorEl={jerseyAnchor}
-									open={Boolean(jerseyAnchor)}
-									onClose={() => setJerseyAnchor(null)}
-									PaperProps={{ sx: { borderRadius: 2 } }}
-								>
-									{jerseyNames.map((j) => (
-										<MenuItem key={j} selected={j === jersey}
-											onClick={() => { setJersey(j); setJerseyAnchor(null); }}
-											sx={{ fontFamily: '"' + 'Josefin Sans", sans-serif' }}>
-											{j}
-										</MenuItem>
-									))}
-								</Menu>
-							</Box>
-						) : (
-							<>
-								{leader && (
-									<Chip
-										icon={<EmojiPeopleIcon sx={{ fontSize: "1.5rem !important" }} />}
-										label={leader}
-										variant="outlined"
-										sx={{
-											borderColor: "primary.main",
-											color: "primary.main",
-											fontWeight: 700,
-											height: 36,
-											"& .MuiChip-label": { fontSize: "0.9rem", px: 1 },
-											"& .MuiChip-icon": { fontSize: "1.2rem" },
-										}}
-									/>
-								)}
-								{jersey && (
-									<Chip
-										icon={<CheckroomIcon sx={{ fontSize: "1.2rem !important" }} />}
-										label={jersey}
-										sx={{
-											bgcolor: "#E5BA41",
-											color: "#2D3C59",
-											fontWeight: 700,
-											border: "none",
-											height: 36,
-											"& .MuiChip-label": { fontSize: "0.9rem", px: 1 },
-											"& .MuiChip-icon": { fontSize: "1.2rem", color: "#2D3C59" },
-										}}
-									/>
-								)}
-							</>
+				{(leader || jersey) && (
+					<Box sx={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 0.75, px: 2, pb: 1 }}>
+						{leader && (
+							<Chip
+								icon={<EmojiPeopleIcon sx={{ fontSize: "1.2rem !important" }} />}
+								label={leader}
+								variant="outlined"
+								sx={{
+									borderColor: "primary.main",
+									color: "primary.main",
+									fontWeight: 700,
+									height: 36,
+									"& .MuiChip-label": { fontSize: "0.9rem", px: 1 },
+									"& .MuiChip-icon": { fontSize: "1.2rem" },
+								}}
+							/>
+						)}
+						{jersey && (
+							<Chip
+								icon={<CheckroomIcon sx={{ fontSize: "1.2rem !important" }} />}
+								label={jersey}
+								sx={{
+									bgcolor: "#E5BA41",
+									color: "#2D3C59",
+									fontWeight: 700,
+									border: "none",
+									height: 36,
+									"& .MuiChip-label": { fontSize: "0.9rem", px: 1 },
+									"& .MuiChip-icon": { fontSize: "1.2rem", color: "#2D3C59" },
+								}}
+							/>
 						)}
 					</Box>
-				</Box>
+				)}
 
 
 			{/* ── Body ── */}
@@ -895,45 +735,22 @@ export default function Event(props) {
 						)}
 
 						{/* Comment */}
-						{editMode ? (
-							<TextField
-								label="Kommentar"
-								multiline
-								rows={2}
-								fullWidth
-								value={comment}
-								onChange={(e) => setComment(e.target.value)}
-								size="small"
-								sx={{ mt: 2 }}
-							/>
-						) : (
-							comment && (
-								<Typography
-									variant="body2"
-									sx={{
-										mt: 1.5,
-										color: "text.secondary",
-										fontStyle: "italic",
-										lineHeight: 1.6,
-									}}
-								>
-									{comment}
-								</Typography>
-							)
+						{comment && (
+							<Typography
+								variant="body2"
+								sx={{
+									mt: 1.5,
+									color: "text.secondary",
+									fontStyle: "italic",
+									lineHeight: 1.6,
+								}}
+							>
+								{comment}
+							</Typography>
 						)}
 
 						{/* Link / Route */}
-						{editMode ? (
-							<TextField
-								label="Strava oder Komoot Link"
-								fullWidth
-								value={link}
-								onChange={(e) => setLink(e.target.value)}
-								size="small"
-								sx={{ mt: 2 }}
-								placeholder="https://www.komoot.com/tour/..."
-							/>
-						) : link ? (
+						{link ? (
 							props.onOpenDetail ? (
 								<Button
 									component="a"
@@ -959,48 +776,170 @@ export default function Event(props) {
 					</CardContent>
 				)}
 
-				{/* ── Actions (edit mode only) ── */}
-				<Collapse in={editMode}>
-					<Divider sx={{ borderColor: "rgba(45,60,89,0.08)" }} />
-					<CardActions
-						sx={{ justifyContent: "flex-end", px: 2.5, py: 1.5, gap: 1 }}
-					>
-						<Button
-							size="small"
-							color="inherit"
-							startIcon={<CloseIcon />}
-							onClick={() => setEditMode(false)}
-							sx={{ color: "text.secondary" }}
-						>
-							Abbrechen
-						</Button>
-						<Button
-							size="small"
-							startIcon={<DeleteIcon />}
-							onClick={handleDelete}
-							sx={{
-								color: "#D1855C",
-								borderColor: "#D1855C",
-								border: "1px solid",
-								borderRadius: 2,
-								"&:hover": { bgcolor: "rgba(209,133,92,0.08)" },
-							}}
-						>
-							Löschen
-						</Button>
-						<Button
-							size="small"
-							variant="contained"
-							disableElevation
-							startIcon={<SaveIcon />}
-							onClick={handleSave}
-							sx={{ bgcolor: "primary.main", borderRadius: 2 }}
-						>
-							Speichern
-						</Button>
-					</CardActions>
-				</Collapse>
+
 			</Card>
+
+			{/* ── Edit Dialog ── */}
+			<Dialog
+				open={editMode}
+				onClose={handleCancelEdit}
+				maxWidth="sm"
+				fullWidth
+				PaperProps={{ sx: { borderRadius: 3 } }}
+			>
+				<DialogTitle sx={{ fontWeight: 700, pr: 6 }}>
+					Event bearbeiten
+					<IconButton onClick={handleCancelEdit} size="small" sx={{ position: "absolute", right: 12, top: 12, color: "text.secondary" }}>
+						<CloseIcon fontSize="small" />
+					</IconButton>
+				</DialogTitle>
+				<DialogContent dividers>
+					<Stack spacing={2.5}>
+
+						{/* Typ */}
+						{Object.keys(default_types).length > 0 && (
+							<Box>
+								<Typography variant="body2" sx={{ color: "text.secondary", mb: 1, fontWeight: 600 }}>
+									Event-Typ
+								</Typography>
+								<Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75 }}>
+									{Object.entries(default_types).map(([key, val]) => {
+										const isActive = eventType === key;
+										return (
+											<Chip
+												key={key}
+												label={val.label || val.alias || key}
+												clickable
+												onClick={() => setEventType(key)}
+												variant={isActive ? "filled" : "outlined"}
+												sx={{
+													fontWeight: isActive ? 700 : 500,
+													bgcolor: isActive ? (val.color || "#2D3C59") : undefined,
+													color: isActive ? "#fff" : undefined,
+													borderColor: isActive ? (val.color || "#2D3C59") : undefined,
+												}}
+											/>
+										);
+									})}
+								</Box>
+							</Box>
+						)}
+
+						{/* Titel */}
+						<TextField
+							label="Titel"
+							value={title}
+							onChange={(e) => setTitle(e.target.value)}
+							size="small"
+							fullWidth
+							inputProps={{ maxLength: 80 }}
+						/>
+
+						<Divider />
+
+						{/* Datum & Uhrzeit */}
+						<LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={de}>
+							<Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap" }}>
+								<DatePicker
+									label="Datum"
+									value={date ? parseISO(date) : null}
+									onChange={(d) => setDate(d ? formatFns(d, "yyyy-MM-dd") : "")}
+									slotProps={{ textField: { size: "small", sx: { flex: 1, minWidth: 160 } } }}
+								/>
+								<TimePicker
+									label="Uhrzeit"
+									value={startTime ? parseFns(startTime, "HH:mm", new Date()) : null}
+									onChange={(t) => setStartTime(t ? formatFns(t, "HH:mm") : "")}
+									ampm={false}
+									slotProps={{ textField: { size: "small", sx: { flex: 1, minWidth: 140 } } }}
+								/>
+							</Box>
+						</LocalizationProvider>
+
+						<Divider />
+
+						{/* Organisator & Trikot */}
+						<Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+							<Button
+								variant="outlined"
+								onClick={(e) => setLeaderAnchor(e.currentTarget)}
+								startIcon={<EmojiPeopleIcon />}
+								endIcon={<KeyboardArrowDownIcon />}
+								sx={{
+									flex: 1, minWidth: 140, justifyContent: "space-between",
+									textTransform: "none", fontWeight: 600,
+									borderRadius: 2, borderColor: "primary.main", color: "primary.main",
+								}}
+							>
+								{leader || "Organisator …"}
+							</Button>
+							<Menu anchorEl={leaderAnchor} open={Boolean(leaderAnchor)} onClose={() => setLeaderAnchor(null)} PaperProps={{ sx: { borderRadius: 2 } }}>
+								{default_users.map((u) => (
+									<MenuItem key={u} selected={u === leader} onClick={() => { setLeader(u); setLeaderAnchor(null); }} sx={{ fontFamily: '"Josefin Sans", sans-serif' }}>{u}</MenuItem>
+								))}
+							</Menu>
+							<Button
+								variant="outlined"
+								onClick={(e) => setJerseyAnchor(e.currentTarget)}
+								startIcon={<CheckroomIcon />}
+								endIcon={<KeyboardArrowDownIcon />}
+								sx={{
+									flex: 1, minWidth: 120, justifyContent: "space-between",
+									textTransform: "none", fontWeight: 600,
+									borderRadius: 2, borderColor: "divider", color: "text.secondary",
+								}}
+							>
+								{jersey || "Trikot …"}
+							</Button>
+							<Menu anchorEl={jerseyAnchor} open={Boolean(jerseyAnchor)} onClose={() => setJerseyAnchor(null)} PaperProps={{ sx: { borderRadius: 2 } }}>
+								{jerseyNames.map((j) => (
+									<MenuItem key={j} selected={j === jersey} onClick={() => { setJersey(j); setJerseyAnchor(null); }} sx={{ fontFamily: '"Josefin Sans", sans-serif' }}>{j}</MenuItem>
+								))}
+							</Menu>
+						</Box>
+
+						<Divider />
+
+						{/* Kommentar */}
+						<TextField
+							label="Kommentar"
+							multiline
+							minRows={2}
+							maxRows={6}
+							fullWidth
+							value={comment}
+							onChange={(e) => setComment(e.target.value)}
+							size="small"
+						/>
+
+						{/* Link */}
+						<TextField
+							label="Strava / Komoot Link"
+							fullWidth
+							value={link}
+							onChange={(e) => setLink(e.target.value)}
+							size="small"
+							placeholder="https://www.komoot.com/tour/..."
+						/>
+
+					</Stack>
+				</DialogContent>
+				<DialogActions sx={{ px: 3, py: 2, gap: 1 }}>
+					<Button
+						startIcon={<DeleteIcon />}
+						onClick={handleDelete}
+						sx={{ color: "#D1855C", mr: "auto" }}
+					>
+						Löschen
+					</Button>
+					<Button onClick={handleCancelEdit} color="inherit" sx={{ color: "text.secondary" }}>
+						Abbrechen
+					</Button>
+					<Button variant="contained" disableElevation startIcon={<SaveIcon />} onClick={handleSave} sx={{ bgcolor: "primary.main", borderRadius: 2 }}>
+						Speichern
+					</Button>
+				</DialogActions>
+			</Dialog>
 
 			{/* Invite Dialog */}
 			<Dialog
