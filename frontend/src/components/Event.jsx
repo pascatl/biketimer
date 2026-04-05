@@ -50,6 +50,7 @@ import PersonAddAltIcon from "@mui/icons-material/PersonAddAlt";
 import PersonIcon from "@mui/icons-material/Person";
 import ShareIcon from "@mui/icons-material/Share";
 import HistoryIcon from "@mui/icons-material/History";
+import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import RouteWidget from "./RouteWidget";
 import {
 	updateEvent as apiUpdateEvent,
@@ -339,6 +340,24 @@ export default function Event(props) {
 				{/* ── Farbiger Akzentstreifen oben ── */}
 				<Box sx={{ height: 4, bgcolor: isPast ? "rgba(45,60,89,0.2)" : typeMeta.color }} />
 
+				{/* ── Author info ── */}
+				{(props.data.creator_name || props.data.created_at) && (
+					<Box sx={{ px: 2, pt: 0.75, pb: 0.25, display: "flex", alignItems: "center", gap: 0.5, borderBottom: "1px solid rgba(45,60,89,0.06)" }}>
+						<PersonIcon sx={{ fontSize: "0.75rem", color: "text.disabled" }} />
+						<Typography variant="caption" sx={{ color: "text.disabled", fontSize: "0.68rem" }}>
+							{props.data.creator_name ? `Erstellt von ${props.data.creator_name}` : ""}
+							{props.data.creator_name && props.data.created_at ? " am " : ""}
+							{props.data.created_at
+								? new Date(props.data.created_at).toLocaleDateString("de-DE", {
+									day: "2-digit",
+									month: "2-digit",
+									year: "numeric",
+								})
+								: ""}
+						</Typography>
+					</Box>
+				)}
+
 				{/* ── Header ── */}
 				<CardHeader
 					avatar={
@@ -466,10 +485,56 @@ export default function Event(props) {
 							</Box>
 						)
 					}
-					sx={{ pb: 0.5, pt: 2 }}
+					action={
+					<Box sx={{ display: "flex", alignItems: "center", gap: 0.25, mt: 0.5 }}>
+						{isPast && (
+							<Chip
+								icon={<HistoryIcon sx={{ fontSize: "0.85rem !important" }} />}
+								label="Vergangen"
+								size="small"
+								sx={{
+									height: 22, fontSize: "0.65rem", fontWeight: 700,
+									bgcolor: "rgba(45,60,89,0.08)", color: "text.disabled",
+									"& .MuiChip-icon": { color: "text.disabled" },
+								}}
+							/>
+						)}
+						{isPast && canDelete && (
+							<Tooltip title="Löschen">
+								<IconButton size="small" onClick={handleDelete}
+									sx={{ color: "#D1855C", "&:hover": { bgcolor: "rgba(209,133,92,0.08)" } }}>
+									<DeleteIcon fontSize="small" />
+								</IconButton>
+							</Tooltip>
+						)}
+						{canEdit && (
+							<Tooltip title="Person einladen">
+								<IconButton size="small" onClick={() => setInviteOpen(true)}
+									sx={{ color: "text.secondary", "&:hover": { bgcolor: "rgba(45,60,89,0.08)", color: "primary.main" } }}>
+									<PersonAddAltIcon fontSize="small" />
+								</IconButton>
+							</Tooltip>
+						)}
+						{canEdit && !editMode && (
+							<Tooltip title="Bearbeiten">
+								<IconButton size="small" onClick={() => setEditMode(true)}
+									sx={{ color: "text.secondary", "&:hover": { bgcolor: "rgba(45,60,89,0.08)", color: "primary.main" } }}>
+									<EditIcon fontSize="small" />
+								</IconButton>
+							</Tooltip>
+						)}
+						<Tooltip title="Teilen / Link kopieren">
+							<IconButton size="small" onClick={handleShare}
+								sx={{ color: "text.secondary", "&:hover": { bgcolor: "rgba(45,60,89,0.08)", color: "primary.main" } }}>
+								<ShareIcon fontSize="small" />
+							</IconButton>
+						</Tooltip>
+					</Box>
+				}
+				sx={{ pb: 0.5, pt: 2 }}
 				/>
 
-				{/* ── Toolbar Row (Chips + Icons) ── */}
+				{/* ── Chip Row (Organisator / Trikot) ── */}
 				<Box
 					sx={{
 						display: "flex",
@@ -478,7 +543,6 @@ export default function Event(props) {
 						gap: 0.75,
 						px: 2,
 						pb: 1,
-						justifyContent: "space-between",
 					}}
 				>
 					{/* Chips – linke Seite */}
@@ -581,85 +645,8 @@ export default function Event(props) {
 							</>
 						)}
 					</Box>
-					{/* Icon-Buttons – rechte Seite */}
-					<Box sx={{ display: "flex", alignItems: "center", gap: 0.25 }}>
-						{isPast && (
-							<Chip
-								icon={<HistoryIcon sx={{ fontSize: "0.85rem !important" }} />}
-								label="Vergangen"
-								size="small"
-								sx={{
-									height: 22,
-									fontSize: "0.65rem",
-									fontWeight: 700,
-									bgcolor: "rgba(45,60,89,0.08)",
-									color: "text.disabled",
-									"& .MuiChip-icon": { color: "text.disabled" },
-								}}
-							/>
-						)}
-						{isPast && canDelete && (
-							<Tooltip title="Löschen">
-								<IconButton
-									size="small"
-									onClick={handleDelete}
-									sx={{ color: "#D1855C", "&:hover": { bgcolor: "rgba(209,133,92,0.08)" } }}
-								>
-									<DeleteIcon fontSize="small" />
-								</IconButton>
-							</Tooltip>
-						)}
-						{canEdit && (
-							<Tooltip title="Person einladen">
-								<IconButton
-									size="small"
-									onClick={() => setInviteOpen(true)}
-									sx={{ color: "text.secondary", "&:hover": { bgcolor: "rgba(45,60,89,0.08)", color: "primary.main" } }}
-								>
-									<PersonAddAltIcon fontSize="small" />
-								</IconButton>
-							</Tooltip>
-						)}
-						{canEdit && !editMode && (
-							<Tooltip title="Bearbeiten">
-								<IconButton
-									size="small"
-									onClick={() => setEditMode(true)}
-									sx={{ color: "text.secondary", "&:hover": { bgcolor: "rgba(45,60,89,0.08)", color: "primary.main" } }}
-								>
-									<EditIcon fontSize="small" />
-								</IconButton>
-							</Tooltip>
-						)}
-						<Tooltip title="Teilen / Link kopieren">
-							<IconButton
-								size="small"
-								onClick={handleShare}
-								sx={{ color: "text.secondary", "&:hover": { bgcolor: "rgba(45,60,89,0.08)", color: "primary.main" } }}
-							>
-								<ShareIcon fontSize="small" />
-							</IconButton>
-						</Tooltip>
-					</Box>
 				</Box>
 
-				{/* ── Author info ── */}
-			{(props.data.creator_name || props.data.created_at) && (
-				<Box sx={{ px: 2, pb: 0.5, display: "flex", alignItems: "center", gap: 0.5 }}>
-					<PersonIcon sx={{ fontSize: "0.75rem", color: "text.disabled" }} />
-					<Typography variant="caption" sx={{ color: "text.disabled", fontSize: "0.68rem" }}>
-						{props.data.creator_name ? `Erstellt von ${props.data.creator_name}` : ""}
-						{props.data.creator_name && props.data.created_at ? " am " : ""}
-						{props.data.created_at
-							? new Date(props.data.created_at).toLocaleDateString("de-DE", {
-								day: "2-digit",
-								month: "2-digit",
-								year: "numeric",
-							})
-							: ""}
-					</Typography>
-				</Box>
-			)}
 
 			{/* ── Body ── */}
 			{hasBody && (
@@ -916,9 +903,29 @@ export default function Event(props) {
 								sx={{ mt: 2 }}
 								placeholder="https://www.komoot.com/tour/..."
 							/>
-						) : (
-							link && <RouteWidget link={link} />
-						)}
+						) : link ? (
+							props.onOpenDetail ? (
+								<Button
+									component="a"
+									href={link}
+									target="_blank"
+									rel="noopener noreferrer"
+									variant="outlined"
+									size="small"
+									endIcon={<OpenInNewIcon sx={{ fontSize: "0.8rem !important" }} />}
+									sx={{
+										mt: 1.5, borderRadius: 2, textTransform: "none",
+										fontSize: "0.78rem", borderColor: "rgba(45,60,89,0.25)",
+										color: "text.secondary",
+										"&:hover": { bgcolor: "rgba(45,60,89,0.04)" },
+									}}
+								>
+									Route ansehen
+								</Button>
+							) : (
+								<RouteWidget link={link} />
+							)
+						) : null}
 					</CardContent>
 				)}
 
