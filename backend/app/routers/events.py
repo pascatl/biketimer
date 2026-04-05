@@ -25,7 +25,12 @@ def get_my_events(
     db: Session = Depends(get_db),
     user: dict = Depends(get_current_user),
 ):
-    """Return events where the user is the creator or has any invitation."""
+    """Return events where the user is the creator or has any invitation.
+    Admin users see all events."""
+    # Admins see all events
+    if user.get("is_admin"):
+        return db.query(Event).order_by(Event.id.asc()).all()
+
     sub = user["sub"]
     email = user.get("email")
 
@@ -64,6 +69,10 @@ def get_event(
     event = db.query(Event).filter(Event.id == event_id).first()
     if not event:
         raise HTTPException(status_code=404, detail="Event nicht gefunden")
+
+    # Admin always has access
+    if user.get("is_admin"):
+        return event
 
     sub = user["sub"]
     email = user.get("email")
