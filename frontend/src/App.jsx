@@ -1,7 +1,9 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Container, Box, Stack, IconButton, Tooltip, Typography, CircularProgress } from "@mui/material";
+import { Container, Box, Stack, IconButton, Tooltip, Typography, CircularProgress, Collapse, Chip } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import HistoryIcon from "@mui/icons-material/History";
 import Event from "./components/Event";
 import TopBar from "./components/TopBar";
 import InboxDrawer from "./components/InboxDrawer";
@@ -29,6 +31,7 @@ export default function App() {
 	const { id: urlEventId } = useParams();
 
 	const [currentEvents, setCurrentEvents] = useState([]);
+	const [pastExpanded, setPastExpanded] = useState(false);
 	const [invitations, setInvitations] = useState([]);
 	const [allUsers, setAllUsers] = useState([]);
 	const [jerseys, setJerseys] = useState([]);
@@ -195,6 +198,18 @@ export default function App() {
 	const userNames = allUsers.map((u) => u.name).sort();
 	const jerseyNames = jerseys.map((j) => j.name);
 
+	// ── Split events into upcoming and past ───────────────────
+	const today = new Date();
+	today.setHours(0, 0, 0, 0);
+	const todayMs = today.getTime();
+	const upcomingEvents = currentEvents.filter(
+		(e) => new Date(e.event_data?.event_date + "T00:00:00").getTime() >= todayMs,
+	);
+	// Reversed so most-recent past event appears first
+	const pastEvents = currentEvents
+		.filter((e) => new Date(e.event_data?.event_date + "T00:00:00").getTime() < todayMs)
+		.reverse();
+
 	// ── Load event for detail view when URL has /events/:id ───
 	useEffect(() => {
 		if (!urlEventId) {
@@ -315,7 +330,7 @@ export default function App() {
 				) : (
 					/* ── Event list ── */
 					<Stack spacing={2} sx={{ mt: 3 }}>
-						{currentEvents.map((event) => (
+						{upcomingEvents.map((event) => (
 							<Event
 								key={event.id}
 								default_users={userNames}
@@ -329,6 +344,71 @@ export default function App() {
 								onOpenDetail={handleOpenDetail}
 							/>
 						))}
+
+						{/* ── Past events collapsible section ── */}
+						{pastEvents.length > 0 && (
+							<Box>
+								<Box
+									onClick={() => setPastExpanded((v) => !v)}
+									sx={{
+										display: "flex",
+										alignItems: "center",
+										gap: 1,
+										cursor: "pointer",
+										px: 1,
+										py: 1,
+										borderRadius: 2,
+										"&:hover": { bgcolor: "rgba(45,60,89,0.05)" },
+									}}
+								>
+									<HistoryIcon sx={{ fontSize: "1.1rem", color: "text.disabled" }} />
+									<Typography
+										variant="body2"
+										sx={{ fontWeight: 600, color: "text.secondary", flex: 1 }}
+									>
+										Vergangene Events
+									</Typography>
+									<Chip
+										label={pastEvents.length}
+										size="small"
+										sx={{
+											height: 20,
+											fontSize: "0.7rem",
+											fontWeight: 700,
+											bgcolor: "rgba(45,60,89,0.1)",
+											color: "text.secondary",
+										}}
+									/>
+									<ExpandMoreIcon
+										sx={{
+											fontSize: "1.2rem",
+											color: "text.disabled",
+											transition: "transform 0.2s",
+											transform: pastExpanded ? "rotate(180deg)" : "rotate(0deg)",
+										}}
+									/>
+								</Box>
+								<Collapse in={pastExpanded}>
+									<Stack spacing={2} sx={{ mt: 1 }}>
+										{pastEvents.map((event) => (
+											<Event
+												key={event.id}
+												default_users={userNames}
+												default_jerseys={jerseyNames}
+												default_types={sportTypes}
+												allUsers={allUsers}
+												onDeleteEvent={handleDeleteEvent}
+												data={event}
+												isPast={true}
+												refreshToken={eventRefreshKey}
+												onInvitationResponded={loadInvitations}
+												onOpenDetail={handleOpenDetail}
+											/>
+										))}
+									</Stack>
+								</Collapse>
+							</Box>
+						)}
 					</Stack>
 				)}
 			</Container>
