@@ -49,6 +49,7 @@ import SportsTennisIcon from "@mui/icons-material/SportsTennis";
 import PersonAddAltIcon from "@mui/icons-material/PersonAddAlt";
 import PersonIcon from "@mui/icons-material/Person";
 import ShareIcon from "@mui/icons-material/Share";
+import HistoryIcon from "@mui/icons-material/History";
 import RouteWidget from "./RouteWidget";
 import {
 	updateEvent as apiUpdateEvent,
@@ -116,12 +117,15 @@ export default function Event(props) {
 	const allUsers = props.allUsers || [];
 	const refreshToken = props.refreshToken;
 	const onInvitationResponded = props.onInvitationResponded; // notify parent
+	const isPast = props.isPast || false;
 
-	// Edit permission: creator or current organizer
-	const canEdit =
+	// Edit permission: creator or current organizer (never for past events)
+	const canDelete =
 		authenticated &&
 		(user?.sub === props.data.creator_keycloak_id ||
 			(leader && (user?.name === leader || user?.preferred_username === leader)));
+
+	const canEdit = !isPast && canDelete;
 
 	// Exclude logged-in user from invite list
 	const invitableUsers = allUsers.filter((u) => {
@@ -325,14 +329,15 @@ export default function Event(props) {
 				elevation={0}
 				sx={{
 					borderRadius: "10px",
-					border: "1px solid rgba(45,60,89,0.1)",
+					border: isPast ? "1px solid rgba(45,60,89,0.07)" : "1px solid rgba(45,60,89,0.1)",
 					overflow: "hidden",
-					transition: "box-shadow 0.2s",
-					"&:hover": { boxShadow: "0 4px 20px rgba(45,60,89,0.12)" },
+					transition: "box-shadow 0.2s, opacity 0.2s",
+					opacity: isPast ? 0.72 : 1,
+					"&:hover": { boxShadow: "0 4px 20px rgba(45,60,89,0.12)", opacity: 1 },
 				}}
 			>
 				{/* ── Farbiger Akzentstreifen oben ── */}
-				<Box sx={{ height: 4, bgcolor: typeMeta.color }} />
+				<Box sx={{ height: 4, bgcolor: isPast ? "rgba(45,60,89,0.2)" : typeMeta.color }} />
 
 				{/* ── Header ── */}
 				<CardHeader
@@ -578,6 +583,32 @@ export default function Event(props) {
 					</Box>
 					{/* Icon-Buttons – rechte Seite */}
 					<Box sx={{ display: "flex", alignItems: "center", gap: 0.25 }}>
+						{isPast && (
+							<Chip
+								icon={<HistoryIcon sx={{ fontSize: "0.85rem !important" }} />}
+								label="Vergangen"
+								size="small"
+								sx={{
+									height: 22,
+									fontSize: "0.65rem",
+									fontWeight: 700,
+									bgcolor: "rgba(45,60,89,0.08)",
+									color: "text.disabled",
+									"& .MuiChip-icon": { color: "text.disabled" },
+								}}
+							/>
+						)}
+						{isPast && canDelete && (
+							<Tooltip title="Löschen">
+								<IconButton
+									size="small"
+									onClick={handleDelete}
+									sx={{ color: "#D1855C", "&:hover": { bgcolor: "rgba(209,133,92,0.08)" } }}
+								>
+									<DeleteIcon fontSize="small" />
+								</IconButton>
+							</Tooltip>
+						)}
 						{canEdit && (
 							<Tooltip title="Person einladen">
 								<IconButton
@@ -721,7 +752,7 @@ export default function Event(props) {
 						})()}
 
 						{/* Inline-Antwort für eingeladene Nutzer */}
-						{myInvitation?.status === "pending" && (
+						{!isPast && myInvitation?.status === "pending" && (
 							<Box
 								sx={{
 									mt: 1,
@@ -772,7 +803,7 @@ export default function Event(props) {
 						)}
 
 						{/* Withdrawal option for accepted invitations */}
-						{myInvitation?.status === "accepted" && (
+						{!isPast && myInvitation?.status === "accepted" && (
 							<Box
 								sx={{
 									mt: 1,
@@ -809,7 +840,7 @@ export default function Event(props) {
 						)}
 
 						{/* Re-accept option after declining/withdrawing */}
-						{(myInvitation?.status === "declined" || myInvitation?.status === "withdrawn") && (
+						{!isPast && (myInvitation?.status === "declined" || myInvitation?.status === "withdrawn") && (
 							<Box
 								sx={{
 									mt: 1,
