@@ -33,6 +33,7 @@ class EventResponse(BaseModel):
     event_data: Dict[str, Any]
     creator_keycloak_id: Optional[str] = None
     creator_name: Optional[str] = None
+    created_at: Optional[datetime] = None
 
     model_config = {"from_attributes": True}
 

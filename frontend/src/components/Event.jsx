@@ -612,9 +612,27 @@ export default function Event(props) {
 					</Box>
 				</Box>
 
-				{/* ── Body ── */}
-				{hasBody && (
-					<CardContent sx={{ pt: 1, pb: hasBody ? 2 : 0 }}>
+				{/* ── Author info ── */}
+			{(props.data.creator_name || props.data.created_at) && (
+				<Box sx={{ px: 2, pb: 0.5, display: "flex", alignItems: "center", gap: 0.5 }}>
+					<PersonIcon sx={{ fontSize: "0.75rem", color: "text.disabled" }} />
+					<Typography variant="caption" sx={{ color: "text.disabled", fontSize: "0.68rem" }}>
+						{props.data.creator_name ? `Erstellt von ${props.data.creator_name}` : ""}
+						{props.data.creator_name && props.data.created_at ? " · " : ""}
+						{props.data.created_at
+							? new Date(props.data.created_at).toLocaleDateString("de-DE", {
+								day: "2-digit",
+								month: "2-digit",
+								year: "numeric",
+							})
+							: ""}
+					</Typography>
+				</Box>
+			)}
+
+			{/* ── Body ── */}
+			{hasBody && (
+				<CardContent sx={{ pt: 1, pb: hasBody ? 2 : 0 }}>
 						{/* Einladungen: strukturierte Statusanzeige */}
 						{invitations.length > 0 && (() => {
 							const accepted = invitations.filter((i) => i.status === "accepted");
@@ -626,7 +644,7 @@ export default function Event(props) {
 									? inv.invitee_email.replace("@local", "")
 									: inv.invitee_email?.split("@")[0] || "?";
 								const label = inv.invitee_name || rawFallback;
-								const canRevoke = authenticated && user?.sub === inv.inviter_keycloak_id;
+								const canRevoke = authenticated && user?.sub === inv.inviter_keycloak_id && inv.invitee_keycloak_id !== user?.sub;
 								const reasonTip = inv.decline_reason
 									? `Absage: ${inv.decline_reason}`
 									: inv.status === "withdrawn" ? "Abgesagt" : inv.status === "declined" ? "Abgelehnt" : null;
