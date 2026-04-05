@@ -273,6 +273,8 @@ def invite_users(
                     invitee_email=invitee.email,
                     inviter_name=inviter_name,
                     event_data=event.event_data,
+                    invitation_token=str(invitation.token),
+                    event_id=event_id,
                 )
             except Exception:
                 pass

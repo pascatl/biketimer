@@ -53,13 +53,22 @@ _EMAIL_HTML = """<!DOCTYPE html>
                 </tr>
               </table>
               <p style="margin:0 0 24px;color:#555;font-size:14px;line-height:1.6;">
-                Melde dich in der App an, um die Einladung anzunehmen oder abzulehnen.
+                Kannst du dabei sein? Teile uns direkt hier deine Rückmeldung mit:
               </p>
-              <div style="text-align:center;">
-                <a href="{frontend_url}" style="display:inline-block;padding:13px 32px;background:#E5BA41;color:#2D3C59;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px;">
-                  App öffnen &rarr;
-                </a>
-              </div>
+              <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:8px;">
+                <tr>
+                  <td style="padding-right:8px;" align="center">
+                    <a href="{accept_url}" style="display:inline-block;width:100%;padding:13px 0;background:#E5BA41;color:#2D3C59;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px;text-align:center;box-sizing:border-box;">
+                      ✓ Zusagen
+                    </a>
+                  </td>
+                  <td style="padding-left:8px;" align="center">
+                    <a href="{decline_url}" style="display:inline-block;width:100%;padding:13px 0;background:#fff;color:#2D3C59;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px;text-align:center;box-sizing:border-box;border:2px solid #2D3C59;">
+                      ✗ Absagen
+                    </a>
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
           <!-- Footer -->
@@ -80,6 +89,8 @@ def send_invitation_email(
     invitee_email: str,
     inviter_name: str,
     event_data: dict,
+    invitation_token: str = "",
+    event_id: int = 0,
 ) -> None:
     """Send invitation email via SMTP. Errors are logged but not raised."""
     try:
@@ -87,11 +98,20 @@ def send_invitation_email(
         raw_type = event_data.get("event_type", "event")
         event_type = raw_type.capitalize()
 
+        api_base = FRONTEND_URL.rstrip("/") + "/api"
+        # In both dev (Vite proxy) and prod (Nginx), /api/* is routed to the backend
+        accept_url = f"{api_base}/invitations/respond?token={invitation_token}&action=accept"
+        decline_url = f"{api_base}/invitations/respond?token={invitation_token}&action=decline"
+
+        if not invitation_token:
+            print("[email] WARNING: invitation_token is empty; RSVP links will not work")
+
         html_body = _EMAIL_HTML.format(
             inviter_name=inviter_name,
             event_date=event_date,
             event_type=event_type,
-            frontend_url=FRONTEND_URL,
+            accept_url=accept_url,
+            decline_url=decline_url,
         )
 
         text_body = (
@@ -99,7 +119,8 @@ def send_invitation_email(
             f"{inviter_name} hat dich zu einem Radausflug eingeladen!\n\n"
             f"Datum: {event_date}\n"
             f"Typ:   {event_type}\n\n"
-            f"Einladung annehmen oder ablehnen:\n{FRONTEND_URL}\n\n"
+            f"Zusagen: {accept_url}\n"
+            f"Absagen: {decline_url}\n\n"
             f"-- Biketimer"
         )
         _domain = SMTP_FROM.split("@")[-1] if "@" in SMTP_FROM else "biketimer.local"
