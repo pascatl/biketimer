@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Container, Box, Stack, Button, IconButton, Tooltip, Typography, CircularProgress, Collapse, Chip } from "@mui/material";
+import { Container, Box, Stack, Button, IconButton, Tooltip, Typography, CircularProgress, Collapse, Chip, Dialog, DialogTitle, DialogContent, DialogActions } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import NotificationsIcon from "@mui/icons-material/Notifications";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import HistoryIcon from "@mui/icons-material/History";
 import Event from "./components/Event";
@@ -45,6 +46,8 @@ export default function App() {
 	const [detailEvent, setDetailEvent] = useState(null);
 	const [detailLoading, setDetailLoading] = useState(false);
 	const [detailError, setDetailError] = useState(null);
+	// Push permission dialog
+	const [pushDialogOpen, setPushDialogOpen] = useState(false);
 
 	const allowedDays = [5]; // Friday
 	const default_startTime = "15:00";
@@ -162,38 +165,63 @@ export default function App() {
 	}, [authenticated, loadInvitations]);
 
 	// ── Register for push notifications ───────────────────────
+	const doRegisterPush = useCallback(async () => {
+		try {
+			if (!("serviceWorker" in navigator) || !("PushManager" in window))
+				return;
+			const vapidKey = await fetchVapidPublicKey();
+			if (!vapidKey) return;
+
+			// Request notification permission if not yet decided
+			let permission = Notification.permission;
+			if (permission === "default") {
+				permission = await Notification.requestPermission();
+			}
+			if (permission !== "granted") return;
+
+			const reg = await navigator.serviceWorker.ready;
+			let sub = await reg.pushManager.getSubscription();
+			if (!sub) {
+				const urlBase64ToUint8Array = (base64String) => {
+					const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+					const base64 = (base64String + padding)
+						.replace(/-/g, "+")
+						.replace(/_/g, "/");
+					const rawData = window.atob(base64);
+					return Uint8Array.from([...rawData].map((c) => c.charCodeAt(0)));
+				};
+				sub = await reg.pushManager.subscribe({
+					userVisibleOnly: true,
+					applicationServerKey: urlBase64ToUint8Array(vapidKey),
+				});
+			}
+			await subscribePush(sub);
+			localStorage.setItem("push_opted_in", "1");
+		} catch (err) {
+			console.log("Push registration skipped:", err.message);
+		}
+	}, []);
+
 	useEffect(() => {
 		if (!authenticated) return;
-		const registerPush = async () => {
-			try {
-				if (!("serviceWorker" in navigator) || !("PushManager" in window))
-					return;
-				const vapidKey = await fetchVapidPublicKey();
-				if (!vapidKey) return;
-
-				const reg = await navigator.serviceWorker.ready;
-				let sub = await reg.pushManager.getSubscription();
-				if (!sub) {
-					const urlBase64ToUint8Array = (base64String) => {
-						const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
-						const base64 = (base64String + padding)
-							.replace(/-/g, "+")
-							.replace(/_/g, "/");
-						const rawData = window.atob(base64);
-						return Uint8Array.from([...rawData].map((c) => c.charCodeAt(0)));
-					};
-					sub = await reg.pushManager.subscribe({
-						userVisibleOnly: true,
-						applicationServerKey: urlBase64ToUint8Array(vapidKey),
-					});
-				}
-				await subscribePush(sub);
-			} catch (err) {
-				console.log("Push registration skipped:", err.message);
-			}
+		// Already opted in: try to re-register silently (e.g. after re-login)
+		if (localStorage.getItem("push_opted_in") === "1") {
+			doRegisterPush();
+			return;
+		}
+		// Already denied → don't ask again
+		if (Notification.permission === "denied") return;
+		// Already stored a 'no' decision
+		if (localStorage.getItem("push_dismissed") === "1") return;
+		// Show our custom dialog (only if push is available + VAPID configured)
+		const checkAndShow = async () => {
+			if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
+			const vapidKey = await fetchVapidPublicKey();
+			if (!vapidKey) return;
+			setPushDialogOpen(true);
 		};
-		registerPush();
-	}, [authenticated]);
+		checkAndShow();
+	}, [authenticated, doRegisterPush]);
 
 	// ── Derive simple lists for components ────────────────────
 	const userNames = allUsers.map((u) => u.name).sort();
@@ -437,6 +465,51 @@ export default function App() {
 			)}
 
 			<Footer />
+
+			{/* Push permission dialog */}
+			<Dialog
+				open={pushDialogOpen}
+				onClose={() => {
+					localStorage.setItem("push_dismissed", "1");
+					setPushDialogOpen(false);
+				}}
+				maxWidth="xs"
+				fullWidth
+				PaperProps={{ sx: { borderRadius: 3 } }}
+			>
+				<DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+					<NotificationsIcon sx={{ color: "warning.main" }} />
+					Benachrichtigungen
+				</DialogTitle>
+				<DialogContent>
+					<Typography variant="body2" sx={{ color: "text.secondary" }}>
+						Möchtest du Push-Benachrichtigungen erhalten, wenn du zu einem Event eingeladen wirst?
+					</Typography>
+				</DialogContent>
+				<DialogActions sx={{ px: 3, pb: 2 }}>
+					<Button
+						onClick={() => {
+							localStorage.setItem("push_dismissed", "1");
+							setPushDialogOpen(false);
+						}}
+						color="inherit"
+						sx={{ color: "text.secondary" }}
+					>
+						Nein danke
+					</Button>
+					<Button
+						variant="contained"
+						disableElevation
+						onClick={() => {
+							setPushDialogOpen(false);
+							doRegisterPush();
+						}}
+						sx={{ borderRadius: 2 }}
+					>
+						Aktivieren
+					</Button>
+				</DialogActions>
+			</Dialog>
 		</Box>
 	);
 }

@@ -234,7 +234,12 @@ def invite_users(
         )
 
     results = []
-    event_date = event.event_data.get("event_date", "")
+    event_date_raw = event.event_data.get("event_date", "")
+    try:
+        from datetime import datetime as _dt
+        event_date = _dt.strptime(event_date_raw, "%Y-%m-%d").strftime("%d.%m.%y")
+    except Exception:
+        event_date = event_date_raw
     inviter_name = user.get("name") or user.get("preferred_username", "Unbekannt")
 
     for uid in invitation_in.invitee_user_ids:
