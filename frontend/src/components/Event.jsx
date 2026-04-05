@@ -502,7 +502,7 @@ export default function Event(props) {
 							</IconButton>
 						</Tooltip>
 						</Box>
-						<WeatherWidget date={date} time={startTime} lat={meetingLat} lon={meetingLon} iconSize={36} />
+						<WeatherWidget date={date} time={startTime} lat={meetingLat} lon={meetingLon} iconSize={48} />
 					</Box>
 				}
 				sx={{ pb: 0.5, pt: 2 }}

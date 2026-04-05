@@ -27,7 +27,7 @@ function isWithinForecastWindow(dateStr) {
   return diffDays >= 0 && diffDays <= 5;
 }
 
-export default function WeatherWidget({ date, time = "15:00", lat, lon, iconSize = 28 }) {
+export default function WeatherWidget({ date, time = "15:00", lat, lon, iconSize = 44 }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -89,7 +89,7 @@ export default function WeatherWidget({ date, time = "15:00", lat, lon, iconSize
           alt={data.description}
           sx={{ width: iconSize, height: iconSize }}
         />
-        <Typography variant="body2" sx={{ fontWeight: 700, color: "text.secondary", fontSize: "0.82rem" }}>
+        <Typography variant="body2" sx={{ fontWeight: 700, color: "text.secondary", fontSize: `${Math.round(iconSize * 0.38)}px` }}>
           {data.temp}°C
         </Typography>
       </Box>
