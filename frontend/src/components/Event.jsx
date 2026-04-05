@@ -123,13 +123,14 @@ export default function Event(props) {
 	const onInvitationResponded = props.onInvitationResponded; // notify parent
 	const isPast = props.isPast || false;
 
-	// Edit permission: creator or current organizer (never for past events)
+	// Edit permission: creator or current organizer (never for past events); admins always
 	const canDelete =
 		authenticated &&
-		(user?.sub === props.data.creator_keycloak_id ||
+		(user?.is_admin ||
+			user?.sub === props.data.creator_keycloak_id ||
 			(leader && (user?.name === leader || user?.preferred_username === leader)));
 
-	const canEdit = !isPast && canDelete;
+	const canEdit = user?.is_admin ? authenticated : (!isPast && canDelete);
 
 	// Exclude logged-in user from invite list
 	const invitableUsers = allUsers.filter((u) => {

@@ -114,7 +114,7 @@ const TopBar = ({
 												{userName.charAt(0).toUpperCase()}
 											</Avatar>
 										}
-										label={userName}
+										label={isAdmin ? `${userName} (Admin)` : userName}
 										size="small"
 										sx={{
 											color: "#fff",
