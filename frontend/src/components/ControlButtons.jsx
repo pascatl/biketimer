@@ -278,7 +278,8 @@ sx={{ fontWeight: 700, color: "primary.main" }}
 {selectedDate.toLocaleDateString("de-DE", {
 weekday: "long",
 day: "2-digit",
-month: "long",
+month: "2-digit",
+year: "2-digit",
 })}
 </Typography>
 {selectedTime && (

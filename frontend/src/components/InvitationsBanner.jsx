@@ -21,7 +21,8 @@ function formatDate(isoDate) {
   return d.toLocaleDateString("de-DE", {
     weekday: "long",
     day: "2-digit",
-    month: "long",
+    month: "2-digit",
+    year: "2-digit",
   });
 }
 

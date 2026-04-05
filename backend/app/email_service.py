@@ -95,6 +95,12 @@ def send_invitation_email(
     """Send invitation email via SMTP. Errors are logged but not raised."""
     try:
         event_date = event_data.get("event_date", "Unbekannt")
+        # Format as dd.mm.yy
+        try:
+            from datetime import datetime as _dt
+            event_date = _dt.strptime(event_date, "%Y-%m-%d").strftime("%d.%m.%y")
+        except Exception:
+            pass
         raw_type = event_data.get("event_type", "event")
         event_type = raw_type.capitalize()
 

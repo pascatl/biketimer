@@ -158,7 +158,7 @@ export default function Event(props) {
 		return [
 			new Date(d).toLocaleDateString("de-DE", { weekday: "long" }),
 			new Date(d).toLocaleDateString("de-DE", {
-				year: "numeric",
+				year: "2-digit",
 				month: "2-digit",
 				day: "2-digit",
 			}),
@@ -222,7 +222,7 @@ export default function Event(props) {
 
 	const handleShare = () => {
 		const url = `${window.location.origin}/events/${eventId}`;
-		const shareTitle = title || (date ? new Date(date + "T00:00:00").toLocaleDateString("de-DE") : "Event");
+		const shareTitle = title || (date ? new Date(date + "T00:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "2-digit" }) : "Event");
 		if (navigator.share) {
 			navigator.share({
 				title: shareTitle,
@@ -382,7 +382,7 @@ export default function Event(props) {
 								? new Date(props.data.created_at).toLocaleDateString("de-DE", {
 									day: "2-digit",
 									month: "2-digit",
-									year: "numeric",
+									year: "2-digit",
 								}) + ", " + new Date(props.data.created_at).toLocaleTimeString("de-DE", {
 									hour: "2-digit",
 									minute: "2-digit",
