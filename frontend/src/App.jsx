@@ -324,6 +324,7 @@ export default function App() {
 								onDeleteEvent={() => handleBackToList()}
 								refreshToken={eventRefreshKey}
 								onInvitationResponded={loadInvitations}
+								isPast={new Date(detailEvent.event_data?.event_date + "T00:00:00").getTime() < todayMs}
 							/>
 						)}
 					</Box>
