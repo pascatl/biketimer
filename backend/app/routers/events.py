@@ -1,4 +1,5 @@
 from typing import List, Optional
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import or_
@@ -147,6 +148,22 @@ def create_event(
         creator_name=user.get("name"),
     )
     db.add(new_event)
+    db.flush()  # obtain new_event.id without committing
+
+    # Auto-add creator as accepted participant
+    creator_email = user.get("email") or (
+        f"{(user.get('name') or user.get('preferred_username', '')).lower().replace(' ', '.')}@local"
+    )
+    self_invitation = Invitation(
+        event_id=new_event.id,
+        inviter_keycloak_id=user["sub"],
+        inviter_name=user.get("name"),
+        invitee_email=creator_email,
+        invitee_keycloak_id=user["sub"],
+        status="accepted",
+        responded_at=datetime.now(timezone.utc),
+    )
+    db.add(self_invitation)
     db.commit()
     db.refresh(new_event)
     return new_event
