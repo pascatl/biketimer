@@ -1,7 +1,10 @@
+import os
+import uuid as uuid_module
 from datetime import datetime, timezone
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import RedirectResponse
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
@@ -10,6 +13,8 @@ from ..database import get_db
 from ..models import Event, Invitation
 
 router = APIRouter(prefix="/invitations", tags=["invitations"])
+
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
 
 
 @router.get("/mine", response_model=List[dict])
@@ -46,6 +51,35 @@ def get_my_invitations(
             }
         )
     return result
+
+
+@router.get("/respond")
+def respond_via_token(
+    token: str = Query(...),
+    action: str = Query(...),
+    db: Session = Depends(get_db),
+):
+    """Handle invitation accept/decline via email token link – no auth required."""
+    if action not in ("accept", "decline"):
+        raise HTTPException(status_code=400, detail="Ungültige Aktion")
+
+    try:
+        token_uuid = uuid_module.UUID(token)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Ungültiger Token")
+
+    inv = db.query(Invitation).filter(Invitation.token == token_uuid).first()
+    if not inv:
+        raise HTTPException(status_code=404, detail="Einladung nicht gefunden")
+
+    inv.status = "accepted" if action == "accept" else "declined"
+    inv.responded_at = datetime.now(timezone.utc)
+    db.commit()
+
+    return RedirectResponse(
+        url=f"{FRONTEND_URL}/events/{inv.event_id}",
+        status_code=302,
+    )
 
 
 @router.post("/{invitation_id}/accept")
