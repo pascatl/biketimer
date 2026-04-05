@@ -201,12 +201,14 @@ export default function App() {
 	// ── Split events into upcoming and past ───────────────────
 	const today = new Date();
 	today.setHours(0, 0, 0, 0);
+	const todayMs = today.getTime();
 	const upcomingEvents = currentEvents.filter(
-		(e) => new Date(e.event_data?.event_date + "T00:00:00") >= today,
+		(e) => new Date(e.event_data?.event_date + "T00:00:00").getTime() >= todayMs,
 	);
-	const pastEvents = currentEvents.filter(
-		(e) => new Date(e.event_data?.event_date + "T00:00:00") < today,
-	);
+	// Reversed so most-recent past event appears first
+	const pastEvents = currentEvents
+		.filter((e) => new Date(e.event_data?.event_date + "T00:00:00").getTime() < todayMs)
+		.reverse();
 
 	// ── Load event for detail view when URL has /events/:id ───
 	useEffect(() => {
@@ -388,7 +390,7 @@ export default function App() {
 								</Box>
 								<Collapse in={pastExpanded}>
 									<Stack spacing={2} sx={{ mt: 1 }}>
-										{[...pastEvents].reverse().map((event) => (
+										{pastEvents.map((event) => (
 											<Event
 												key={event.id}
 												default_users={userNames}
