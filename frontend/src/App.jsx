@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Container, Box, Stack, IconButton, Tooltip, Typography, CircularProgress, Collapse, Chip } from "@mui/material";
+import { Container, Box, Stack, Button, IconButton, Tooltip, Typography, CircularProgress, Collapse, Chip } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import HistoryIcon from "@mui/icons-material/History";
@@ -294,16 +294,21 @@ export default function App() {
 				{urlEventId ? (
 					/* ── Detail view ── */
 					<Box sx={{ mt: 3 }}>
-						<Box sx={{ display: "flex", alignItems: "center", mb: 2, gap: 1 }}>
-							<Tooltip title="Zurück zur Liste">
-								<IconButton onClick={handleBackToList} size="small">
-									<ArrowBackIcon />
-								</IconButton>
-							</Tooltip>
-							<Typography variant="body2" color="text.secondary">
-								Event-Details
-							</Typography>
-						</Box>
+						<Button
+							onClick={handleBackToList}
+							startIcon={<ArrowBackIcon />}
+							size="small"
+							sx={{
+								mb: 2,
+								color: "text.secondary",
+								textTransform: "none",
+								fontWeight: 500,
+								fontSize: "0.85rem",
+								"&:hover": { bgcolor: "rgba(45,60,89,0.06)" },
+							}}
+						>
+							Event-Details
+						</Button>
 						{detailLoading && (
 							<Box sx={{ display: "flex", justifyContent: "center", mt: 6 }}>
 								<CircularProgress />
