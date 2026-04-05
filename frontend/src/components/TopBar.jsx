@@ -33,6 +33,7 @@ const TopBar = ({
 	currentEvents,
 	onAddEvent,
 	defaultEvent,
+	sportTypes,
 	invitationCount,
 	isAdmin,
 	onAdminOpen,
@@ -204,8 +205,7 @@ const TopBar = ({
 							<ControlButtons
 								currentEvents={currentEvents}
 								onAddEvent={onAddEvent}
-								defaultEvent={defaultEvent}
-							/>
+								defaultEvent={defaultEvent}							sportTypes={sportTypes}							/>
 						)}
 					</Box>
 				</Toolbar>

@@ -9,6 +9,7 @@ from pydantic import BaseModel, EmailStr
 
 class EventData(BaseModel):
     event_date: str
+    event_title: Optional[str] = ""
     event_startTime: Optional[str] = "15:00"
     event_members: Optional[List[str]] = []
     event_no_members: Optional[List[str]] = []

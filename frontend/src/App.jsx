@@ -54,6 +54,7 @@ export default function App() {
 		id: null,
 		event_data: {
 			event_date: "",
+			event_title: "",
 			event_startTime: default_startTime,
 			event_members: [],
 			event_no_members: [],
@@ -284,6 +285,7 @@ export default function App() {
 				currentEvents={currentEvents}
 				onAddEvent={handleAddEvent}
 				defaultEvent={defaultEvent}
+				sportTypes={sportTypes}
 				invitationCount={invitations.length}
 				isAdmin={isAdmin}
 				onAdminOpen={() => setAdminOpen(true)}

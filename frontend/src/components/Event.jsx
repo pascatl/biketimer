@@ -82,6 +82,7 @@ export default function Event(props) {
 
 	const [date, setDate] = useState(event_data.event_date);
 	const [eventId] = useState(props.data.id);
+	const [title, setTitle] = useState(event_data.event_title || "");
 	const [startTime, setStartTime] = useState(event_data.event_startTime);
 	const [comment, setComment] = useState(event_data.event_comment);
 	const [link, setLink] = useState(event_data.event_link);
@@ -220,9 +221,10 @@ export default function Event(props) {
 
 	const handleShare = () => {
 		const url = `${window.location.origin}/events/${eventId}`;
+		const shareTitle = title || (date ? new Date(date + "T00:00:00").toLocaleDateString("de-DE") : "Event");
 		if (navigator.share) {
 			navigator.share({
-				title: `Event ${date ? new Date(date + "T00:00:00").toLocaleDateString("de-DE") : ""}`,
+				title: shareTitle,
 				url,
 			}).catch(() => {});
 		} else {
@@ -237,6 +239,7 @@ export default function Event(props) {
 			id: eventId,
 			event_data: {
 				event_date: date,
+				event_title: title,
 				event_startTime: startTime,
 				event_leader: leader,
 				event_jersey: jersey,
@@ -428,24 +431,34 @@ export default function Event(props) {
 								<Box
 									sx={{
 										display: "flex",
-										gap: 1.5,
-										flexWrap: "wrap",
-										alignItems: "center",
+										flexDirection: "column",
+										gap: 1,
 									}}
 								>
-									<DatePicker
-										label="Datum"
-										value={date ? parseISO(date) : null}
-										onChange={(d) => setDate(d ? formatFns(d, "yyyy-MM-dd") : "")}
-										slotProps={{ textField: { size: "small", sx: { maxWidth: 180 } } }}
+									<TextField
+										label="Titel (optional)"
+										value={title}
+										onChange={(e) => setTitle(e.target.value)}
+										size="small"
+										fullWidth
+										placeholder="z. B. Freitagsrunde, Wochenendtour…"
+										inputProps={{ maxLength: 80 }}
 									/>
-									<TimePicker
-										label="Uhrzeit"
-										value={startTime ? parseFns(startTime, "HH:mm", new Date()) : null}
-										onChange={(t) => setStartTime(t ? formatFns(t, "HH:mm") : "")}
-										ampm={false}
-										slotProps={{ textField: { size: "small", sx: { maxWidth: 150 } } }}
-									/>
+									<Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap", alignItems: "center" }}>
+										<DatePicker
+											label="Datum"
+											value={date ? parseISO(date) : null}
+											onChange={(d) => setDate(d ? formatFns(d, "yyyy-MM-dd") : "")}
+											slotProps={{ textField: { size: "small", sx: { maxWidth: 180 } } }}
+										/>
+										<TimePicker
+											label="Uhrzeit"
+											value={startTime ? parseFns(startTime, "HH:mm", new Date()) : null}
+											onChange={(t) => setStartTime(t ? formatFns(t, "HH:mm") : "")}
+											ampm={false}
+											slotProps={{ textField: { size: "small", sx: { maxWidth: 150 } } }}
+										/>
+									</Box>
 								</Box>
 							</LocalizationProvider>
 						) : (
@@ -465,24 +478,44 @@ export default function Event(props) {
 								>
 									{date ? convertDate(date)[0] : ""}
 								</Typography>
-								<Typography
-									className="event-date"
-									variant="h5"
-									sx={{
-										fontWeight: 700,
-										lineHeight: 1.15,
-										color: "text.primary",
-										mt: 0.25,
-									}}
-								>
-									{date ? convertDate(date)[1] : "Kein Datum"}
-								</Typography>
-								<Typography
-									variant="body2"
-									sx={{ color: "text.secondary", mt: 0.25 }}
-								>
-									{startTime || "Uhrzeit offen"}
-								</Typography>
+								{title ? (
+									<>
+										<Typography
+											className="event-date"
+											variant="h5"
+											sx={{ fontWeight: 700, lineHeight: 1.15, color: "text.primary", mt: 0.25 }}
+										>
+											{title}
+										</Typography>
+										<Typography
+											variant="body2"
+											sx={{ color: "text.secondary", mt: 0.25 }}
+										>
+											{date ? convertDate(date)[1] : "Kein Datum"} · {startTime || "Uhrzeit offen"}
+										</Typography>
+									</>
+								) : (
+									<>
+										<Typography
+											className="event-date"
+											variant="h5"
+											sx={{
+												fontWeight: 700,
+												lineHeight: 1.15,
+												color: "text.primary",
+												mt: 0.25,
+											}}
+										>
+											{date ? convertDate(date)[1] : "Kein Datum"}
+										</Typography>
+										<Typography
+											variant="body2"
+											sx={{ color: "text.secondary", mt: 0.25 }}
+										>
+											{startTime || "Uhrzeit offen"}
+										</Typography>
+									</>
+								)}
 							</Box>
 						)
 					}
