@@ -75,6 +75,30 @@ try:
 except Exception as e:
     print(f"Migration 003 check: {e}")
 
+# Run migration 004: add notification_prefs to push_subscriptions
+try:
+    with engine.connect() as conn:
+        result = conn.execute(
+            text(
+                "SELECT column_name FROM information_schema.columns "
+                "WHERE table_name = 'push_subscriptions' AND column_name = 'notification_prefs'"
+            )
+        )
+        if not result.fetchone():
+            migration_path = os.path.join(
+                os.path.dirname(os.path.dirname(__file__)),
+                "migrations",
+                "004_push_notif_prefs.sql",
+            )
+            if os.path.exists(migration_path):
+                with open(migration_path) as f:
+                    sql = f.read()
+                conn.execute(text(sql))
+                conn.commit()
+                print("Migration 004 (notification_prefs) applied successfully")
+except Exception as e:
+    print(f"Migration 004 check: {e}")
+
 FRONTEND_ORIGINS = os.getenv(
     "FRONTEND_ORIGINS",
     "http://localhost:5173,http://localhost:4173",

@@ -15,6 +15,26 @@ from ..email_service import send_invitation_email
 router = APIRouter(prefix="/events", tags=["events"])
 
 
+def _push_with_pref(db, keycloak_id: str, pref_key: str, title: str, body: str):
+    """Send a push notification only if the user's pref for pref_key is enabled."""
+    subs = db.query(PushSubscription).filter(PushSubscription.keycloak_id == keycloak_id).all()
+    for sub in subs:
+        prefs = sub.notification_prefs or {}
+        if prefs.get(pref_key, True):  # default True = on
+            try:
+                send_push_notification(sub.endpoint, sub.p256dh, sub.auth, title=title, body=body)
+            except Exception:
+                pass
+
+
+def _push_admins(db, pref_key: str, title: str, body: str):
+    """Send push to all admin users who have pref_key enabled."""
+    admin_users = db.query(User).filter(User.is_active == True).all()
+    for au in admin_users:
+        if au.keycloak_id:
+            _push_with_pref(db, au.keycloak_id, pref_key, title, body)
+
+
 @router.get("", response_model=List[EventResponse])
 def get_events(db: Session = Depends(get_db)):
     return db.query(Event).order_by(Event.id.asc()).all()
@@ -175,6 +195,17 @@ def create_event(
     db.add(self_invitation)
     db.commit()
     db.refresh(new_event)
+
+    # Notify admins about new event
+    event_date_raw = event_in.event_data.event_date
+    try:
+        from datetime import datetime as _dt
+        event_date_fmt = _dt.strptime(event_date_raw, "%Y-%m-%d").strftime("%d.%m.%y")
+    except Exception:
+        event_date_fmt = event_date_raw
+    creator = user.get("name") or user.get("preferred_username", "Jemand")
+    _push_admins(db, "admin_event_created", "Neues Event", f"{creator} hat ein Event am {event_date_fmt} angelegt.")
+
     return new_event
 
 
@@ -191,6 +222,28 @@ def update_event(
     event.event_data = event_in.event_data.model_dump()
     db.commit()
     db.refresh(event)
+
+    # Notify accepted invitees
+    event_date_raw = event.event_data.get("event_date", "")
+    try:
+        from datetime import datetime as _dt
+        event_date_fmt = _dt.strptime(event_date_raw, "%Y-%m-%d").strftime("%d.%m.%y")
+    except Exception:
+        event_date_fmt = event_date_raw
+    accepted = db.query(Invitation).filter(
+        Invitation.event_id == event_id,
+        Invitation.status == "accepted",
+    ).all()
+    editor = (user.get("name") or user.get("preferred_username", "")) if user else ""
+    for inv in accepted:
+        kid = inv.invitee_keycloak_id
+        if kid and kid != (user.get("sub") if user else None):
+            _push_with_pref(db, kid, "event_updated", "Event geändert",
+                            f"Das Event am {event_date_fmt} wurde aktualisiert.")
+    # Notify admins
+    _push_admins(db, "admin_event_updated", "Event aktualisiert",
+                 f"Event am {event_date_fmt} wurde geändert (von {editor}).")
+
     return event
 
 
@@ -203,6 +256,28 @@ def delete_event(
     event = db.query(Event).filter(Event.id == event_id).first()
     if not event:
         raise HTTPException(status_code=404, detail="Event nicht gefunden")
+
+    # Notify accepted invitees before deletion
+    event_date_raw = event.event_data.get("event_date", "")
+    try:
+        from datetime import datetime as _dt
+        event_date_fmt = _dt.strptime(event_date_raw, "%Y-%m-%d").strftime("%d.%m.%y")
+    except Exception:
+        event_date_fmt = event_date_raw
+    accepted = db.query(Invitation).filter(
+        Invitation.event_id == event_id,
+        Invitation.status == "accepted",
+    ).all()
+    deleter = (user.get("name") or user.get("preferred_username", "")) if user else ""
+    for inv in accepted:
+        kid = inv.invitee_keycloak_id
+        if kid and kid != (user.get("sub") if user else None):
+            _push_with_pref(db, kid, "event_cancelled", "Event abgesagt",
+                            f"Das Event am {event_date_fmt} wurde gelöscht.")
+    # Notify admins
+    _push_admins(db, "admin_event_deleted", "Event gelöscht",
+                 f"Event am {event_date_fmt} wurde gelöscht (von {deleter}).")
+
     db.delete(event)
     db.commit()
     return {"ok": True}
@@ -295,22 +370,13 @@ def invite_users(
 
         # Send push notification to invitee if they have a subscription
         if invitee.keycloak_id:
-            subscriptions = (
-                db.query(PushSubscription)
-                .filter(PushSubscription.keycloak_id == invitee.keycloak_id)
-                .all()
+            _push_with_pref(
+                db,
+                invitee.keycloak_id,
+                "invite_received",
+                title="Neue Einladung",
+                body=f"{inviter_name} hat dich zu einem Event am {event_date} eingeladen!",
             )
-            for sub in subscriptions:
-                try:
-                    send_push_notification(
-                        sub.endpoint,
-                        sub.p256dh,
-                        sub.auth,
-                        title="Neue Einladung",
-                        body=f"{inviter_name} hat dich zu einem Event am {event_date} eingeladen!",
-                    )
-                except Exception:
-                    pass
 
     sent = sum(1 for r in results if r["ok"])
     return {

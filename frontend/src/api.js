@@ -206,6 +206,25 @@ export async function subscribePush(subscription) {
 	return res.json();
 }
 
+export async function fetchPushPrefs() {
+	const headers = authHeaders();
+	const res = await fetch(`${API_URL}/push/prefs`, { headers });
+	if (!res.ok) return null;
+	const data = await res.json();
+	return data.prefs;
+}
+
+export async function updatePushPrefs(prefs) {
+	const headers = authHeaders();
+	const res = await fetch(`${API_URL}/push/prefs`, {
+		method: "PATCH",
+		headers: { "Content-Type": "application/json", ...headers },
+		body: JSON.stringify({ prefs }),
+	});
+	if (!res.ok) throw new Error("Fehler beim Speichern der Einstellungen");
+	return res.json();
+}
+
 // ── Admin ────────────────────────────────────────────────────
 
 export async function adminFetchUsers() {

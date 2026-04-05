@@ -5,10 +5,22 @@ from sqlalchemy.orm import Session
 
 from ..auth import get_current_user
 from ..database import get_db
-from ..models import Invitation, User
+from ..models import Invitation, User, PushSubscription
+from ..push_service import send_push_notification
 from ..schemas import UserResponse
 
 router = APIRouter(prefix="/users", tags=["users"])
+
+
+def _push_with_pref(db, keycloak_id: str, pref_key: str, title: str, body: str):
+    subs = db.query(PushSubscription).filter(PushSubscription.keycloak_id == keycloak_id).all()
+    for sub in subs:
+        prefs = sub.notification_prefs or {}
+        if prefs.get(pref_key, True):
+            try:
+                send_push_notification(sub.endpoint, sub.p256dh, sub.auth, title=title, body=body)
+            except Exception:
+                pass
 
 
 @router.get("", response_model=List[UserResponse])
@@ -79,6 +91,14 @@ def register_or_link_me(
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
+
+    # Notify admins about new registration
+    all_users = db.query(User).filter(User.is_active == True).all()
+    for au in all_users:
+        if au.keycloak_id and au.keycloak_id != sub:
+            _push_with_pref(db, au.keycloak_id, "admin_user_registered",
+                            "Neuer Benutzer", f"{name} hat sich registriert.")
+
     return new_user
 
 

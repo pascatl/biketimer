@@ -144,10 +144,25 @@ class SportTypeResponse(BaseModel):
 
 # ── Push subscription schemas ─────────────────────────────────
 
+DEFAULT_NOTIF_PREFS = {
+    "invite_received": True,
+    "event_updated": True,
+    "event_cancelled": True,
+    "admin_user_registered": True,
+    "admin_event_created": True,
+    "admin_event_updated": True,
+    "admin_event_deleted": True,
+}
+
 
 class PushSubscriptionCreate(BaseModel):
     endpoint: str
     keys: Dict[str, str]  # { p256dh, auth }
+    prefs: Optional[Dict[str, bool]] = None  # notification preferences
+
+
+class PushPrefsUpdate(BaseModel):
+    prefs: Dict[str, bool]
 
 
 class PushSubscriptionResponse(BaseModel):

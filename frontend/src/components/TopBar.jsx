@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
 	AppBar,
 	Avatar,
@@ -16,8 +16,10 @@ import LogoutIcon from "@mui/icons-material/Logout";
 import LoginIcon from "@mui/icons-material/Login";
 import SettingsIcon from "@mui/icons-material/Settings";
 import BarChartIcon from "@mui/icons-material/BarChart";
+import NotificationsIcon from "@mui/icons-material/Notifications";
 import ControlButtons from "./ControlButtons";
 import { InboxButton } from "./InboxDrawer";
+import NotifPrefsDrawer from "./NotifPrefsDrawer";
 import { useAuth } from "../auth/AuthContext";
 
 function HideOnScroll({ children }) {
@@ -42,11 +44,13 @@ const TopBar = ({
 }) => {
 	const { user, authenticated, openLogin, logout } = useAuth();
 	const userName = user?.name || user?.preferred_username || "";
+	const [notifOpen, setNotifOpen] = useState(false);
 
 	const handleLogin = () => openLogin();
 	const handleLogout = () => logout();
 
 	return (
+		<>
 		<HideOnScroll>
 			<AppBar
 				position="fixed"
@@ -98,6 +102,24 @@ const TopBar = ({
 					{authenticated && (
 						<InboxButton count={invitationCount} onClick={onInboxOpen} />
 						)}
+					{/* Notifications prefs button */}
+					{authenticated && (
+						<Tooltip title="Benachrichtigungseinstellungen">
+							<Button
+								size="small"
+								onClick={() => setNotifOpen(true)}
+								startIcon={<NotificationsIcon sx={{ fontSize: "1rem" }} />}
+								sx={{
+									color: "rgba(255,255,255,0.75)",
+									fontWeight: 600,
+									fontSize: "0.78rem",
+									textTransform: "none",
+									minWidth: 0,
+									px: 1,
+								}}
+							/>
+						</Tooltip>
+					)}
 
 						{authenticated ? (
 							<>
@@ -211,7 +233,13 @@ const TopBar = ({
 				</Toolbar>
 			</AppBar>
 		</HideOnScroll>
-	);
+        <NotifPrefsDrawer
+                open={notifOpen}
+                onClose={() => setNotifOpen(false)}
+                isAdmin={isAdmin}
+        />
+        </>
+    );
 };
 
 export default TopBar;
