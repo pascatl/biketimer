@@ -50,6 +50,31 @@ try:
 except Exception as e:
     print(f"Migration check: {e}")
 
+# Run migration 003: convert TIMESTAMP → TIMESTAMPTZ
+try:
+    with engine.connect() as conn:
+        result = conn.execute(
+            text(
+                "SELECT data_type FROM information_schema.columns "
+                "WHERE table_name = 'events' AND column_name = 'created_at'"
+            )
+        )
+        row = result.fetchone()
+        if row and row[0] != "timestamp with time zone":
+            migration_path = os.path.join(
+                os.path.dirname(os.path.dirname(__file__)),
+                "migrations",
+                "003_timestamptz.sql",
+            )
+            if os.path.exists(migration_path):
+                with open(migration_path) as f:
+                    sql = f.read()
+                conn.execute(text(sql))
+                conn.commit()
+                print("Migration 003 (timestamptz) applied successfully")
+except Exception as e:
+    print(f"Migration 003 check: {e}")
+
 FRONTEND_ORIGINS = os.getenv(
     "FRONTEND_ORIGINS",
     "http://localhost:5173,http://localhost:4173",

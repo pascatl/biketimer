@@ -23,7 +23,7 @@ class User(Base):
     name = Column(String(255), nullable=False)
     email = Column(String(255), nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
-    created_at = Column(DateTime, server_default=func.now())
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
 class Jersey(Base):
@@ -33,7 +33,7 @@ class Jersey(Base):
     name = Column(String(255), nullable=False, unique=True)
     is_active = Column(Boolean, default=True, nullable=False)
     sort_order = Column(Integer, default=0, nullable=False)
-    created_at = Column(DateTime, server_default=func.now())
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
 class SportType(Base):
@@ -46,7 +46,7 @@ class SportType(Base):
     color = Column(String(20), nullable=False, default="#2D3C59")
     is_active = Column(Boolean, default=True, nullable=False)
     sort_order = Column(Integer, default=0, nullable=False)
-    created_at = Column(DateTime, server_default=func.now())
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
 class PushSubscription(Base):
@@ -57,7 +57,7 @@ class PushSubscription(Base):
     endpoint = Column(Text, nullable=False, unique=True)
     p256dh = Column(Text, nullable=False)
     auth = Column(Text, nullable=False)
-    created_at = Column(DateTime, server_default=func.now())
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
 class Event(Base):
@@ -68,8 +68,8 @@ class Event(Base):
     creator_keycloak_id = Column(String(255), nullable=True)
     creator_email = Column(String(255), nullable=True)
     creator_name = Column(String(255), nullable=True)
-    created_at = Column(DateTime, server_default=func.now())
-    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     invitations = relationship(
         "Invitation", back_populates="event", cascade="all, delete-orphan"
@@ -90,7 +90,8 @@ class Invitation(Base):
     status = Column(String(20), default="pending")  # pending | accepted | declined | withdrawn
     token = Column(UUID(as_uuid=True), default=uuid.uuid4, unique=True)
     decline_reason = Column(Text, nullable=True)
-    created_at = Column(DateTime, server_default=func.now())
-    responded_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    responded_at = Column(DateTime(timezone=True), nullable=True)
 
     event = relationship("Event", back_populates="invitations")
+

@@ -379,11 +379,11 @@ export default function Event(props) {
 							{props.data.creator_name ? `Erstellt von ${props.data.creator_name}` : ""}
 							{props.data.creator_name && props.data.created_at ? " am " : ""}
 							{props.data.created_at
-								? new Date(props.data.created_at).toLocaleDateString("de-DE", {
+								? new Date((props.data.created_at || "").replace(/([+\-]\d{2}:\d{2}|Z)?$/, "Z")).toLocaleDateString("de-DE", {
 									day: "2-digit",
 									month: "2-digit",
 									year: "2-digit",
-								}) + ", " + new Date(props.data.created_at).toLocaleTimeString("de-DE", {
+								}) + ", " + new Date((props.data.created_at || "").replace(/([+\-]\d{2}:\d{2}|Z)?$/, "Z")).toLocaleTimeString("de-DE", {
 									hour: "2-digit",
 									minute: "2-digit",
 								}) + " Uhr"
@@ -1140,7 +1140,7 @@ export default function Event(props) {
 				</DialogTitle>
 				<DialogContent>
 					<Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-						Bitte gib einen Grund an, damit die anderen Bescheid wissen, warum du an einem Event nicht teilnimmst, zu dem du schon zugesagt hattest.
+						Bitte gib einen Grund an, warum du an einem Event nicht teilnimmst, zu dem du schon zugesagt hattest.
 					</Typography>
 					<TextField
 						label="Begründung"
