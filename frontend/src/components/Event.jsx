@@ -330,6 +330,15 @@ export default function Event(props) {
 		typeof j === "string" ? j : j.name,
 	);
 
+	// Names of people invited to this event (for organiser selector)
+	const invitedUserNames = invitations
+		.map((inv) => inv.invitee_name || null)
+		.filter(Boolean);
+	// Only show users who are in the invitation list; fall back to all default_users if no invitations yet
+	const leaderOptions = invitedUserNames.length > 0
+		? default_users.filter((u) => invitedUserNames.includes(u))
+		: default_users;
+
 	const hasBody =
 		invitations.length > 0 ||
 		myInvitation !== null ||
@@ -874,7 +883,7 @@ export default function Event(props) {
 								{leader || "Organisator …"}
 							</Button>
 							<Menu anchorEl={leaderAnchor} open={Boolean(leaderAnchor)} onClose={() => setLeaderAnchor(null)} PaperProps={{ sx: { borderRadius: 2 } }}>
-								{default_users.map((u) => (
+								{leaderOptions.map((u) => (
 									<MenuItem key={u} selected={u === leader} onClick={() => { setLeader(u); setLeaderAnchor(null); }} sx={{ fontFamily: '"Josefin Sans", sans-serif' }}>{u}</MenuItem>
 								))}
 							</Menu>
