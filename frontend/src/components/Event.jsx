@@ -383,7 +383,10 @@ export default function Event(props) {
 									day: "2-digit",
 									month: "2-digit",
 									year: "numeric",
-								})
+								}) + ", " + new Date(props.data.created_at).toLocaleTimeString("de-DE", {
+									hour: "2-digit",
+									minute: "2-digit",
+								}) + " Uhr"
 								: ""}
 						</Typography>
 					</Box>
