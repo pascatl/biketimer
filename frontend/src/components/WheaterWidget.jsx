@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Box, Tooltip, Typography, CircularProgress } from "@mui/material";
+import { getAccessToken } from "../auth/AuthService";
 
 /**
  * WeatherWidget – compact inline forecast badge.
@@ -48,8 +49,11 @@ export default function WeatherWidget({ date, time = "15:00", lat, lon, iconSize
       time: time || "15:00",
     });
 
+    const token = getAccessToken();
+    const authHeader = token ? { Authorization: `Bearer ${token}` } : {};
+
     fetch(`/api/weather/forecast?${params}`, {
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...authHeader },
     })
       .then((r) => {
         if (!r.ok) throw new Error(r.status);

@@ -12,7 +12,8 @@ function authHeaders() {
 // ── Events ───────────────────────────────────────────────────
 
 export async function fetchEvents() {
-	const res = await fetch(`${API_URL}/events`);
+	const headers = authHeaders();
+	const res = await fetch(`${API_URL}/events`, { headers });
 	if (!res.ok) throw new Error("Fehler beim Laden der Events");
 	return res.json();
 }
@@ -81,7 +82,8 @@ export async function inviteUsersToEvent(eventId, userIds) {
 }
 
 export async function fetchEventInvitations(eventId) {
-	const res = await fetch(`${API_URL}/events/${eventId}/invitations`);
+	const headers = authHeaders();
+	const res = await fetch(`${API_URL}/events/${eventId}/invitations`, { headers });
 	if (!res.ok) return [];
 	return res.json();
 }
@@ -138,7 +140,8 @@ export async function fetchStats() {
 // ── Users ────────────────────────────────────────────────────
 
 export async function fetchUsers() {
-	const res = await fetch(`${API_URL}/users`);
+	const headers = authHeaders();
+	const res = await fetch(`${API_URL}/users`, { headers });
 	if (!res.ok) throw new Error("Fehler beim Laden der Benutzer");
 	return res.json();
 }
@@ -247,7 +250,8 @@ export async function updateEmailPrefs(prefs) {
 // ── Event Comments ───────────────────────────────────────────
 
 export async function fetchEventComments(eventId) {
-	const res = await fetch(`${API_URL}/events/${eventId}/comments`);
+	const headers = authHeaders();
+	const res = await fetch(`${API_URL}/events/${eventId}/comments`, { headers });
 	if (!res.ok) return [];
 	return res.json();
 }

@@ -2,7 +2,9 @@ import os
 from typing import Optional
 
 import httpx
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
+
+from ..auth import get_current_user
 
 router = APIRouter(prefix="/weather", tags=["weather"])
 
@@ -16,6 +18,7 @@ async def get_forecast(
     lon: float = Query(...),
     date: str = Query(..., description="YYYY-MM-DD"),
     time: Optional[str] = Query("15:00", description="HH:MM"),
+    _user: dict = Depends(get_current_user),
 ):
     """Proxy to OpenWeatherMap 5-day/3h forecast.
 

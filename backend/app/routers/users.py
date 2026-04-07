@@ -16,7 +16,7 @@ def _push_with_pref(db, keycloak_id: str, pref_key: str, title: str, body: str):
     subs = db.query(PushSubscription).filter(PushSubscription.keycloak_id == keycloak_id).all()
     for sub in subs:
         prefs = sub.notification_prefs or {}
-        if prefs.get(pref_key, True):
+        if prefs.get(pref_key, False):  # default False = opt-in
             try:
                 send_push_notification(sub.endpoint, sub.p256dh, sub.auth, title=title, body=body)
             except Exception:
@@ -33,8 +33,11 @@ def _notify_admins_new_user(db, new_sub: str, name: str):
 
 
 @router.get("", response_model=List[UserResponse])
-def get_users(db: Session = Depends(get_db)):
-    """Return all active users (for user selection lists)."""
+def get_users(
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    """Return all active users (for invite lists). Requires authentication."""
     return db.query(User).filter(User.is_active == True).order_by(User.name.asc()).all()
 
 

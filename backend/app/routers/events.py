@@ -1,11 +1,11 @@
-from typing import List, Optional
+from typing import List
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from ..auth import get_current_user, get_current_user_optional
+from ..auth import get_current_user
 from ..database import get_db
 from ..models import Event, Invitation, User, PushSubscription, EventComment
 from ..schemas import EventCreate, EventResponse, EventUpdate, InvitationCreate, EventCommentCreate, EventCommentResponse, DEFAULT_EMAIL_PREFS
@@ -21,7 +21,7 @@ def _push_with_pref(db, keycloak_id: str, pref_key: str, title: str, body: str):
     subs = db.query(PushSubscription).filter(PushSubscription.keycloak_id == keycloak_id).all()
     for sub in subs:
         prefs = sub.notification_prefs or {}
-        if prefs.get(pref_key, True):  # default True = on
+        if prefs.get(pref_key, False):  # default False = opt-in
             try:
                 send_push_notification(sub.endpoint, sub.p256dh, sub.auth, title=title, body=body)
             except Exception:
@@ -37,8 +37,31 @@ def _push_admins(db, pref_key: str, title: str, body: str):
 
 
 @router.get("", response_model=List[EventResponse])
-def get_events(db: Session = Depends(get_db)):
-    return db.query(Event).order_by(Event.id.asc()).all()
+def get_events(
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    """Return events the authenticated user is allowed to see (same logic as /mine)."""
+    if user.get("is_admin"):
+        return db.query(Event).order_by(Event.id.asc()).all()
+    sub = user["sub"]
+    email = user.get("email")
+    inv_conditions = [Invitation.invitee_keycloak_id == sub]
+    if email:
+        inv_conditions.append(Invitation.invitee_email == email)
+    invited_event_ids = [
+        row[0]
+        for row in db.query(Invitation.event_id)
+        .filter(or_(*inv_conditions))
+        .distinct()
+        .all()
+    ]
+    return (
+        db.query(Event)
+        .filter(or_(Event.creator_keycloak_id == sub, Event.id.in_(invited_event_ids)))
+        .order_by(Event.id.asc())
+        .all()
+    )
 
 
 @router.get("/mine", response_model=List[EventResponse])
@@ -122,8 +145,27 @@ def get_event(
 
 
 @router.get("/{event_id}/invitations")
-def get_event_invitations(event_id: int, db: Session = Depends(get_db)):
-    """Return all invitations for an event (no auth required)."""
+def get_event_invitations(
+    event_id: int,
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    """Return all invitations for an event. Requires auth and membership."""
+    event = db.query(Event).filter(Event.id == event_id).first()
+    if not event:
+        raise HTTPException(status_code=404, detail="Event nicht gefunden")
+    if not user.get("is_admin"):
+        sub = user["sub"]
+        email = user.get("email")
+        is_creator = event.creator_keycloak_id == sub
+        inv_conditions = [Invitation.invitee_keycloak_id == sub]
+        if email:
+            inv_conditions.append(Invitation.invitee_email == email)
+        has_access = is_creator or db.query(Invitation).filter(
+            Invitation.event_id == event_id, or_(*inv_conditions)
+        ).first()
+        if not has_access:
+            raise HTTPException(status_code=403, detail="Kein Zugriff auf dieses Event")
     invitations = db.query(Invitation).filter(Invitation.event_id == event_id).all()
     result = []
     for inv in invitations:
@@ -220,11 +262,19 @@ def update_event(
     event_id: int,
     event_in: EventUpdate,
     db: Session = Depends(get_db),
-    user: Optional[dict] = Depends(get_current_user_optional),
+    user: dict = Depends(get_current_user),
 ):
     event = db.query(Event).filter(Event.id == event_id).first()
     if not event:
         raise HTTPException(status_code=404, detail="Event nicht gefunden")
+    # Authorization: only creator, current organizer, or admin may edit
+    sub = user["sub"]
+    current_leader = event.event_data.get("event_leader", "")
+    user_name = user.get("name") or user.get("preferred_username", "")
+    is_creator = event.creator_keycloak_id == sub
+    is_leader = bool(current_leader) and user_name == current_leader
+    if not is_creator and not is_leader and not user.get("is_admin"):
+        raise HTTPException(status_code=403, detail="Keine Berechtigung zum Bearbeiten")
     event.event_data = event_in.event_data.model_dump()
     db.commit()
     db.refresh(event)
@@ -236,17 +286,16 @@ def update_event(
         event_date_fmt = _dt.strptime(event_date_raw, "%Y-%m-%d").strftime("%d.%m.%y")
     except Exception:
         event_date_fmt = event_date_raw
-    accepted = db.query(Invitation).filter(
+    # Notify ALL invitees (any status) except the editor
+    all_invitees = db.query(Invitation).filter(
         Invitation.event_id == event_id,
-        Invitation.status == "accepted",
     ).all()
-    editor = (user.get("name") or user.get("preferred_username", "")) if user else ""
-    for inv in accepted:
+    editor = user.get("name") or user.get("preferred_username", "")
+    for inv in all_invitees:
         kid = inv.invitee_keycloak_id
-        if kid and kid != (user.get("sub") if user else None):
+        if kid and kid != sub:
             _push_with_pref(db, kid, "event_updated", "Event geändert",
                             f"Das Event am {event_date_fmt} wurde aktualisiert.")
-            # Send email if invitee has email and email pref enabled
             invitee_email = inv.invitee_email
             if invitee_email and not invitee_email.endswith("@local"):
                 db_user = db.query(User).filter(User.keycloak_id == kid).first()
@@ -266,8 +315,8 @@ def update_event(
             "event_id": event_id,
             "message": f"Das Event am {event_date_fmt} wurde aktualisiert.",
         },
-        recipient_subs=[inv.invitee_keycloak_id for inv in accepted if inv.invitee_keycloak_id],
-        exclude_sub=user.get("sub") if user else None,
+        recipient_subs=[inv.invitee_keycloak_id for inv in all_invitees if inv.invitee_keycloak_id],
+        exclude_sub=sub,
     )
 
     return event
@@ -277,11 +326,14 @@ def update_event(
 def delete_event(
     event_id: int,
     db: Session = Depends(get_db),
-    user: Optional[dict] = Depends(get_current_user_optional),
+    user: dict = Depends(get_current_user),
 ):
     event = db.query(Event).filter(Event.id == event_id).first()
     if not event:
         raise HTTPException(status_code=404, detail="Event nicht gefunden")
+    # Authorization: only creator or admin may delete
+    if event.creator_keycloak_id != user["sub"] and not user.get("is_admin"):
+        raise HTTPException(status_code=403, detail="Keine Berechtigung zum Löschen")
 
     # Notify accepted invitees before deletion
     event_date_raw = event.event_data.get("event_date", "")
@@ -290,17 +342,16 @@ def delete_event(
         event_date_fmt = _dt.strptime(event_date_raw, "%Y-%m-%d").strftime("%d.%m.%y")
     except Exception:
         event_date_fmt = event_date_raw
-    accepted = db.query(Invitation).filter(
+    # Notify ALL invitees (any status) except the deleter
+    all_invitees = db.query(Invitation).filter(
         Invitation.event_id == event_id,
-        Invitation.status == "accepted",
     ).all()
-    deleter = (user.get("name") or user.get("preferred_username", "")) if user else ""
-    for inv in accepted:
+    deleter = user.get("name") or user.get("preferred_username", "")
+    for inv in all_invitees:
         kid = inv.invitee_keycloak_id
-        if kid and kid != (user.get("sub") if user else None):
+        if kid and kid != user["sub"]:
             _push_with_pref(db, kid, "event_cancelled", "Event abgesagt",
                             f"Das Event am {event_date_fmt} wurde gelöscht.")
-            # Send email if invitee has email and email pref enabled
             invitee_email = inv.invitee_email
             if invitee_email and not invitee_email.endswith("@local"):
                 db_user = db.query(User).filter(User.keycloak_id == kid).first()
@@ -323,8 +374,8 @@ def delete_event(
             "event_id": event_id,
             "message": f"Das Event am {event_date_fmt} wurde gelöscht.",
         },
-        recipient_subs=[inv.invitee_keycloak_id for inv in accepted if inv.invitee_keycloak_id],
-        exclude_sub=user.get("sub") if user else None,
+        recipient_subs=[inv.invitee_keycloak_id for inv in all_invitees if inv.invitee_keycloak_id],
+        exclude_sub=user["sub"],
     )
 
     return {"ok": True}
@@ -454,11 +505,27 @@ def invite_users(
 
 
 @router.get("/{event_id}/comments", response_model=List[EventCommentResponse])
-def get_event_comments(event_id: int, db: Session = Depends(get_db)):
-    """Return all comments for an event (no auth required)."""
+def get_event_comments(
+    event_id: int,
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    """Return all comments for an event. Requires auth and membership."""
     event = db.query(Event).filter(Event.id == event_id).first()
     if not event:
         raise HTTPException(status_code=404, detail="Event nicht gefunden")
+    if not user.get("is_admin"):
+        sub = user["sub"]
+        email = user.get("email")
+        is_creator = event.creator_keycloak_id == sub
+        inv_conditions = [Invitation.invitee_keycloak_id == sub]
+        if email:
+            inv_conditions.append(Invitation.invitee_email == email)
+        has_access = is_creator or db.query(Invitation).filter(
+            Invitation.event_id == event_id, or_(*inv_conditions)
+        ).first()
+        if not has_access:
+            raise HTTPException(status_code=403, detail="Kein Zugriff auf dieses Event")
     return (
         db.query(EventComment)
         .filter(EventComment.event_id == event_id)
@@ -478,10 +545,24 @@ def create_event_comment(
     db: Session = Depends(get_db),
     user: dict = Depends(get_current_user),
 ):
-    """Create a comment for an event (requires authentication)."""
+    """Create a comment for an event. Requires auth and membership."""
     event = db.query(Event).filter(Event.id == event_id).first()
     if not event:
         raise HTTPException(status_code=404, detail="Event nicht gefunden")
+
+    # Membership check: creator, invited, or admin
+    if not user.get("is_admin"):
+        sub = user["sub"]
+        email = user.get("email")
+        is_creator = event.creator_keycloak_id == sub
+        inv_conditions = [Invitation.invitee_keycloak_id == sub]
+        if email:
+            inv_conditions.append(Invitation.invitee_email == email)
+        has_access = is_creator or db.query(Invitation).filter(
+            Invitation.event_id == event_id, or_(*inv_conditions)
+        ).first()
+        if not has_access:
+            raise HTTPException(status_code=403, detail="Kein Zugriff auf dieses Event")
 
     if not comment_in.content.strip():
         raise HTTPException(status_code=422, detail="Kommentar darf nicht leer sein")

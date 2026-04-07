@@ -12,7 +12,6 @@ import AdminPanel from "./components/AdminPanel";
 import StatsPanel from "./components/StatsPanel";
 import Footer from "./components/Footer";
 import {
-	fetchEvents,
 	fetchMyEvents,
 	fetchEvent,
 	createEvent,
@@ -120,8 +119,9 @@ export default function App() {
 
 	// ── Load events ───────────────────────────────────────────
 	const loadEvents = useCallback(async () => {
+		if (!authenticated) return;
 		try {
-			const data = authenticated ? await fetchMyEvents() : await fetchEvents();
+			const data = await fetchMyEvents();
 			const sorted = [...data].sort(
 				(a, b) =>
 					new Date(a.event_data?.event_date) -
