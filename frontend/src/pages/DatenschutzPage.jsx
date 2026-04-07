@@ -51,8 +51,10 @@ export default function DatenschutzPage() {
 					2. Hosting &amp; Infrastruktur
 				</Typography>
 				<Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-					Die Anwendung wird auf einem selbst betriebenen Server gehostet. Alle Daten
-					verbleiben auf diesem Server und werden nicht an Dritte übertragen.
+					Die Anwendung wird auf einem Server der STRATO GmbH, Otto-Ostrowski-Straße 7,
+					10249 Berlin, Deutschland gehostet. Die Datenverarbeitung erfolgt
+					ausschließlich innerhalb der EU. Es werden keine personenbezogenen
+					Daten an weitere Dritte übertragen.
 				</Typography>
 
 				<Divider sx={{ my: 2 }} />
