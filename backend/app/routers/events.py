@@ -11,6 +11,7 @@ from ..models import Event, Invitation, User, PushSubscription, EventComment
 from ..schemas import EventCreate, EventResponse, EventUpdate, InvitationCreate, EventCommentCreate, EventCommentResponse, DEFAULT_EMAIL_PREFS
 from ..push_service import send_push_notification
 from ..email_service import send_invitation_email, send_event_update_email, send_event_cancel_email
+from ..ws_manager import manager as ws_manager
 
 router = APIRouter(prefix="/events", tags=["events"])
 
@@ -206,6 +207,13 @@ def create_event(
     creator = user.get("name") or user.get("preferred_username", "Jemand")
     _push_admins(db, "admin_event_created", "Neues Event", f"{creator} hat ein Event am {event_date_fmt} angelegt.")
 
+    ws_manager.broadcast_sync({
+        "type": "event_created",
+        "event_id": new_event.id,
+        "actor_sub": user.get("sub"),
+        "message": f"{creator} hat ein neues Event am {event_date_fmt} erstellt.",
+    })
+
     return new_event
 
 
@@ -254,6 +262,13 @@ def update_event(
     _push_admins(db, "admin_event_updated", "Event aktualisiert",
                  f"Event am {event_date_fmt} wurde geändert (von {editor}).")
 
+    ws_manager.broadcast_sync({
+        "type": "event_updated",
+        "event_id": event_id,
+        "actor_sub": user.get("sub") if user else None,
+        "message": f"Das Event am {event_date_fmt} wurde aktualisiert.",
+    })
+
     return event
 
 
@@ -300,6 +315,14 @@ def delete_event(
 
     db.delete(event)
     db.commit()
+
+    ws_manager.broadcast_sync({
+        "type": "event_deleted",
+        "event_id": event_id,
+        "actor_sub": user.get("sub") if user else None,
+        "message": f"Das Event am {event_date_fmt} wurde gelöscht.",
+    })
+
     return {"ok": True}
 
 
@@ -332,9 +355,9 @@ def invite_users(
     event_date_raw = event.event_data.get("event_date", "")
     try:
         from datetime import datetime as _dt
-        event_date = _dt.strptime(event_date_raw, "%Y-%m-%d").strftime("%d.%m.%y")
-    except Exception:
-        event_date = event_date_raw
+        event_date_fmt = _dt.strptime(event_date_raw, "%Y-%m-%d").strftime("%d.%m.%y")
+    except ValueError:
+        event_date_fmt = event_date_raw
     inviter_name = user.get("name") or user.get("preferred_username", "Unbekannt")
 
     for uid in invitation_in.invitee_user_ids:
@@ -397,10 +420,17 @@ def invite_users(
                 invitee.keycloak_id,
                 "invite_received",
                 title="Neue Einladung",
-                body=f"{inviter_name} hat dich zu einem Event am {event_date} eingeladen!",
+                body=f"{inviter_name} hat dich zu einem Event am {event_date_fmt} eingeladen!",
             )
 
     sent = sum(1 for r in results if r["ok"])
+    if sent > 0:
+        ws_manager.broadcast_sync({
+            "type": "invitation_created",
+            "event_id": event_id,
+            "actor_sub": user.get("sub"),
+            "message": f"{inviter_name} hat {sent} Person(en) zum Event am {event_date_fmt} eingeladen.",
+        })
     return {
         "ok": True,
         "sent": sent,

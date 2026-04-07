@@ -1,6 +1,7 @@
+import asyncio
 import os
 
-from fastapi import FastAPI
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
@@ -8,6 +9,7 @@ from .database import engine
 from .models import Base
 from .routers import events, invitations, users, admin, data, push, stats, auth, weather
 from .config import APP_NAME
+from .ws_manager import manager, set_event_loop
 
 # Create tables that don't exist yet (safe with existing DB)
 Base.metadata.create_all(bind=engine)
@@ -189,6 +191,23 @@ app.include_router(push.router, prefix="/api")
 app.include_router(stats.router, prefix="/api")
 app.include_router(auth.router, prefix="/api")
 app.include_router(weather.router, prefix="/api")
+
+
+@app.on_event("startup")
+async def startup_event():
+    """Capture the running event loop so sync route handlers can broadcast WS messages."""
+    set_event_loop(asyncio.get_running_loop())
+
+
+@app.websocket("/api/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await manager.connect(websocket)
+    try:
+        while True:
+            # Keep the connection alive; clients send nothing meaningful
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
 
 
 @app.get("/api/health")

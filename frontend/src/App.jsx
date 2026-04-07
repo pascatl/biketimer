@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Container, Box, Stack, Button, IconButton, Tooltip, Typography, CircularProgress, Collapse, Chip, Dialog, DialogTitle, DialogContent, DialogActions } from "@mui/material";
+import { Container, Box, Stack, Button, IconButton, Tooltip, Typography, CircularProgress, Collapse, Chip, Dialog, DialogTitle, DialogContent, DialogActions, Snackbar, Alert } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import NotificationsIcon from "@mui/icons-material/Notifications";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
@@ -26,6 +26,7 @@ import {
 } from "./api";
 import { useAuth } from "./auth/AuthContext";
 import { trackEvent } from "./matomo";
+import { useWebSocket } from "./useWebSocket";
 
 export default function App() {
 	const { user, authenticated } = useAuth();
@@ -49,6 +50,9 @@ export default function App() {
 	const [detailError, setDetailError] = useState(null);
 	// Push permission dialog
 	const [pushDialogOpen, setPushDialogOpen] = useState(false);
+
+	// WebSocket toast
+	const [wsToast, setWsToast] = useState(null); // { message: string }
 
 	const allowedDays = [5]; // Friday
 	const default_startTime = "15:00";
@@ -158,12 +162,29 @@ export default function App() {
 		loadInvitations();
 	}, [loadInvitations]);
 
-	// ── Poll for new invitations every 30 s ───────────────────
-	useEffect(() => {
-		if (!authenticated) return;
-		const id = setInterval(loadInvitations, 30_000);
-		return () => clearInterval(id);
-	}, [authenticated, loadInvitations]);
+	// ── WebSocket: real-time updates replacing the 30 s poll ──
+	const handleWsMessage = useCallback((data) => {
+		// Skip toasts for actions the current user triggered themselves
+		if (data.actor_sub && data.actor_sub === user?.sub) {
+			return;
+		}
+		if (data.message) {
+			setWsToast({ message: data.message });
+		}
+		// Refresh the relevant data depending on message type
+		if (data.type?.startsWith("event_")) {
+			loadEvents();
+		}
+		if (
+			data.type?.startsWith("invitation_") ||
+			data.type === "event_created" ||
+			data.type === "event_deleted"
+		) {
+			if (authenticated) loadInvitations();
+		}
+	}, [user?.sub, loadEvents, loadInvitations, authenticated]);
+
+	useWebSocket("/api/ws", handleWsMessage, authenticated);
 
 	// ── Register for push notifications ───────────────────────
 	const doRegisterPush = useCallback(async () => {
@@ -485,6 +506,23 @@ export default function App() {
 			)}
 
 			<Footer />
+
+			{/* WebSocket update toast */}
+			<Snackbar
+				open={!!wsToast}
+				autoHideDuration={5000}
+				onClose={() => setWsToast(null)}
+				anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+			>
+				<Alert
+					onClose={() => setWsToast(null)}
+					severity="info"
+					variant="filled"
+					sx={{ width: "100%", borderRadius: 2 }}
+				>
+					{wsToast?.message}
+				</Alert>
+			</Snackbar>
 
 			{/* Push permission dialog */}
 			<Dialog

@@ -11,6 +11,7 @@ export default defineConfig({
 			"/api": {
 				target: "http://backend:8000",
 				changeOrigin: true,
+				ws: true,
 			},
 			"/kc": {
 				target: process.env.KEYCLOAK_URL || "http://localhost:8080",
