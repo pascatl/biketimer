@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
 	Alert,
 	Box,
@@ -32,6 +32,11 @@ export default function LoginDialog() {
 
 	// mode: "login" | "register"
 	const [mode, setMode] = useState("login");
+
+	// Always reset to login view when the dialog opens (e.g. after logout)
+	useEffect(() => {
+		if (loginOpen) setMode("login");
+	}, [loginOpen]);
 
 	// Login fields
 	const [username, setUsername] = useState("");
