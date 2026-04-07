@@ -69,5 +69,6 @@ ON CONFLICT (name) DO NOTHING;
 INSERT INTO sport_types (key, label, icon, color, is_active, sort_order) VALUES
     ('rennrad', 'Rennrad', 'DirectionsBike', '#2D3C59', true, 1),
     ('mtb', 'MTB', 'Landscape', '#94A378', true, 2),
-    ('squash', 'Squash', 'SportsTennis', '#D1855C', true, 3)
+    ('squash', 'Squash', 'SportsTennis', '#D1855C', true, 3),
+    ('beachvolleyball', 'Beachvolleyball', 'SportsVolleyball', '#E5BA41', true, 4)
 ON CONFLICT (key) DO NOTHING;
