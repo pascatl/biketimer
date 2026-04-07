@@ -56,11 +56,63 @@ function TabPanel({ children, value, index }) {
 	return value === index ? <Box sx={{ pt: 2 }}>{children}</Box> : null;
 }
 
+// ── Shared confirmation dialog ────────────────────────────────
+function ConfirmDeleteDialog({ open, message, onConfirm, onCancel }) {
+	return (
+		<Dialog
+			open={open}
+			onClose={onCancel}
+			maxWidth="xs"
+			fullWidth
+			PaperProps={{ sx: { borderRadius: 3 } }}
+		>
+			<DialogTitle sx={{ fontWeight: 700, color: "text.primary", pr: 6 }}>
+				Löschen bestätigen
+				<IconButton
+					onClick={onCancel}
+					size="small"
+					aria-label="Dialog schließen"
+					sx={{ position: "absolute", right: 12, top: 12, color: "text.secondary" }}
+				>
+					<CloseIcon fontSize="small" />
+				</IconButton>
+			</DialogTitle>
+			<DialogContent>
+				<Typography variant="body2" color="text.secondary">
+					{message}
+				</Typography>
+			</DialogContent>
+			<DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
+				<Button onClick={onCancel} color="inherit" sx={{ color: "text.secondary" }}>
+					Abbrechen
+				</Button>
+				<Button
+					onClick={onConfirm}
+					variant="contained"
+					disableElevation
+					startIcon={<DeleteIcon />}
+					sx={{
+						bgcolor: "#D1855C",
+						color: "#fff",
+						fontWeight: 700,
+						borderRadius: 2,
+						"&:hover": { bgcolor: "#b8693f" },
+					}}
+				>
+					Löschen
+				</Button>
+			</DialogActions>
+		</Dialog>
+	);
+}
+
 // ── User Management ──────────────────────────────────────────
 function UserManager() {
 	const [users, setUsers] = useState([]);
 	const [editId, setEditId] = useState(null);
 	const [editData, setEditData] = useState({});
+	const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+	const [deleteTargetId, setDeleteTargetId] = useState(null);
 
 	const load = useCallback(async () => {
 		try {
@@ -84,10 +136,15 @@ function UserManager() {
 		}
 	};
 
-	const handleDelete = async (id) => {
-		if (!confirm("Benutzer wirklich löschen?")) return;
+	const handleDelete = (id) => {
+		setDeleteTargetId(id);
+		setDeleteConfirmOpen(true);
+	};
+
+	const handleConfirmDelete = async () => {
+		setDeleteConfirmOpen(false);
 		try {
-			await adminDeleteUser(id);
+			await adminDeleteUser(deleteTargetId);
 			load();
 		} catch (e) {
 			alert(e.message);
@@ -197,6 +254,12 @@ function UserManager() {
 					</ListItem>
 				))}
 			</List>
+			<ConfirmDeleteDialog
+				open={deleteConfirmOpen}
+				message="Möchtest du diesen Benutzer wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden."
+				onConfirm={handleConfirmDelete}
+				onCancel={() => setDeleteConfirmOpen(false)}
+			/>
 		</Box>
 	);
 }
@@ -208,6 +271,8 @@ function JerseyManager() {
 	const [editData, setEditData] = useState({});
 	const [addOpen, setAddOpen] = useState(false);
 	const [newName, setNewName] = useState("");
+	const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+	const [deleteTargetId, setDeleteTargetId] = useState(null);
 
 	const load = useCallback(async () => {
 		try {
@@ -246,10 +311,15 @@ function JerseyManager() {
 		}
 	};
 
-	const handleDelete = async (id) => {
-		if (!confirm("Trikot wirklich löschen?")) return;
+	const handleDelete = (id) => {
+		setDeleteTargetId(id);
+		setDeleteConfirmOpen(true);
+	};
+
+	const handleConfirmDelete = async () => {
+		setDeleteConfirmOpen(false);
 		try {
-			await adminDeleteJersey(id);
+			await adminDeleteJersey(deleteTargetId);
 			load();
 		} catch (e) {
 			alert(e.message);
@@ -399,6 +469,12 @@ function JerseyManager() {
 					</Button>
 				</DialogActions>
 			</Dialog>
+			<ConfirmDeleteDialog
+				open={deleteConfirmOpen}
+				message="Möchtest du dieses Trikot wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden."
+				onConfirm={handleConfirmDelete}
+				onCancel={() => setDeleteConfirmOpen(false)}
+			/>
 		</Box>
 	);
 }
@@ -422,6 +498,8 @@ function SportTypeManager() {
 		icon: "DirectionsBike",
 		color: "#2D3C59",
 	});
+	const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+	const [deleteTargetId, setDeleteTargetId] = useState(null);
 
 	const load = useCallback(async () => {
 		try {
@@ -464,10 +542,15 @@ function SportTypeManager() {
 		}
 	};
 
-	const handleDelete = async (id) => {
-		if (!confirm("Sportart wirklich löschen?")) return;
+	const handleDelete = (id) => {
+		setDeleteTargetId(id);
+		setDeleteConfirmOpen(true);
+	};
+
+	const handleConfirmDelete = async () => {
+		setDeleteConfirmOpen(false);
 		try {
-			await adminDeleteSportType(id);
+			await adminDeleteSportType(deleteTargetId);
 			load();
 		} catch (e) {
 			alert(e.message);
@@ -717,6 +800,12 @@ function SportTypeManager() {
 					</Button>
 				</DialogActions>
 			</Dialog>
+			<ConfirmDeleteDialog
+				open={deleteConfirmOpen}
+				message="Möchtest du diese Sportart wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden."
+				onConfirm={handleConfirmDelete}
+				onCancel={() => setDeleteConfirmOpen(false)}
+			/>
 		</Box>
 	);
 }
