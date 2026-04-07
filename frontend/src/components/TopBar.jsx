@@ -20,6 +20,7 @@ import { InboxButton } from "./InboxDrawer";
 import NotifPrefsDrawer from "./NotifPrefsDrawer";
 import { useAuth } from "../auth/AuthContext";
 import { APP_NAME } from "../config";
+import { trackEvent } from "../matomo";
 
 function HideOnScroll({ children }) {
 	const trigger = useScrollTrigger();
@@ -105,7 +106,7 @@ const TopBar = ({
 						<Tooltip title="Benachrichtigungseinstellungen">
 							<Button
 								size="small"
-								onClick={() => setNotifOpen(true)}
+									onClick={() => { trackEvent("Navigation", "Benachrichtigungseinstellungen geöffnet"); setNotifOpen(true); }}
 								startIcon={<NotificationsIcon sx={{ fontSize: "1rem" }} />}
 								sx={{
 									color: "rgba(255,255,255,0.75)",

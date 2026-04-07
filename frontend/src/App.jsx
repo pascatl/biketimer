@@ -25,6 +25,7 @@ import {
 	registerMe,
 } from "./api";
 import { useAuth } from "./auth/AuthContext";
+import { trackEvent } from "./matomo";
 
 export default function App() {
 	const { user, authenticated } = useAuth();
@@ -261,6 +262,7 @@ export default function App() {
 
 	// When a user opens an event detail: update URL
 	const handleOpenDetail = (eventId) => {
+		trackEvent("Event", "Geöffnet", String(eventId));
 		navigate(`/events/${eventId}`);
 	};
 
@@ -273,6 +275,7 @@ export default function App() {
 	const handleAddEvent = async (event) => {
 		try {
 			const newEvent = await createEvent(event.event_data);
+			trackEvent("Event", "Erstellt", event.event_data?.event_title);
 			setCurrentEvents((prev) =>
 				[...prev, newEvent].sort(
 					(a, b) =>
@@ -317,8 +320,8 @@ export default function App() {
 				invitationCount={invitations.length}
 				isAdmin={isAdmin}
 				onAdminOpen={() => setAdminOpen(true)}
-				onStatsOpen={() => setStatsOpen(true)}
-				onInboxOpen={() => setInboxOpen(true)}
+				onStatsOpen={() => { trackEvent("Navigation", "Statistiken geöffnet"); setStatsOpen(true); }}
+				onInboxOpen={() => { trackEvent("Navigation", "Postfach geöffnet"); setInboxOpen(true); }}
 			/>
 			<Container maxWidth="md">
 				{urlEventId ? (

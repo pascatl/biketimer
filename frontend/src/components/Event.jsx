@@ -68,6 +68,7 @@ import {
 	deleteEventComment,
 } from "../api";
 import { useAuth } from "../auth/AuthContext";
+import { trackEvent } from "../matomo";
 
 const ICON_MAP = {
 	DirectionsBike: <DirectionsBikeIcon />,
@@ -212,6 +213,7 @@ export default function Event(props) {
 		if (!myInvitation) return;
 		try {
 			await respondInvitation(myInvitation.id, action);
+			trackEvent("Einladung", action === "accept" ? "Angenommen" : "Abgelehnt", String(eventId));
 			await loadInvitations();
 			// Also notify App.jsx so global inbox + all other event cards refresh
 			onInvitationResponded?.();
@@ -266,6 +268,7 @@ export default function Event(props) {
 		setCommentLoading(true);
 		try {
 			await createEventComment(eventId, newComment.trim());
+			trackEvent("Kommentar", "Gesendet", String(eventId));
 			setNewComment("");
 			await loadComments();
 		} catch (err) {
@@ -300,6 +303,7 @@ export default function Event(props) {
 	};
 
 	const handleSave = () => {
+		trackEvent("Event", "Gespeichert", String(eventId));
 		setCurrentEvent({
 			id: eventId,
 			event_data: {
@@ -334,7 +338,10 @@ export default function Event(props) {
 
 	const handleDelete = () => {
 		apiDeleteEvent(eventId)
-			.then(() => props.onDeleteEvent(eventId))
+			.then(() => {
+				trackEvent("Event", "Gelöscht", String(eventId));
+				props.onDeleteEvent(eventId);
+			})
 			.catch(console.error);
 	};
 
@@ -372,6 +379,7 @@ export default function Event(props) {
 			const ids = selectedInvitees.map((u) => u.id);
 			const res = await inviteUsersToEvent(eventId, ids);
 			const sent = res?.sent ?? ids.length;
+			trackEvent("Einladung", "Gesendet", String(eventId), sent);
 			handleInviteClose();
 			setToast({
 				message: `${sent} Einladung${sent !== 1 ? "en" : ""} gesendet!`,
