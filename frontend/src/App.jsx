@@ -149,14 +149,10 @@ export default function App() {
 		try {
 			const data = await fetchMyInvitations();
 			setInvitations(data);
-			// Signal Event cards to re-fetch their invitation lists
-			setEventRefreshKey((k) => k + 1);
-			// Reload event list so newly received invitations appear immediately
-			loadEvents();
 		} catch (err) {
 			console.error("Fehler beim Laden der Einladungen:", err);
 		}
-	}, [authenticated, loadEvents]);
+	}, [authenticated]);
 
 	useEffect(() => {
 		loadInvitations();
@@ -170,15 +166,17 @@ export default function App() {
 			setWsToast({ message: data.message });
 		}
 
-		// Always refresh relevant data
-		if (data.type?.startsWith("event_")) {
+		const isEventChange =
+			data.type?.startsWith("event_") ||
+			data.type?.startsWith("invitation_");
+
+		if (isEventChange) {
+			// Reload the flat event list (dates, titles, member counts)
 			loadEvents();
-		}
-		if (
-			data.type?.startsWith("invitation_") ||
-			data.type === "event_created" ||
-			data.type === "event_deleted"
-		) {
+			// Bump the refresh key so every Event card reloads its internal
+			// invitations and comments lists too
+			setEventRefreshKey((k) => k + 1);
+			// Also refresh the user's own invitation inbox
 			if (authenticated) loadInvitations();
 		}
 	}, [loadEvents, loadInvitations, authenticated]);
@@ -279,6 +277,13 @@ export default function App() {
 				setDetailLoading(false);
 			});
 	}, [urlEventId]);
+
+	// Keep detail view in sync when the event list refreshes (e.g. via WebSocket)
+	useEffect(() => {
+		if (!detailEvent) return;
+		const updated = currentEvents.find((e) => e.id === detailEvent.id);
+		if (updated) setDetailEvent(updated);
+	}, [currentEvents]); // eslint-disable-line react-hooks/exhaustive-deps
 
 	// When a user opens an event detail: update URL
 	const handleOpenDetail = (eventId) => {

@@ -211,6 +211,26 @@ export default function Event(props) {
 		loadComments();
 	}, [loadInvitations, loadComments, refreshToken]); // re-fetch whenever parent signals a refresh
 
+	// Sync display state from updated props (e.g. after WebSocket refresh),
+	// but never while the user is actively editing.
+	// NOTE: do NOT call setCurrentEvent here – that state is the save trigger
+	// (see useEffect([currentEvent]) below) and must only change on explicit save actions.
+	useEffect(() => {
+		if (editMode) return;
+		const d = props.data.event_data;
+		setDate(d.event_date);
+		setTitle(d.event_title || "");
+		setStartTime(d.event_startTime);
+		setComment(d.event_comment);
+		setLink(d.event_link);
+		setMeetingText(d.event_meeting_text || "");
+		setMeetingLat(d.event_meeting_lat ?? null);
+		setMeetingLon(d.event_meeting_lon ?? null);
+		setLeader(d.event_leader);
+		setJersey(d.event_jersey);
+		setEventType(d.event_type || "rennrad");
+	}, [props.data]); // eslint-disable-line react-hooks/exhaustive-deps
+
 	const handleRespond = async (action) => {
 		if (!myInvitation) return;
 		try {
@@ -357,17 +377,18 @@ export default function Event(props) {
 	};
 
 	const handleCancelEdit = () => {
-		setTitle(currentEvent.event_data.event_title || "");
-		setDate(currentEvent.event_data.event_date);
-		setStartTime(currentEvent.event_data.event_startTime);
-		setEventType(currentEvent.event_data.event_type || "rennrad");
-		setLeader(currentEvent.event_data.event_leader);
-		setJersey(currentEvent.event_data.event_jersey);
-		setComment(currentEvent.event_data.event_comment);
-		setLink(currentEvent.event_data.event_link);
-		setMeetingText(currentEvent.event_data.event_meeting_text || "");
-		setMeetingLat(currentEvent.event_data.event_meeting_lat ?? null);
-		setMeetingLon(currentEvent.event_data.event_meeting_lon ?? null);
+		const d = props.data.event_data;
+		setTitle(d.event_title || "");
+		setDate(d.event_date);
+		setStartTime(d.event_startTime);
+		setEventType(d.event_type || "rennrad");
+		setLeader(d.event_leader);
+		setJersey(d.event_jersey);
+		setComment(d.event_comment);
+		setLink(d.event_link);
+		setMeetingText(d.event_meeting_text || "");
+		setMeetingLat(d.event_meeting_lat ?? null);
+		setMeetingLon(d.event_meeting_lon ?? null);
 		setEditMode(false);
 	};
 
