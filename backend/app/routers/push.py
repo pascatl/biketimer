@@ -72,9 +72,9 @@ def get_prefs(
         .filter(PushSubscription.keycloak_id == user["sub"])
         .first()
     )
-    if not sub or sub.notification_prefs is None:
-        return {"prefs": DEFAULT_NOTIF_PREFS}
-    return {"prefs": sub.notification_prefs}
+    stored = (sub.notification_prefs or {}) if sub else {}
+    # Merge with defaults so all keys are always present
+    return {"prefs": {**DEFAULT_NOTIF_PREFS, **stored}}
 
 
 @router.delete("/unsubscribe")
@@ -102,9 +102,9 @@ def get_email_prefs(
 ):
     """Get email notification preferences for the current user."""
     db_user = db.query(User).filter(User.keycloak_id == user["sub"]).first()
-    if not db_user or db_user.email_prefs is None:
-        return {"prefs": DEFAULT_EMAIL_PREFS}
-    return {"prefs": db_user.email_prefs}
+    stored = (db_user.email_prefs or {}) if db_user else {}
+    # Merge with defaults so all keys are always present
+    return {"prefs": {**DEFAULT_EMAIL_PREFS, **stored}}
 
 
 @router.patch("/email-prefs")

@@ -24,9 +24,9 @@ def _push_with_pref(db, keycloak_id: str, pref_key: str, title: str, body: str):
 
 
 def _notify_admins_new_user(db, new_sub: str, name: str):
-    """Send admin_user_registered push to all other active users."""
-    all_users = db.query(User).filter(User.is_active == True).all()
-    for au in all_users:
+    """Send admin_user_registered push only to admin users."""
+    admin_users = db.query(User).filter(User.is_active == True, User.is_admin == True).all()
+    for au in admin_users:
         if au.keycloak_id and au.keycloak_id != new_sub:
             _push_with_pref(db, au.keycloak_id, "admin_user_registered",
                             "Neuer Benutzer", f"{name} hat sich registriert.")
@@ -60,11 +60,18 @@ def register_or_link_me(
     email = user.get("email") or None
     name = user.get("name") or user.get("preferred_username", "")
 
-    # 1. Already linked by keycloak_id – just refresh email
+    # 1. Already linked by keycloak_id – refresh email and sync admin role
     existing = db.query(User).filter(User.keycloak_id == sub).first()
     if existing:
+        changed = False
         if email and existing.email != email:
             existing.email = email
+            changed = True
+        is_admin_now = user.get("is_admin", False)
+        if existing.is_admin != is_admin_now:
+            existing.is_admin = is_admin_now
+            changed = True
+        if changed:
             db.commit()
             db.refresh(existing)
         return existing
@@ -74,6 +81,7 @@ def register_or_link_me(
         by_email = db.query(User).filter(User.email == email).first()
         if by_email and by_email.keycloak_id is None:
             by_email.keycloak_id = sub
+            by_email.is_admin = user.get("is_admin", False)
             db.commit()
             _migrate_invitations(db, by_email, sub, email)
             db.refresh(by_email)
@@ -89,6 +97,7 @@ def register_or_link_me(
         )
         if by_name:
             by_name.keycloak_id = sub
+            by_name.is_admin = user.get("is_admin", False)
             if email:
                 by_name.email = email
             db.commit()
@@ -98,7 +107,8 @@ def register_or_link_me(
             return by_name
 
     # 4. No match – create a new user
-    new_user = User(keycloak_id=sub, name=name, email=email, is_active=True)
+    new_user = User(keycloak_id=sub, name=name, email=email, is_active=True,
+                    is_admin=user.get("is_admin", False))
     db.add(new_user)
     db.commit()
     db.refresh(new_user)

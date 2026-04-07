@@ -79,7 +79,7 @@ export default function NotifPrefsDrawer({ open, onClose, isAdmin }) {
         control={
           <Switch
             size="small"
-            checked={prefs[key] ?? true}
+            checked={prefs[key] ?? false}
             onChange={() => onToggle(key)}
             disabled={saving}
           />

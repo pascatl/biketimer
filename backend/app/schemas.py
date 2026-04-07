@@ -164,22 +164,22 @@ class EventCommentResponse(BaseModel):
 
 DEFAULT_NOTIF_PREFS = {
     "invite_received": True,
-    "event_updated": True,
-    "event_cancelled": True,
-    "admin_user_registered": True,
-    "admin_event_created": True,
-    "admin_event_updated": True,
-    "admin_event_deleted": True,
+    "event_updated": False,
+    "event_cancelled": False,
+    "admin_user_registered": False,
+    "admin_event_created": False,
+    "admin_event_updated": False,
+    "admin_event_deleted": False,
 }
 
 DEFAULT_EMAIL_PREFS = {
     "invite_received": True,
-    "event_updated": True,
-    "event_cancelled": True,
-    "admin_user_registered": True,
-    "admin_event_created": True,
-    "admin_event_updated": True,
-    "admin_event_deleted": True,
+    "event_updated": False,
+    "event_cancelled": False,
+    "admin_user_registered": False,
+    "admin_event_created": False,
+    "admin_event_updated": False,
+    "admin_event_deleted": False,
 }
 
 

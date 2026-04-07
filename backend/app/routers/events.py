@@ -29,8 +29,8 @@ def _push_with_pref(db, keycloak_id: str, pref_key: str, title: str, body: str):
 
 
 def _push_admins(db, pref_key: str, title: str, body: str):
-    """Send push to all admin users who have pref_key enabled."""
-    admin_users = db.query(User).filter(User.is_active == True).all()
+    """Send push only to users flagged as admin in the DB."""
+    admin_users = db.query(User).filter(User.is_active == True, User.is_admin == True).all()
     for au in admin_users:
         if au.keycloak_id:
             _push_with_pref(db, au.keycloak_id, pref_key, title, body)
