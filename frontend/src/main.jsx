@@ -11,6 +11,8 @@ import App from "./App";
 import "./index.css";
 import { AuthProvider, useAuth } from "./auth/AuthContext";
 import LoginDialog from "./components/LoginDialog";
+import ImpressumPage from "./pages/ImpressumPage";
+import DatenschutzPage from "./pages/DatenschutzPage";
 
 function AuthGate() {
 	const { authenticated, restoring } = useAuth();
@@ -18,12 +20,16 @@ function AuthGate() {
 	return (
 		<>
 			<LoginDialog />
-			{authenticated && (
-				<Routes>
-					<Route path="/events/:id" element={<App />} />
-					<Route path="*" element={<App />} />
-				</Routes>
-			)}
+			<Routes>
+				<Route path="/impressum" element={<ImpressumPage />} />
+				<Route path="/datenschutz" element={<DatenschutzPage />} />
+				{authenticated && (
+					<>
+						<Route path="/events/:id" element={<App />} />
+						<Route path="*" element={<App />} />
+					</>
+				)}
+			</Routes>
 		</>
 	);
 }
