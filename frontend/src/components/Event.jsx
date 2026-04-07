@@ -224,6 +224,11 @@ export default function Event(props) {
 		setRevokeTargetId(null);
 	};
 
+	const handleCancelRevoke = () => {
+		setRevokeConfirmOpen(false);
+		setRevokeTargetId(null);
+	};
+
 	const handleWithdraw = async () => {
 		if (!myInvitation) return;
 		setWithdrawLoading(true);
@@ -1264,7 +1269,7 @@ export default function Event(props) {
 			{/* Revoke Invitation Confirmation Dialog */}
 			<Dialog
 				open={revokeConfirmOpen}
-				onClose={() => { setRevokeConfirmOpen(false); setRevokeTargetId(null); }}
+				onClose={handleCancelRevoke}
 				maxWidth="xs"
 				fullWidth
 				PaperProps={{ sx: { borderRadius: 3 } }}
@@ -1272,7 +1277,7 @@ export default function Event(props) {
 				<DialogTitle sx={{ fontWeight: 700, color: "text.primary", pr: 6 }}>
 					Einladung entfernen
 					<IconButton
-						onClick={() => { setRevokeConfirmOpen(false); setRevokeTargetId(null); }}
+						onClick={handleCancelRevoke}
 						size="small"
 						sx={{ position: "absolute", right: 12, top: 12, color: "text.secondary" }}
 					>
@@ -1286,7 +1291,7 @@ export default function Event(props) {
 				</DialogContent>
 				<DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
 					<Button
-						onClick={() => { setRevokeConfirmOpen(false); setRevokeTargetId(null); }}
+						onClick={handleCancelRevoke}
 						color="inherit"
 						sx={{ color: "text.secondary" }}
 					>
