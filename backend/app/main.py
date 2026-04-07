@@ -1,5 +1,6 @@
 import asyncio
 import os
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
@@ -172,7 +173,15 @@ FRONTEND_ORIGINS = os.getenv(
     "http://localhost:5173,http://localhost:4173",
 ).split(",")
 
-app = FastAPI(title=f"{APP_NAME} API", version="2.0.0")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Capture the running event loop so sync route handlers can broadcast WS messages."""
+    set_event_loop(asyncio.get_running_loop())
+    yield
+
+
+app = FastAPI(title=f"{APP_NAME} API", version="2.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -191,12 +200,6 @@ app.include_router(push.router, prefix="/api")
 app.include_router(stats.router, prefix="/api")
 app.include_router(auth.router, prefix="/api")
 app.include_router(weather.router, prefix="/api")
-
-
-@app.on_event("startup")
-async def startup_event():
-    """Capture the running event loop so sync route handlers can broadcast WS messages."""
-    set_event_loop(asyncio.get_running_loop())
 
 
 @app.websocket("/api/ws")
