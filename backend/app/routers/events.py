@@ -587,6 +587,21 @@ def create_event_comment(
     db.add(comment)
     db.commit()
     db.refresh(comment)
+
+    # Notify all event members so comments update live
+    all_invitees = db.query(Invitation).filter(Invitation.event_id == event_id).all()
+    recipient_subs = list({i.invitee_keycloak_id for i in all_invitees if i.invitee_keycloak_id})
+    author_name = user.get("name") or user.get("preferred_username", "Jemand")
+    ws_manager.dispatch_sync(
+        {
+            "type": "event_comment_created",
+            "event_id": event_id,
+            "message": f"{author_name} hat einen Kommentar hinterlassen.",
+        },
+        recipient_subs=recipient_subs,
+        exclude_sub=user["sub"],
+    )
+
     return comment
 
 
@@ -614,4 +629,17 @@ def delete_event_comment(
 
     db.delete(comment)
     db.commit()
+
+    # Notify all event members so comments update live
+    all_invitees = db.query(Invitation).filter(Invitation.event_id == event_id).all()
+    recipient_subs = list({i.invitee_keycloak_id for i in all_invitees if i.invitee_keycloak_id})
+    ws_manager.dispatch_sync(
+        {
+            "type": "event_comment_deleted",
+            "event_id": event_id,
+        },
+        recipient_subs=recipient_subs,
+        exclude_sub=user["sub"],
+    )
+
     return {"ok": True}
