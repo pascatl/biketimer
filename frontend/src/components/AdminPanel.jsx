@@ -10,11 +10,15 @@ import {
 	DialogContent,
 	DialogTitle,
 	Divider,
+	FormControl,
 	IconButton,
+	InputLabel,
 	List,
 	ListItem,
 	ListItemSecondaryAction,
 	ListItemText,
+	MenuItem,
+	Select,
 	Stack,
 	Tab,
 	Tabs,
@@ -30,6 +34,9 @@ import SaveIcon from "@mui/icons-material/Save";
 import PeopleIcon from "@mui/icons-material/People";
 import CheckroomIcon from "@mui/icons-material/Checkroom";
 import SportsTennisIcon from "@mui/icons-material/SportsTennis";
+import SportsVolleyballIcon from "@mui/icons-material/SportsVolleyball";
+import DirectionsBikeIcon from "@mui/icons-material/DirectionsBike";
+import LandscapeIcon from "@mui/icons-material/Landscape";
 import SettingsIcon from "@mui/icons-material/Settings";
 import {
 	adminFetchUsers,
@@ -397,6 +404,13 @@ function JerseyManager() {
 }
 
 // ── Sport Type Management ────────────────────────────────────
+const SPORT_ICON_MAP = {
+	DirectionsBike: <DirectionsBikeIcon />,
+	Landscape: <LandscapeIcon />,
+	SportsTennis: <SportsTennisIcon />,
+	SportsVolleyball: <SportsVolleyballIcon />,
+};
+
 function SportTypeManager() {
 	const [types, setTypes] = useState([]);
 	const [editId, setEditId] = useState(null);
@@ -421,7 +435,7 @@ function SportTypeManager() {
 		load();
 	}, [load]);
 
-	const iconOptions = ["DirectionsBike", "Landscape", "SportsTennis"];
+	const iconOptions = ["DirectionsBike", "Landscape", "SportsTennis", "SportsVolleyball"];
 
 	const handleAdd = async () => {
 		if (!newData.key.trim() || !newData.label.trim()) return;
@@ -527,6 +541,25 @@ function SportTypeManager() {
 									}
 									sx={{ flex: 1 }}
 								/>
+								<FormControl size="small" sx={{ minWidth: 160 }}>
+									<InputLabel>Icon</InputLabel>
+									<Select
+										label="Icon"
+										value={editData.icon}
+										onChange={(e) =>
+											setEditData({ ...editData, icon: e.target.value })
+										}
+									>
+										{iconOptions.map((opt) => (
+											<MenuItem key={opt} value={opt}>
+												<Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+													{SPORT_ICON_MAP[opt]}
+													{opt}
+												</Box>
+											</MenuItem>
+										))}
+									</Select>
+								</FormControl>
 								<TextField
 									size="small"
 									label="Farbe"
@@ -561,14 +594,15 @@ function SportTypeManager() {
 							<>
 								<Box
 									sx={{
-										width: 16,
-										height: 16,
-										borderRadius: "50%",
-										bgcolor: t.color,
+										color: t.color,
 										mr: 1.5,
 										flexShrink: 0,
+										display: "flex",
+										alignItems: "center",
 									}}
-								/>
+								>
+									{SPORT_ICON_MAP[t.icon] ?? <DirectionsBikeIcon />}
+								</Box>
 								<ListItemText
 									primary={t.label}
 									secondary={t.key}
@@ -633,6 +667,25 @@ function SportTypeManager() {
 								setNewData({ ...newData, label: e.target.value })
 							}
 						/>
+						<FormControl size="small" fullWidth>
+							<InputLabel>Icon</InputLabel>
+							<Select
+								label="Icon"
+								value={newData.icon}
+								onChange={(e) =>
+									setNewData({ ...newData, icon: e.target.value })
+								}
+							>
+								{iconOptions.map((opt) => (
+									<MenuItem key={opt} value={opt}>
+										<Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+											{SPORT_ICON_MAP[opt]}
+											{opt}
+										</Box>
+									</MenuItem>
+								))}
+							</Select>
+						</FormControl>
 						<TextField
 							label="Farbe"
 							type="color"

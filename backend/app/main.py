@@ -147,6 +147,24 @@ try:
 except Exception as e:
     print(f"Migration 006 check: {e}")
 
+# Run migration 007: update sport type icons and add Beachvolleyball
+# All SQL statements in this migration are idempotent, so it is safe to run on every startup.
+try:
+    with engine.connect() as conn:
+        migration_path = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)),
+            "migrations",
+            "007_sport_type_icons.sql",
+        )
+        if os.path.exists(migration_path):
+            with open(migration_path) as f:
+                sql = f.read()
+            conn.execute(text(sql))
+            conn.commit()
+            print("Migration 007 (sport_type_icons) applied successfully")
+except Exception as e:
+    print(f"Migration 007 check: {e}")
+
 FRONTEND_ORIGINS = os.getenv(
     "FRONTEND_ORIGINS",
     "http://localhost:5173,http://localhost:4173",

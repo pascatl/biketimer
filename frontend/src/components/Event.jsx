@@ -44,6 +44,7 @@ import CheckroomIcon from "@mui/icons-material/Checkroom";
 import DirectionsBikeIcon from "@mui/icons-material/DirectionsBike";
 import LandscapeIcon from "@mui/icons-material/Landscape";
 import SportsTennisIcon from "@mui/icons-material/SportsTennis";
+import SportsVolleyballIcon from "@mui/icons-material/SportsVolleyball";
 import PersonAddAltIcon from "@mui/icons-material/PersonAddAlt";
 import PersonIcon from "@mui/icons-material/Person";
 import ShareIcon from "@mui/icons-material/Share";
@@ -74,6 +75,7 @@ const ICON_MAP = {
 	DirectionsBike: <DirectionsBikeIcon />,
 	Landscape: <LandscapeIcon />,
 	SportsTennis: <SportsTennisIcon />,
+	SportsVolleyball: <SportsVolleyballIcon />,
 };
 
 const DEFAULT_TYPE_META = {
