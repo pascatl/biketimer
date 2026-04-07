@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
 	Avatar,
 	Box,
@@ -20,6 +20,65 @@ import { useAuth } from "../auth/AuthContext";
 
 const GITHUB_REPO = "https://github.com/pascatl/biketimer";
 const GITHUB_ISSUE = `${GITHUB_REPO}/issues/new`;
+
+function MatomoOptOut() {
+	const [optedOut, setOptedOut] = useState(false);
+
+	useEffect(() => {
+		// Matomo may load asynchronously; poll briefly until available
+		const check = () => {
+			try {
+				const tracker = window.Matomo?.getAsyncTracker();
+				if (tracker) {
+					setOptedOut(tracker.isUserOptedOut());
+					return true;
+				}
+			} catch (_) {}
+			return false;
+		};
+		if (!check()) {
+			const id = setInterval(() => { if (check()) clearInterval(id); }, 300);
+			return () => clearInterval(id);
+		}
+	}, []);
+
+	const toggle = () => {
+		try {
+			window._paq = window._paq || [];
+			if (optedOut) {
+				window._paq.push(["forgetUserOptOut"]);
+			} else {
+				window._paq.push(["optUserOut"]);
+			}
+			setOptedOut(!optedOut);
+		} catch (_) {}
+	};
+
+	return (
+		<Box sx={{ mt: 1.5, display: "flex", alignItems: "center", gap: 1.5 }}>
+			<Typography variant="body2" color="text.secondary" sx={{ flex: 1 }}>
+				{optedOut
+					? "Sie werden derzeit nicht erfasst."
+					: "Sie werden derzeit erfasst."}
+			</Typography>
+			<Button
+				size="small"
+				variant="outlined"
+				onClick={toggle}
+				sx={{
+					fontSize: "0.72rem",
+					textTransform: "none",
+					borderColor: "rgba(0,0,0,0.2)",
+					color: "text.secondary",
+					"&:hover": { borderColor: "text.primary", color: "text.primary" },
+					whiteSpace: "nowrap",
+				}}
+			>
+				{optedOut ? "Erfassung erlauben" : "Erfassung deaktivieren"}
+			</Button>
+		</Box>
+	);
+}
 
 export default function Footer() {
 	const [impOpen, setImpOpen] = useState(false);
@@ -215,7 +274,7 @@ export default function Footer() {
 					{/* Hosting & Infrastruktur */}
 					<Typography variant="subtitle2" sx={{ fontWeight: 700 }}>2. Hosting &amp; Infrastruktur</Typography>
 					<Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-						Die Anwendung wird auf einem selbst betriebenen Server in Deutschland gehostet. Alle Daten
+						Die Anwendung wird auf einem von Strato betriebenen Server in Deutschland gehostet. Alle Daten
 						verbleiben auf diesem Server und werden nicht an Dritte übertragen.
 					</Typography>
 
@@ -243,19 +302,7 @@ export default function Footer() {
 						weitergegeben. Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO (berechtigtes
 						Interesse an der Verbesserung des Angebots).
 					</Typography>
-					<Box
-						component="iframe"
-						src="https://analytics.ptom.de/index.php?module=CoreAdminHome&action=optOut&language=de&fontColor=888888&fontSize=12px&fontFamily=inherit"
-						sx={{
-							mt: 1.5,
-							width: "100%",
-							height: 60,
-							border: "none",
-							overflow: "hidden",
-						}}
-						scrolling="no"
-						title="Matomo Opt-out"
-					/>
+					<MatomoOptOut />
 
 					<Divider sx={{ my: 2 }} />
 
