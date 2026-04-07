@@ -23,6 +23,7 @@ const GITHUB_ISSUE = `${GITHUB_REPO}/issues/new`;
 
 export default function Footer() {
 	const [impOpen, setImpOpen] = useState(false);
+	const [dseOpen, setDseOpen] = useState(false);
 	const { user, authenticated } = useAuth();
 	const userName = user?.name || user?.preferred_username || "";
 	const isAdmin = user?.is_admin || false;
@@ -46,8 +47,8 @@ export default function Footer() {
 					zIndex: 1100,
 				}}
 			>
-				{/* Left: Impressum */}
-				<Box sx={{ flex: 1, display: "flex", justifyContent: "flex-start" }}>
+				{/* Left: Impressum + Datenschutz */}
+				<Box sx={{ flex: 1, display: "flex", justifyContent: "flex-start", gap: 1.5 }}>
 					<Button
 						variant="text"
 						size="small"
@@ -62,6 +63,21 @@ export default function Footer() {
 						}}
 					>
 						Impressum
+					</Button>
+					<Button
+						variant="text"
+						size="small"
+						onClick={() => setDseOpen(true)}
+						sx={{
+							color: "text.secondary",
+							textTransform: "none",
+							fontSize: "0.75rem",
+							p: 0,
+							minWidth: 0,
+							"&:hover": { color: "text.primary", background: "none" },
+						}}
+					>
+						Datenschutz
 					</Button>
 				</Box>
 
@@ -157,6 +173,123 @@ export default function Footer() {
 							{GITHUB_REPO}
 						</Link>
 					</Typography>
+				</DialogContent>
+			</Dialog>
+			{/* Datenschutzerklärung Dialog */}
+			<Dialog
+				open={dseOpen}
+				onClose={() => setDseOpen(false)}
+				maxWidth="sm"
+				fullWidth
+				PaperProps={{ sx: { borderRadius: 3 } }}
+			>
+				<DialogTitle
+					sx={{
+						fontWeight: 700,
+						display: "flex",
+						justifyContent: "space-between",
+						alignItems: "center",
+					}}
+				>
+					Datenschutzerklärung
+					<IconButton size="small" onClick={() => setDseOpen(false)}>
+						<CloseIcon fontSize="small" />
+					</IconButton>
+				</DialogTitle>
+				<Divider />
+				<DialogContent sx={{ py: 3 }}>
+
+					<Typography variant="body2" color="text.secondary" gutterBottom>
+						Stand: April 2026
+					</Typography>
+
+					{/* Verantwortlicher */}
+					<Typography variant="subtitle2" sx={{ fontWeight: 700, mt: 2 }}>1. Verantwortlicher</Typography>
+					<Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+						Pascal Tomschi, ptom.de<br />
+						Dieses Angebot ist ein privates, nicht-kommerzielles Hobby-Projekt.
+					</Typography>
+
+					<Divider sx={{ my: 2 }} />
+
+					{/* Hosting & Infrastruktur */}
+					<Typography variant="subtitle2" sx={{ fontWeight: 700 }}>2. Hosting &amp; Infrastruktur</Typography>
+					<Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+						Die Anwendung wird auf einem selbst betriebenen Server in Deutschland gehostet. Alle Daten
+						verbleiben auf diesem Server und werden nicht an Dritte übertragen.
+					</Typography>
+
+					<Divider sx={{ my: 2 }} />
+
+					{/* Nutzerkonto & Authentifizierung */}
+					<Typography variant="subtitle2" sx={{ fontWeight: 700 }}>3. Nutzerkonto &amp; Authentifizierung</Typography>
+					<Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+						Die Anmeldung erfolgt über Keycloak (selbst gehostet unter auth.ptom.de).
+						Dabei werden Name und E-Mail-Adresse gespeichert, ausschließlich um
+						Fahrttermine zu verwalten und Einladungen zu versenden.
+						Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO (Vertragserfüllung).
+					</Typography>
+
+					<Divider sx={{ my: 2 }} />
+
+					{/* Analyse */}
+					<Typography variant="subtitle2" sx={{ fontWeight: 700 }}>4. Nutzungsanalyse (Matomo)</Typography>
+					<Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+						Diese Website nutzt Matomo, eine selbst gehostete Open-Source-Software zur
+						Webanalyse (analytics.ptom.de). Es werden keine Cookies gesetzt. IP-Adressen
+						werden vor der Speicherung anonymisiert (letztes Oktett entfernt). Die
+						erhobenen Daten (aufgerufene Seiten, Interaktionen, gekürzte IP, Browser-Typ)
+						verbleiben ausschließlich auf dem eigenen Server und werden nicht
+						weitergegeben. Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO (berechtigtes
+						Interesse an der Verbesserung des Angebots).
+					</Typography>
+					<Box
+						component="iframe"
+						src="https://analytics.ptom.de/index.php?module=CoreAdminHome&action=optOut&language=de&fontColor=888888&fontSize=12px&fontFamily=inherit"
+						sx={{
+							mt: 1.5,
+							width: "100%",
+							height: 60,
+							border: "none",
+							overflow: "hidden",
+						}}
+						scrolling="no"
+						title="Matomo Opt-out"
+					/>
+
+					<Divider sx={{ my: 2 }} />
+
+					{/* Push-Benachrichtigungen */}
+					<Typography variant="subtitle2" sx={{ fontWeight: 700 }}>5. Push-Benachrichtigungen</Typography>
+					<Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+						Auf Wunsch können Push-Benachrichtigungen aktiviert werden. Dabei wird ein
+						gerätespezifisches Abonnement (Push-Subscription) auf dem Server gespeichert.
+						Das Abonnement kann jederzeit in den Benachrichtigungseinstellungen oder in
+						den Browser-Einstellungen widerrufen werden.
+						Rechtsgrundlage: Art. 6 Abs. 1 lit. a DSGVO (Einwilligung).
+					</Typography>
+
+					<Divider sx={{ my: 2 }} />
+
+					{/* E-Mail */}
+					<Typography variant="subtitle2" sx={{ fontWeight: 700 }}>6. E-Mail-Benachrichtigungen</Typography>
+					<Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+						Einladungen zu Fahrtterminen werden per E-Mail versandt. Die E-Mail-Adresse
+						wird ausschließlich für diesen Zweck genutzt. Der Versand erfolgt über einen
+						selbst betriebenen SMTP-Server.
+					</Typography>
+
+					<Divider sx={{ my: 2 }} />
+
+					{/* Betroffenenrechte */}
+					<Typography variant="subtitle2" sx={{ fontWeight: 700 }}>7. Ihre Rechte</Typography>
+					<Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+						Sie haben das Recht auf Auskunft, Berichtigung, Löschung, Einschränkung
+						der Verarbeitung sowie Datenübertragbarkeit. Bei Fragen oder Anfragen
+						wenden Sie sich an:{" "}
+						<Link href="mailto:mail@ptom.de">mail@ptom.de</Link>.
+					</Typography>
+
 				</DialogContent>
 			</Dialog>
 		</>
