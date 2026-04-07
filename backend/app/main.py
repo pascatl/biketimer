@@ -1,4 +1,5 @@
 import asyncio
+import json
 import os
 from contextlib import asynccontextmanager
 
@@ -11,6 +12,7 @@ from .models import Base
 from .routers import events, invitations, users, admin, data, push, stats, auth, weather
 from .config import APP_NAME
 from .ws_manager import manager, set_event_loop
+from .auth import _decode_token
 
 # Create tables that don't exist yet (safe with existing DB)
 Base.metadata.create_all(bind=engine)
@@ -204,11 +206,64 @@ app.include_router(weather.router, prefix="/api")
 
 @app.websocket("/api/ws")
 async def websocket_endpoint(websocket: WebSocket):
-    await manager.connect(websocket)
+    # 1) Origin check – prevents cross-site WebSocket hijacking
+    origin = websocket.headers.get("origin", "").rstrip("/")
+    allowed_origins = {o.strip().rstrip("/") for o in FRONTEND_ORIGINS}
+    if origin and origin not in allowed_origins:
+        await websocket.close(code=1008)  # Policy Violation
+        return
+
+    # Accept without token – token arrives as first encrypted frame,
+    # never in the URL where it would appear in access logs.
+    await manager.connect(websocket, sub=None)
     try:
+        # 2) Grace period: client must send a valid auth frame within 10 s.
+        #    After that, unauthenticated connections are closed.
+        AUTH_GRACE_SECONDS = 10
+        authenticated = False
+        deadline = asyncio.get_event_loop().time() + AUTH_GRACE_SECONDS
+
         while True:
-            # Keep the connection alive; clients send nothing meaningful
-            await websocket.receive_text()
+            remaining = deadline - asyncio.get_event_loop().time() if not authenticated else None
+            if remaining is not None and remaining <= 0:
+                await websocket.close(code=1008)
+                manager.disconnect(websocket)
+                return
+
+            try:
+                raw = await asyncio.wait_for(
+                    websocket.receive_text(),
+                    timeout=remaining,
+                )
+            except asyncio.TimeoutError:
+                await websocket.close(code=1008)
+                manager.disconnect(websocket)
+                return
+
+            try:
+                msg = json.loads(raw)
+            except Exception:
+                continue
+
+            if msg.get("type") == "auth":
+                # 3) Validate token and register/update the sub for this connection.
+                #    Accepting a renewed token also keeps the sub current after
+                #    Keycloak silently refreshes the access token on the client.
+                token = msg.get("token", "")
+                sub: str | None = None
+                if token:
+                    try:
+                        sub = _decode_token(token).get("sub")
+                    except Exception:
+                        pass  # invalid token – close rather than stay anonymous
+                if sub:
+                    manager.set_sub(websocket, sub)
+                    authenticated = True
+                else:
+                    await websocket.close(code=1008)
+                    manager.disconnect(websocket)
+                    return
+            # All other frames are ignored (keep-alive, etc.)
     except WebSocketDisconnect:
         manager.disconnect(websocket)
 

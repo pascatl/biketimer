@@ -117,12 +117,21 @@ def accept_invitation(
     event = db.query(Event).filter(Event.id == inv.event_id).first()
     event_date_fmt = _fmt_event_date(event)
     actor_name = user.get("name") or user.get("preferred_username", "Jemand")
-    ws_manager.broadcast_sync({
-        "type": "invitation_responded",
-        "event_id": inv.event_id,
-        "actor_sub": user["sub"],
-        "message": f"{actor_name} hat zum Event am {event_date_fmt} zugesagt.",
-    })
+    accepted_invs = db.query(Invitation).filter(
+        Invitation.event_id == inv.event_id, Invitation.status == "accepted"
+    ).all()
+    respond_recipients = list({i.invitee_keycloak_id for i in accepted_invs if i.invitee_keycloak_id})
+    if event and event.creator_keycloak_id and event.creator_keycloak_id not in respond_recipients:
+        respond_recipients.append(event.creator_keycloak_id)
+    ws_manager.dispatch_sync(
+        {
+            "type": "invitation_responded",
+            "event_id": inv.event_id,
+            "message": f"{actor_name} hat zum Event am {event_date_fmt} zugesagt.",
+        },
+        recipient_subs=respond_recipients,
+        exclude_sub=user["sub"],
+    )
 
     return {"ok": True}
 
@@ -149,12 +158,21 @@ def decline_invitation(
     event = db.query(Event).filter(Event.id == inv.event_id).first()
     event_date_fmt = _fmt_event_date(event)
     actor_name = user.get("name") or user.get("preferred_username", "Jemand")
-    ws_manager.broadcast_sync({
-        "type": "invitation_responded",
-        "event_id": inv.event_id,
-        "actor_sub": user["sub"],
-        "message": f"{actor_name} hat zum Event am {event_date_fmt} abgesagt.",
-    })
+    accepted_invs = db.query(Invitation).filter(
+        Invitation.event_id == inv.event_id, Invitation.status == "accepted"
+    ).all()
+    respond_recipients = list({i.invitee_keycloak_id for i in accepted_invs if i.invitee_keycloak_id})
+    if event and event.creator_keycloak_id and event.creator_keycloak_id not in respond_recipients:
+        respond_recipients.append(event.creator_keycloak_id)
+    ws_manager.dispatch_sync(
+        {
+            "type": "invitation_responded",
+            "event_id": inv.event_id,
+            "message": f"{actor_name} hat zum Event am {event_date_fmt} abgesagt.",
+        },
+        recipient_subs=respond_recipients,
+        exclude_sub=user["sub"],
+    )
 
     return {"ok": True}
 
@@ -188,12 +206,21 @@ def withdraw_invitation(
     event = db.query(Event).filter(Event.id == inv.event_id).first()
     event_date_fmt = _fmt_event_date(event)
     actor_name = user.get("name") or user.get("preferred_username", "Jemand")
-    ws_manager.broadcast_sync({
-        "type": "invitation_responded",
-        "event_id": inv.event_id,
-        "actor_sub": user["sub"],
-        "message": f"{actor_name} hat die Teilnahme am Event am {event_date_fmt} zurückgezogen.",
-    })
+    accepted_invs = db.query(Invitation).filter(
+        Invitation.event_id == inv.event_id, Invitation.status == "accepted"
+    ).all()
+    respond_recipients = list({i.invitee_keycloak_id for i in accepted_invs if i.invitee_keycloak_id})
+    if event and event.creator_keycloak_id and event.creator_keycloak_id not in respond_recipients:
+        respond_recipients.append(event.creator_keycloak_id)
+    ws_manager.dispatch_sync(
+        {
+            "type": "invitation_responded",
+            "event_id": inv.event_id,
+            "message": f"{actor_name} hat die Teilnahme am Event am {event_date_fmt} zurückgezogen.",
+        },
+        recipient_subs=respond_recipients,
+        exclude_sub=user["sub"],
+    )
 
     return {"ok": True}
 
@@ -219,6 +246,7 @@ def revoke_invitation(
         )
 
     event_id_for_ws = inv.event_id
+    revoked_invitee_sub = inv.invitee_keycloak_id  # capture before delete
 
     db.delete(inv)
     db.commit()
@@ -226,11 +254,16 @@ def revoke_invitation(
     event = db.query(Event).filter(Event.id == event_id_for_ws).first()
     event_date_fmt = _fmt_event_date(event)
     actor_name = user.get("name") or user.get("preferred_username", "Jemand")
-    ws_manager.broadcast_sync({
-        "type": "invitation_revoked",
-        "event_id": event_id_for_ws,
-        "actor_sub": user["sub"],
-        "message": f"{actor_name} hat eine Einladung zum Event am {event_date_fmt} zurückgenommen.",
-    })
+    # Only notify the person whose invite was revoked (if they had a keycloak account)
+    revoke_recipients = [revoked_invitee_sub] if revoked_invitee_sub else []
+    ws_manager.dispatch_sync(
+        {
+            "type": "invitation_revoked",
+            "event_id": event_id_for_ws,
+            "message": f"{actor_name} hat eine Einladung zum Event am {event_date_fmt} zurückgenommen.",
+        },
+        recipient_subs=revoke_recipients,
+        exclude_sub=user["sub"],
+    )
 
     return {"ok": True}

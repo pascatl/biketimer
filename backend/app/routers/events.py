@@ -207,12 +207,10 @@ def create_event(
     creator = user.get("name") or user.get("preferred_username", "Jemand")
     _push_admins(db, "admin_event_created", "Neues Event", f"{creator} hat ein Event am {event_date_fmt} angelegt.")
 
-    ws_manager.broadcast_sync({
-        "type": "event_created",
-        "event_id": new_event.id,
-        "actor_sub": user.get("sub"),
-        "message": f"{creator} hat ein neues Event am {event_date_fmt} erstellt.",
-    })
+    ws_manager.dispatch_sync(
+        {"type": "event_created", "event_id": new_event.id},
+        recipient_subs=[],  # data refresh only; push handles admin notification
+    )
 
     return new_event
 
@@ -262,12 +260,15 @@ def update_event(
     _push_admins(db, "admin_event_updated", "Event aktualisiert",
                  f"Event am {event_date_fmt} wurde geändert (von {editor}).")
 
-    ws_manager.broadcast_sync({
-        "type": "event_updated",
-        "event_id": event_id,
-        "actor_sub": user.get("sub") if user else None,
-        "message": f"Das Event am {event_date_fmt} wurde aktualisiert.",
-    })
+    ws_manager.dispatch_sync(
+        {
+            "type": "event_updated",
+            "event_id": event_id,
+            "message": f"Das Event am {event_date_fmt} wurde aktualisiert.",
+        },
+        recipient_subs=[inv.invitee_keycloak_id for inv in accepted if inv.invitee_keycloak_id],
+        exclude_sub=user.get("sub") if user else None,
+    )
 
     return event
 
@@ -316,12 +317,15 @@ def delete_event(
     db.delete(event)
     db.commit()
 
-    ws_manager.broadcast_sync({
-        "type": "event_deleted",
-        "event_id": event_id,
-        "actor_sub": user.get("sub") if user else None,
-        "message": f"Das Event am {event_date_fmt} wurde gelöscht.",
-    })
+    ws_manager.dispatch_sync(
+        {
+            "type": "event_deleted",
+            "event_id": event_id,
+            "message": f"Das Event am {event_date_fmt} wurde gelöscht.",
+        },
+        recipient_subs=[inv.invitee_keycloak_id for inv in accepted if inv.invitee_keycloak_id],
+        exclude_sub=user.get("sub") if user else None,
+    )
 
     return {"ok": True}
 
@@ -426,12 +430,18 @@ def invite_users(
 
     sent = sum(1 for r in results if r["ok"])
     if sent > 0:
-        ws_manager.broadcast_sync({
-            "type": "invitation_created",
-            "event_id": event_id,
-            "actor_sub": user.get("sub"),
-            "message": f"{inviter_name} hat {sent} Person(en) zum Event am {event_date_fmt} eingeladen.",
-        })
+        # All current invitees of the event (accepted + newly added pending)
+        all_event_invs = db.query(Invitation).filter(Invitation.event_id == event_id).all()
+        recipient_subs = list({i.invitee_keycloak_id for i in all_event_invs if i.invitee_keycloak_id})
+        ws_manager.dispatch_sync(
+            {
+                "type": "invitation_created",
+                "event_id": event_id,
+                "message": f"{inviter_name} hat {sent} Person(en) zum Event am {event_date_fmt} eingeladen.",
+            },
+            recipient_subs=recipient_subs,
+            exclude_sub=user.get("sub"),
+        )
     return {
         "ok": True,
         "sent": sent,

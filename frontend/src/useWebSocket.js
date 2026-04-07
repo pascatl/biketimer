@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { getAccessToken } from "./auth/AuthService";
 
 const INITIAL_RECONNECT_DELAY_MS = 3_000;
 const MAX_RECONNECT_DELAY_MS = 30_000;
@@ -14,6 +15,7 @@ const MAX_RECONNECT_DELAY_MS = 30_000;
 export function useWebSocket(path, onMessage, enabled = true) {
 	const wsRef = useRef(null);
 	const timerRef = useRef(null);
+	const reAuthTimerRef = useRef(null);
 	const delayRef = useRef(INITIAL_RECONNECT_DELAY_MS);
 	const mountedRef = useRef(false);
 	// Always point to the latest callback without re-triggering the effect
@@ -37,12 +39,25 @@ export function useWebSocket(path, onMessage, enabled = true) {
 			if (!mountedRef.current || !enabledRef.current) return;
 
 			const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+			// No token in URL – avoids it appearing in server logs.
+			// The token is sent as the first encrypted WebSocket frame instead.
 			const ws = new WebSocket(`${protocol}//${window.location.host}${path}`);
 			wsRef.current = ws;
 
 			ws.onopen = () => {
 				// Reset backoff on a successful connection
 				delayRef.current = INITIAL_RECONNECT_DELAY_MS;
+
+				// Send auth frame – and re-send it every 4 min so the server always
+				// has a valid sub even after the Keycloak token is silently refreshed.
+				const sendAuth = () => {
+					const token = getAccessToken();
+					if (token && ws.readyState === WebSocket.OPEN) {
+						ws.send(JSON.stringify({ type: "auth", token }));
+					}
+				};
+				sendAuth();
+				reAuthTimerRef.current = setInterval(sendAuth, 4 * 60 * 1000);
 			};
 
 			ws.onmessage = (event) => {
@@ -54,6 +69,8 @@ export function useWebSocket(path, onMessage, enabled = true) {
 			};
 
 			ws.onclose = () => {
+				clearInterval(reAuthTimerRef.current);
+				reAuthTimerRef.current = null;
 				wsRef.current = null;
 				if (mountedRef.current && enabledRef.current) {
 					timerRef.current = setTimeout(() => {
@@ -77,6 +94,8 @@ export function useWebSocket(path, onMessage, enabled = true) {
 		return () => {
 			mountedRef.current = false;
 			clearTimeout(timerRef.current);
+			clearInterval(reAuthTimerRef.current);
+			reAuthTimerRef.current = null;
 			if (wsRef.current) {
 				// Prevent the onclose handler from scheduling another reconnect
 				wsRef.current.onclose = null;

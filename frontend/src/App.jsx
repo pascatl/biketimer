@@ -164,14 +164,13 @@ export default function App() {
 
 	// ── WebSocket: real-time updates replacing the 30 s poll ──
 	const handleWsMessage = useCallback((data) => {
-		// Skip toasts for actions the current user triggered themselves
-		if (data.actor_sub && data.actor_sub === user?.sub) {
-			return;
-		}
+		// Backend already routes messages to the right users server-side
+		// and excludes the actor. Just show the toast if there's a message.
 		if (data.message) {
 			setWsToast({ message: data.message });
 		}
-		// Refresh the relevant data depending on message type
+
+		// Always refresh relevant data
 		if (data.type?.startsWith("event_")) {
 			loadEvents();
 		}
@@ -182,7 +181,7 @@ export default function App() {
 		) {
 			if (authenticated) loadInvitations();
 		}
-	}, [user?.sub, loadEvents, loadInvitations, authenticated]);
+	}, [loadEvents, loadInvitations, authenticated]);
 
 	useWebSocket("/api/ws", handleWsMessage, authenticated);
 
@@ -512,7 +511,7 @@ export default function App() {
 				open={!!wsToast}
 				autoHideDuration={5000}
 				onClose={() => setWsToast(null)}
-				anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+				anchorOrigin={{ vertical: "top", horizontal: "right" }}
 			>
 				<Alert
 					onClose={() => setWsToast(null)}
