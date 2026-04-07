@@ -244,6 +244,41 @@ export async function updateEmailPrefs(prefs) {
 	return res.json();
 }
 
+// ── Event Comments ───────────────────────────────────────────
+
+export async function fetchEventComments(eventId) {
+	const res = await fetch(`${API_URL}/events/${eventId}/comments`);
+	if (!res.ok) return [];
+	return res.json();
+}
+
+export async function createEventComment(eventId, content) {
+	const headers = authHeaders();
+	const res = await fetch(`${API_URL}/events/${eventId}/comments`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json", ...headers },
+		body: JSON.stringify({ content }),
+	});
+	if (!res.ok) {
+		const body = await res.json().catch(() => ({}));
+		throw new Error(body.detail || "Fehler beim Erstellen des Kommentars");
+	}
+	return res.json();
+}
+
+export async function deleteEventComment(eventId, commentId) {
+	const headers = authHeaders();
+	const res = await fetch(`${API_URL}/events/${eventId}/comments/${commentId}`, {
+		method: "DELETE",
+		headers,
+	});
+	if (!res.ok) {
+		const body = await res.json().catch(() => ({}));
+		throw new Error(body.detail || "Fehler beim Löschen des Kommentars");
+	}
+	return res.json();
+}
+
 // ── Admin ────────────────────────────────────────────────────
 
 export async function adminFetchUsers() {

@@ -124,6 +124,29 @@ try:
 except Exception as e:
     print(f"Migration 005 check: {e}")
 
+# Run migration 005: add event_comments table
+try:
+    with engine.connect() as conn:
+        result = conn.execute(
+            text(
+                "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'event_comments')"
+            )
+        )
+        if not result.scalar():
+            migration_path = os.path.join(
+                os.path.dirname(os.path.dirname(__file__)),
+                "migrations",
+                "005_event_comments.sql",
+            )
+            if os.path.exists(migration_path):
+                with open(migration_path) as f:
+                    sql = f.read()
+                conn.execute(text(sql))
+                conn.commit()
+                print("Migration 005 (event_comments) applied successfully")
+except Exception as e:
+    print(f"Migration 005 check: {e}")
+
 FRONTEND_ORIGINS = os.getenv(
     "FRONTEND_ORIGINS",
     "http://localhost:5173,http://localhost:4173",
