@@ -248,3 +248,224 @@ def send_welcome_email(recipient_email: str, display_name: str) -> None:
         print(f"[email] Welcome mail sent to {recipient_email}")
     except Exception as exc:
         print(f"[email] ERROR sending welcome mail to {recipient_email}: {exc}")
+
+
+_EVENT_UPDATE_HTML = """<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Event aktualisiert</title>
+</head>
+<body style="margin:0;padding:20px;background:#f4f4f8;font-family:Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0">
+    <tr>
+      <td align="center">
+        <table width="480" style="border-radius:12px;overflow:hidden;box-shadow:0 4px 16px rgba(45,60,89,.14);">
+          <tr>
+            <td style="background:#2D3C59;padding:28px 32px;text-align:center;">
+              <p style="margin:0;color:#E5BA41;font-size:22px;font-weight:700;letter-spacing:3px;">🚴 {app_name_upper}</p>
+              <p style="margin:6px 0 0;color:rgba(255,255,255,.7);font-size:12px;letter-spacing:2px;">FAHRTTERMINE PLANEN</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="background:#fff;padding:32px;">
+              <p style="margin:0 0 12px;color:#222;font-size:16px;">Hallo,</p>
+              <p style="margin:0 0 20px;color:#444;font-size:15px;line-height:1.6;">
+                Ein Event, dem du zugesagt hast, wurde aktualisiert.
+              </p>
+              <table width="100%" style="border-radius:8px;overflow:hidden;margin-bottom:24px;">
+                <tr>
+                  <td style="background:#E5BA41;height:4px;"></td>
+                </tr>
+                <tr>
+                  <td style="background:#f8f9fc;padding:16px 20px;">
+                    <p style="margin:0 0 6px;font-size:13px;font-weight:700;color:#2D3C59;text-transform:uppercase;letter-spacing:1px;">Event-Details</p>
+                    <p style="margin:0;color:#333;font-size:15px;">📅 &nbsp;<strong>{event_date}</strong></p>
+                    <p style="margin:6px 0 0;color:#555;font-size:14px;">🚵 &nbsp;{event_type}</p>
+                  </td>
+                </tr>
+              </table>
+              <div style="text-align:center;">
+                <a href="{event_url}" style="display:inline-block;padding:13px 32px;background:#E5BA41;color:#2D3C59;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px;">
+                  Event ansehen &rarr;
+                </a>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td style="background:#f4f4f8;padding:16px;text-align:center;">
+              <p style="margin:0;color:#aaa;font-size:11px;">{app_name} &middot; Diese E-Mail wurde automatisch generiert.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>"""
+
+
+def send_event_update_email(
+    recipient_email: str,
+    event_data: dict,
+    event_id: int = 0,
+) -> None:
+    """Send an event-updated notification email. Errors are logged but not raised."""
+    if not recipient_email:
+        return
+    try:
+        event_date = event_data.get("event_date", "Unbekannt")
+        try:
+            from datetime import datetime as _dt
+            event_date = _dt.strptime(event_date, "%Y-%m-%d").strftime("%d.%m.%y")
+        except Exception:
+            pass
+        raw_type = event_data.get("event_type", "event")
+        event_type = raw_type.capitalize()
+        event_url = f"{FRONTEND_URL}/events/{event_id}" if event_id else FRONTEND_URL
+
+        html_body = _EVENT_UPDATE_HTML.format(
+            event_date=event_date,
+            event_type=event_type,
+            event_url=event_url,
+            app_name=APP_NAME,
+            app_name_upper=APP_NAME.upper(),
+        )
+        text_body = (
+            f"Hallo,\n\n"
+            f"Ein Event, dem du zugesagt hast, wurde aktualisiert.\n\n"
+            f"Datum: {event_date}\n"
+            f"Typ:   {event_type}\n\n"
+            f"Event ansehen: {event_url}\n\n"
+            f"-- {APP_NAME}"
+        )
+        _domain = SMTP_FROM.split("@")[-1] if "@" in SMTP_FROM else "biketimer.local"
+
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = f"Event am {event_date} wurde aktualisiert"
+        msg["From"] = formataddr((APP_NAME, SMTP_FROM))
+        msg["To"] = recipient_email
+        msg["Message-ID"] = make_msgid(domain=_domain)
+        msg["Date"] = formatdate(localtime=True)
+        msg.attach(MIMEText(text_body, "plain", "utf-8"))
+        msg.attach(MIMEText(html_body, "html", "utf-8"))
+
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+            server.ehlo()
+            if SMTP_USE_TLS:
+                server.starttls()
+                server.ehlo()
+            if SMTP_USER:
+                server.login(SMTP_USER, SMTP_PASSWORD)
+            server.send_message(msg)
+
+        print(f"[email] Event update mail sent to {recipient_email}")
+    except Exception as exc:
+        print(f"[email] ERROR sending event update mail to {recipient_email}: {exc}")
+
+
+_EVENT_CANCEL_HTML = """<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Event abgesagt</title>
+</head>
+<body style="margin:0;padding:20px;background:#f4f4f8;font-family:Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0">
+    <tr>
+      <td align="center">
+        <table width="480" style="border-radius:12px;overflow:hidden;box-shadow:0 4px 16px rgba(45,60,89,.14);">
+          <tr>
+            <td style="background:#2D3C59;padding:28px 32px;text-align:center;">
+              <p style="margin:0;color:#E5BA41;font-size:22px;font-weight:700;letter-spacing:3px;">🚴 {app_name_upper}</p>
+              <p style="margin:6px 0 0;color:rgba(255,255,255,.7);font-size:12px;letter-spacing:2px;">FAHRTTERMINE PLANEN</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="background:#fff;padding:32px;">
+              <p style="margin:0 0 12px;color:#222;font-size:16px;">Hallo,</p>
+              <p style="margin:0 0 20px;color:#444;font-size:15px;line-height:1.6;">
+                Ein Event, dem du zugesagt hattest, wurde leider abgesagt.
+              </p>
+              <table width="100%" style="border-radius:8px;overflow:hidden;margin-bottom:24px;">
+                <tr>
+                  <td style="background:#d32f2f;height:4px;"></td>
+                </tr>
+                <tr>
+                  <td style="background:#f8f9fc;padding:16px 20px;">
+                    <p style="margin:0 0 6px;font-size:13px;font-weight:700;color:#2D3C59;text-transform:uppercase;letter-spacing:1px;">Abgesagtes Event</p>
+                    <p style="margin:0;color:#333;font-size:15px;">📅 &nbsp;<strong>{event_date}</strong></p>
+                    <p style="margin:6px 0 0;color:#555;font-size:14px;">🚵 &nbsp;{event_type}</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="background:#f4f4f8;padding:16px;text-align:center;">
+              <p style="margin:0;color:#aaa;font-size:11px;">{app_name} &middot; Diese E-Mail wurde automatisch generiert.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>"""
+
+
+def send_event_cancel_email(
+    recipient_email: str,
+    event_data: dict,
+) -> None:
+    """Send an event-cancelled notification email. Errors are logged but not raised."""
+    if not recipient_email:
+        return
+    try:
+        event_date = event_data.get("event_date", "Unbekannt")
+        try:
+            from datetime import datetime as _dt
+            event_date = _dt.strptime(event_date, "%Y-%m-%d").strftime("%d.%m.%y")
+        except Exception:
+            pass
+        raw_type = event_data.get("event_type", "event")
+        event_type = raw_type.capitalize()
+
+        html_body = _EVENT_CANCEL_HTML.format(
+            event_date=event_date,
+            event_type=event_type,
+            app_name=APP_NAME,
+            app_name_upper=APP_NAME.upper(),
+        )
+        text_body = (
+            f"Hallo,\n\n"
+            f"Ein Event, dem du zugesagt hattest, wurde leider abgesagt.\n\n"
+            f"Datum: {event_date}\n"
+            f"Typ:   {event_type}\n\n"
+            f"-- {APP_NAME}"
+        )
+        _domain = SMTP_FROM.split("@")[-1] if "@" in SMTP_FROM else "biketimer.local"
+
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = f"Event am {event_date} wurde abgesagt"
+        msg["From"] = formataddr((APP_NAME, SMTP_FROM))
+        msg["To"] = recipient_email
+        msg["Message-ID"] = make_msgid(domain=_domain)
+        msg["Date"] = formatdate(localtime=True)
+        msg.attach(MIMEText(text_body, "plain", "utf-8"))
+        msg.attach(MIMEText(html_body, "html", "utf-8"))
+
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+            server.ehlo()
+            if SMTP_USE_TLS:
+                server.starttls()
+                server.ehlo()
+            if SMTP_USER:
+                server.login(SMTP_USER, SMTP_PASSWORD)
+            server.send_message(msg)
+
+        print(f"[email] Event cancel mail sent to {recipient_email}")
+    except Exception as exc:
+        print(f"[email] ERROR sending event cancel mail to {recipient_email}: {exc}")

@@ -154,6 +154,16 @@ DEFAULT_NOTIF_PREFS = {
     "admin_event_deleted": True,
 }
 
+DEFAULT_EMAIL_PREFS = {
+    "invite_received": True,
+    "event_updated": True,
+    "event_cancelled": True,
+    "admin_user_registered": True,
+    "admin_event_created": True,
+    "admin_event_updated": True,
+    "admin_event_deleted": True,
+}
+
 
 class PushSubscriptionCreate(BaseModel):
     endpoint: str
@@ -162,6 +172,10 @@ class PushSubscriptionCreate(BaseModel):
 
 
 class PushPrefsUpdate(BaseModel):
+    prefs: Dict[str, bool]
+
+
+class EmailPrefsUpdate(BaseModel):
     prefs: Dict[str, bool]
 
 

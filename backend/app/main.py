@@ -100,6 +100,30 @@ try:
 except Exception as e:
     print(f"Migration 004 check: {e}")
 
+# Run migration 005: add email_prefs to users
+try:
+    with engine.connect() as conn:
+        result = conn.execute(
+            text(
+                "SELECT column_name FROM information_schema.columns "
+                "WHERE table_name = 'users' AND column_name = 'email_prefs'"
+            )
+        )
+        if not result.fetchone():
+            migration_path = os.path.join(
+                os.path.dirname(os.path.dirname(__file__)),
+                "migrations",
+                "005_user_email_prefs.sql",
+            )
+            if os.path.exists(migration_path):
+                with open(migration_path) as f:
+                    sql = f.read()
+                conn.execute(text(sql))
+                conn.commit()
+                print("Migration 005 (email_prefs) applied successfully")
+except Exception as e:
+    print(f"Migration 005 check: {e}")
+
 FRONTEND_ORIGINS = os.getenv(
     "FRONTEND_ORIGINS",
     "http://localhost:5173,http://localhost:4173",

@@ -8,9 +8,9 @@ from sqlalchemy.orm import Session
 from ..auth import get_current_user, get_current_user_optional
 from ..database import get_db
 from ..models import Event, Invitation, User, PushSubscription
-from ..schemas import EventCreate, EventResponse, EventUpdate, InvitationCreate
+from ..schemas import EventCreate, EventResponse, EventUpdate, InvitationCreate, DEFAULT_EMAIL_PREFS
 from ..push_service import send_push_notification
-from ..email_service import send_invitation_email
+from ..email_service import send_invitation_email, send_event_update_email, send_event_cancel_email
 
 router = APIRouter(prefix="/events", tags=["events"])
 
@@ -240,6 +240,16 @@ def update_event(
         if kid and kid != (user.get("sub") if user else None):
             _push_with_pref(db, kid, "event_updated", "Event geändert",
                             f"Das Event am {event_date_fmt} wurde aktualisiert.")
+            # Send email if invitee has email and email pref enabled
+            invitee_email = inv.invitee_email
+            if invitee_email and not invitee_email.endswith("@local"):
+                db_user = db.query(User).filter(User.keycloak_id == kid).first()
+                email_prefs = (db_user.email_prefs or {}) if db_user else {}
+                if email_prefs.get("event_updated", DEFAULT_EMAIL_PREFS["event_updated"]):
+                    try:
+                        send_event_update_email(invitee_email, event.event_data, event_id)
+                    except Exception:
+                        pass
     # Notify admins
     _push_admins(db, "admin_event_updated", "Event aktualisiert",
                  f"Event am {event_date_fmt} wurde geändert (von {editor}).")
@@ -274,6 +284,16 @@ def delete_event(
         if kid and kid != (user.get("sub") if user else None):
             _push_with_pref(db, kid, "event_cancelled", "Event abgesagt",
                             f"Das Event am {event_date_fmt} wurde gelöscht.")
+            # Send email if invitee has email and email pref enabled
+            invitee_email = inv.invitee_email
+            if invitee_email and not invitee_email.endswith("@local"):
+                db_user = db.query(User).filter(User.keycloak_id == kid).first()
+                email_prefs = (db_user.email_prefs or {}) if db_user else {}
+                if email_prefs.get("event_cancelled", DEFAULT_EMAIL_PREFS["event_cancelled"]):
+                    try:
+                        send_event_cancel_email(invitee_email, event.event_data)
+                    except Exception:
+                        pass
     # Notify admins
     _push_admins(db, "admin_event_deleted", "Event gelöscht",
                  f"Event am {event_date_fmt} wurde gelöscht (von {deleter}).")
@@ -355,18 +375,20 @@ def invite_users(
         db.refresh(invitation)
         results.append({"user_id": uid, "ok": True, "invitation_id": invitation.id})
 
-        # Send email notification if invitee has a real email
+        # Send email notification if invitee has a real email and email pref enabled
         if invitee.email and not invitee.email.endswith("@local"):
-            try:
-                send_invitation_email(
-                    invitee_email=invitee.email,
-                    inviter_name=inviter_name,
-                    event_data=event.event_data,
-                    invitation_token=str(invitation.token),
-                    event_id=event_id,
-                )
-            except Exception:
-                pass
+            email_prefs = invitee.email_prefs or {}
+            if email_prefs.get("invite_received", DEFAULT_EMAIL_PREFS["invite_received"]):
+                try:
+                    send_invitation_email(
+                        invitee_email=invitee.email,
+                        inviter_name=inviter_name,
+                        event_data=event.event_data,
+                        invitation_token=str(invitation.token),
+                        event_id=event_id,
+                    )
+                except Exception:
+                    pass
 
         # Send push notification to invitee if they have a subscription
         if invitee.keycloak_id:

@@ -225,6 +225,25 @@ export async function updatePushPrefs(prefs) {
 	return res.json();
 }
 
+export async function fetchEmailPrefs() {
+	const headers = authHeaders();
+	const res = await fetch(`${API_URL}/push/email-prefs`, { headers });
+	if (!res.ok) return null;
+	const data = await res.json();
+	return data.prefs;
+}
+
+export async function updateEmailPrefs(prefs) {
+	const headers = authHeaders();
+	const res = await fetch(`${API_URL}/push/email-prefs`, {
+		method: "PATCH",
+		headers: { "Content-Type": "application/json", ...headers },
+		body: JSON.stringify({ prefs }),
+	});
+	if (!res.ok) throw new Error("Fehler beim Speichern der E-Mail-Einstellungen");
+	return res.json();
+}
+
 // ── Admin ────────────────────────────────────────────────────
 
 export async function adminFetchUsers() {
