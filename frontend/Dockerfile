@@ -15,6 +15,16 @@ RUN npm install --legacy-peer-deps --verbose
 # Copy source code
 COPY . .
 
+# Build-time env vars (VITE_ prefix makes them available via import.meta.env)
+ARG VITE_APP_NAME
+ARG VITE_KEYCLOAK_URL
+ARG VITE_KEYCLOAK_REALM
+ARG VITE_KEYCLOAK_CLIENT_ID
+ENV VITE_APP_NAME=$VITE_APP_NAME
+ENV VITE_KEYCLOAK_URL=$VITE_KEYCLOAK_URL
+ENV VITE_KEYCLOAK_REALM=$VITE_KEYCLOAK_REALM
+ENV VITE_KEYCLOAK_CLIENT_ID=$VITE_KEYCLOAK_CLIENT_ID
+
 # Build the application
 RUN npm run build
 

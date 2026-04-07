@@ -67,6 +67,7 @@ services:
     environment:
       - NODE_ENV=development
       - KEYCLOAK_URL=${KEYCLOAK_URL} # used by vite.config.js proxy (server-side)
+      - VITE_APP_NAME=${APP_NAME:-BikeTimer}
       - VITE_KEYCLOAK_URL=${KEYCLOAK_URL}
       - VITE_KEYCLOAK_REALM=${KEYCLOAK_REALM}
       - VITE_KEYCLOAK_CLIENT_ID=${KEYCLOAK_CLIENT_ID_FRONTEND}
