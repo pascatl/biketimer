@@ -142,6 +142,24 @@ class SportTypeResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+# ── Event Comment schemas ─────────────────────────────────────
+
+
+class EventCommentCreate(BaseModel):
+    content: str
+
+
+class EventCommentResponse(BaseModel):
+    id: int
+    event_id: int
+    author_keycloak_id: str
+    author_name: Optional[str] = None
+    content: str
+    created_at: Optional[datetime] = None
+
+    model_config = {"from_attributes": True}
+
+
 # ── Push subscription schemas ─────────────────────────────────
 
 DEFAULT_NOTIF_PREFS = {

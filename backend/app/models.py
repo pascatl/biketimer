@@ -76,6 +76,24 @@ class Event(Base):
     invitations = relationship(
         "Invitation", back_populates="event", cascade="all, delete-orphan"
     )
+    comments = relationship(
+        "EventComment", back_populates="event", cascade="all, delete-orphan"
+    )
+
+
+class EventComment(Base):
+    __tablename__ = "event_comments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    event_id = Column(
+        Integer, ForeignKey("events.id", ondelete="CASCADE"), nullable=False
+    )
+    author_keycloak_id = Column(String(255), nullable=False)
+    author_name = Column(String(255), nullable=True)
+    content = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    event = relationship("Event", back_populates="comments")
 
 
 class Invitation(Base):

@@ -50,6 +50,8 @@ import ShareIcon from "@mui/icons-material/Share";
 import HistoryIcon from "@mui/icons-material/History";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
+import CommentIcon from "@mui/icons-material/Comment";
+import SendIcon from "@mui/icons-material/Send";
 import RouteWidget from "./RouteWidget";
 import MeetingPointPicker from "./MeetingPointPicker";
 import WeatherWidget from "./WheaterWidget";
@@ -61,6 +63,9 @@ import {
 	respondInvitation,
 	revokeInvitation,
 	withdrawInvitation,
+	fetchEventComments,
+	createEventComment,
+	deleteEventComment,
 } from "../api";
 import { useAuth } from "../auth/AuthContext";
 
@@ -120,6 +125,11 @@ export default function Event(props) {
 
 	// Toast notification
 	const [toast, setToast] = useState(null); // { message, severity }
+
+	// Comments
+	const [comments, setComments] = useState([]);
+	const [newComment, setNewComment] = useState("");
+	const [commentLoading, setCommentLoading] = useState(false);
 
 	const isMounted = useRef(false);
 
@@ -188,9 +198,15 @@ export default function Event(props) {
 		}
 	}, [eventId, user?.email, user?.sub]);
 
+	const loadComments = useCallback(async () => {
+		const list = await fetchEventComments(eventId);
+		setComments(list);
+	}, [eventId]);
+
 	useEffect(() => {
 		loadInvitations();
-	}, [loadInvitations, refreshToken]); // re-fetch whenever parent signals a refresh
+		loadComments();
+	}, [loadInvitations, loadComments, refreshToken]); // re-fetch whenever parent signals a refresh
 
 	const handleRespond = async (action) => {
 		if (!myInvitation) return;
@@ -242,6 +258,29 @@ export default function Event(props) {
 			console.error(err);
 		} finally {
 			setWithdrawLoading(false);
+		}
+	};
+
+	const handleCommentSubmit = async () => {
+		if (!newComment.trim()) return;
+		setCommentLoading(true);
+		try {
+			await createEventComment(eventId, newComment.trim());
+			setNewComment("");
+			await loadComments();
+		} catch (err) {
+			setToast({ message: err.message, severity: "error" });
+		} finally {
+			setCommentLoading(false);
+		}
+	};
+
+	const handleCommentDelete = async (commentId) => {
+		try {
+			await deleteEventComment(eventId, commentId);
+			await loadComments();
+		} catch (err) {
+			setToast({ message: err.message, severity: "error" });
 		}
 	};
 
@@ -387,7 +426,9 @@ export default function Event(props) {
 		invitations.length > 0 ||
 		myInvitation !== null ||
 		!!comment ||
-		!!link;
+		!!link ||
+		comments.length > 0 ||
+		authenticated;
 
 	return (
 		<>
@@ -842,6 +883,115 @@ export default function Event(props) {
 								<RouteWidget link={link} />
 							)
 						) : null}
+
+						{/* ── Comments Section ── */}
+						<Box sx={{ mt: 2 }}>
+							<Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mb: 1 }}>
+								<CommentIcon sx={{ fontSize: "0.9rem", color: "text.disabled" }} />
+								<Typography variant="caption" sx={{ fontWeight: 700, color: "text.secondary", letterSpacing: 0.5 }}>
+									Kommentare {comments.length > 0 ? `(${comments.length})` : ""}
+								</Typography>
+							</Box>
+
+							{/* Existing comments */}
+							{comments.length > 0 && (
+								<Stack spacing={1} sx={{ mb: 1.5 }}>
+									{comments.map((c) => {
+										const canDeleteComment =
+											authenticated &&
+											(user?.sub === c.author_keycloak_id || user?.is_admin);
+										const createdDate = c.created_at
+											? new Date(
+												(c.created_at || "").replace(/([+\-]\d{2}:\d{2}|Z)?$/, "Z"),
+											)
+											: null;
+										return (
+											<Box
+												key={c.id}
+												sx={{
+													p: 1.25,
+													borderRadius: 2,
+													bgcolor: "rgba(45,60,89,0.04)",
+													border: "1px solid rgba(45,60,89,0.08)",
+													position: "relative",
+												}}
+											>
+												<Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mb: 0.5 }}>
+													<Typography variant="caption" sx={{ fontWeight: 700, color: "primary.main", fontSize: "0.72rem" }}>
+														{c.author_name || "Unbekannt"}
+													</Typography>
+													{createdDate && (
+														<Typography variant="caption" sx={{ color: "text.disabled", fontSize: "0.68rem" }}>
+															{createdDate.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "2-digit" })}
+															{", "}
+															{createdDate.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })} Uhr
+														</Typography>
+													)}
+													{canDeleteComment && (
+														<Tooltip title="Kommentar löschen">
+															<IconButton
+																size="small"
+																onClick={() => handleCommentDelete(c.id)}
+																sx={{
+																	ml: "auto", p: 0.25, color: "text.disabled",
+																	"&:hover": { color: "#D1855C" },
+																}}
+															>
+																<CloseIcon sx={{ fontSize: "0.85rem" }} />
+															</IconButton>
+														</Tooltip>
+													)}
+												</Box>
+												<Typography variant="body2" sx={{ color: "text.primary", lineHeight: 1.5, whiteSpace: "pre-wrap" }}>
+													{c.content}
+												</Typography>
+											</Box>
+										);
+									})}
+								</Stack>
+							)}
+
+							{/* New comment input */}
+							{authenticated && (
+								<Box sx={{ display: "flex", gap: 1, alignItems: "flex-end" }}>
+									<TextField
+										size="small"
+										fullWidth
+										multiline
+										maxRows={4}
+										placeholder="Kommentar schreiben…"
+										value={newComment}
+										onChange={(e) => setNewComment(e.target.value)}
+										onKeyDown={(e) => {
+											if (e.key === "Enter" && !e.shiftKey) {
+												e.preventDefault();
+												handleCommentSubmit();
+											}
+										}}
+										InputProps={{ sx: { borderRadius: 2, fontSize: "0.875rem" } }}
+									/>
+									<Tooltip title="Senden">
+										<span>
+											<IconButton
+												onClick={handleCommentSubmit}
+												disabled={commentLoading || !newComment.trim()}
+												size="small"
+												sx={{
+													bgcolor: "primary.main",
+													color: "#fff",
+													borderRadius: 2,
+													p: 1,
+													"&:hover": { bgcolor: "primary.dark" },
+													"&.Mui-disabled": { bgcolor: "rgba(45,60,89,0.12)", color: "text.disabled" },
+												}}
+											>
+												<SendIcon sx={{ fontSize: "1rem" }} />
+											</IconButton>
+										</span>
+									</Tooltip>
+								</Box>
+							)}
+						</Box>
 					</CardContent>
 				)}
 

@@ -7,8 +7,8 @@ from sqlalchemy.orm import Session
 
 from ..auth import get_current_user, get_current_user_optional
 from ..database import get_db
-from ..models import Event, Invitation, User, PushSubscription
-from ..schemas import EventCreate, EventResponse, EventUpdate, InvitationCreate, DEFAULT_EMAIL_PREFS
+from ..models import Event, Invitation, User, PushSubscription, EventComment
+from ..schemas import EventCreate, EventResponse, EventUpdate, InvitationCreate, EventCommentCreate, EventCommentResponse, DEFAULT_EMAIL_PREFS
 from ..push_service import send_push_notification
 from ..email_service import send_invitation_email, send_event_update_email, send_event_cancel_email
 
@@ -407,3 +407,78 @@ def invite_users(
         "total": len(invitation_in.invitee_user_ids),
         "results": results,
     }
+
+
+# ── Comments ──────────────────────────────────────────────────
+
+
+@router.get("/{event_id}/comments", response_model=List[EventCommentResponse])
+def get_event_comments(event_id: int, db: Session = Depends(get_db)):
+    """Return all comments for an event (no auth required)."""
+    event = db.query(Event).filter(Event.id == event_id).first()
+    if not event:
+        raise HTTPException(status_code=404, detail="Event nicht gefunden")
+    return (
+        db.query(EventComment)
+        .filter(EventComment.event_id == event_id)
+        .order_by(EventComment.created_at.asc())
+        .all()
+    )
+
+
+@router.post(
+    "/{event_id}/comments",
+    response_model=EventCommentResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_event_comment(
+    event_id: int,
+    comment_in: EventCommentCreate,
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    """Create a comment for an event (requires authentication)."""
+    event = db.query(Event).filter(Event.id == event_id).first()
+    if not event:
+        raise HTTPException(status_code=404, detail="Event nicht gefunden")
+
+    if not comment_in.content.strip():
+        raise HTTPException(status_code=422, detail="Kommentar darf nicht leer sein")
+
+    comment = EventComment(
+        event_id=event_id,
+        author_keycloak_id=user["sub"],
+        author_name=user.get("name") or user.get("preferred_username"),
+        content=comment_in.content.strip(),
+    )
+    db.add(comment)
+    db.commit()
+    db.refresh(comment)
+    return comment
+
+
+@router.delete("/{event_id}/comments/{comment_id}")
+def delete_event_comment(
+    event_id: int,
+    comment_id: int,
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    """Delete a comment. Only the author or an admin may delete."""
+    comment = (
+        db.query(EventComment)
+        .filter(EventComment.id == comment_id, EventComment.event_id == event_id)
+        .first()
+    )
+    if not comment:
+        raise HTTPException(status_code=404, detail="Kommentar nicht gefunden")
+
+    if comment.author_keycloak_id != user["sub"] and not user.get("is_admin"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Nur der Autor oder ein Admin darf diesen Kommentar löschen",
+        )
+
+    db.delete(comment)
+    db.commit()
+    return {"ok": True}
