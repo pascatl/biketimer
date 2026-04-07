@@ -11,10 +11,22 @@ from sqlalchemy.orm import Session
 from ..auth import get_current_user
 from ..database import get_db
 from ..models import Event, Invitation
+from ..ws_manager import manager as ws_manager
 
 router = APIRouter(prefix="/invitations", tags=["invitations"])
 
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+
+
+def _fmt_event_date(event: "Event | None") -> str:
+    """Return a human-readable date string for the event, e.g. '12.04.25'."""
+    if not event:
+        return ""
+    raw = event.event_data.get("event_date", "")
+    try:
+        return datetime.strptime(raw, "%Y-%m-%d").strftime("%d.%m.%y")
+    except ValueError:
+        return raw
 
 
 @router.get("/mine", response_model=List[dict])
@@ -101,6 +113,17 @@ def accept_invitation(
     inv.decline_reason = None
     inv.responded_at = datetime.now(timezone.utc)
     db.commit()
+
+    event = db.query(Event).filter(Event.id == inv.event_id).first()
+    event_date_fmt = _fmt_event_date(event)
+    actor_name = user.get("name") or user.get("preferred_username", "Jemand")
+    ws_manager.broadcast_sync({
+        "type": "invitation_responded",
+        "event_id": inv.event_id,
+        "actor_sub": user["sub"],
+        "message": f"{actor_name} hat zum Event am {event_date_fmt} zugesagt.",
+    })
+
     return {"ok": True}
 
 
@@ -122,6 +145,17 @@ def decline_invitation(
     inv.invitee_keycloak_id = user["sub"]
     inv.responded_at = datetime.now(timezone.utc)
     db.commit()
+
+    event = db.query(Event).filter(Event.id == inv.event_id).first()
+    event_date_fmt = _fmt_event_date(event)
+    actor_name = user.get("name") or user.get("preferred_username", "Jemand")
+    ws_manager.broadcast_sync({
+        "type": "invitation_responded",
+        "event_id": inv.event_id,
+        "actor_sub": user["sub"],
+        "message": f"{actor_name} hat zum Event am {event_date_fmt} abgesagt.",
+    })
+
     return {"ok": True}
 
 
@@ -150,6 +184,17 @@ def withdraw_invitation(
     inv.decline_reason = body.get("reason", "")
     inv.responded_at = datetime.now(timezone.utc)
     db.commit()
+
+    event = db.query(Event).filter(Event.id == inv.event_id).first()
+    event_date_fmt = _fmt_event_date(event)
+    actor_name = user.get("name") or user.get("preferred_username", "Jemand")
+    ws_manager.broadcast_sync({
+        "type": "invitation_responded",
+        "event_id": inv.event_id,
+        "actor_sub": user["sub"],
+        "message": f"{actor_name} hat die Teilnahme am Event am {event_date_fmt} zurückgezogen.",
+    })
+
     return {"ok": True}
 
 
@@ -173,6 +218,19 @@ def revoke_invitation(
             detail="Nur der Einladende oder ein Admin kann Einladungen zurücknehmen",
         )
 
+    event_id_for_ws = inv.event_id
+
     db.delete(inv)
     db.commit()
+
+    event = db.query(Event).filter(Event.id == event_id_for_ws).first()
+    event_date_fmt = _fmt_event_date(event)
+    actor_name = user.get("name") or user.get("preferred_username", "Jemand")
+    ws_manager.broadcast_sync({
+        "type": "invitation_revoked",
+        "event_id": event_id_for_ws,
+        "actor_sub": user["sub"],
+        "message": f"{actor_name} hat eine Einladung zum Event am {event_date_fmt} zurückgenommen.",
+    })
+
     return {"ok": True}
