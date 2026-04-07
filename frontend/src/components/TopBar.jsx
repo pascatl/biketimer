@@ -9,7 +9,6 @@ import {
 	Typography,
 	useScrollTrigger,
 } from "@mui/material";
-import DirectionsBikeIcon from "@mui/icons-material/DirectionsBike";
 import LogoutIcon from "@mui/icons-material/Logout";
 import LoginIcon from "@mui/icons-material/Login";
 import SettingsIcon from "@mui/icons-material/Settings";
@@ -70,15 +69,21 @@ const TopBar = ({
 					{/* ── Left: logo + title ── */}
 					<Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
 						<Box
+							component="a"
+							href="/"
+							aria-label="Zur Eventübersicht"
 							sx={{
-								bgcolor: "rgba(255,255,255,0.12)",
-								borderRadius: 2,
-								p: 0.75,
 								display: "flex",
 								alignItems: "center",
+								textDecoration: "none",
 							}}
 						>
-							<DirectionsBikeIcon sx={{ fontSize: 24, color: "#E5BA41" }} />
+							<Box
+								component="img"
+								src="/icons/biketimer_logo.png"
+								alt="Logo"
+								sx={{ height: 36, width: 36, borderRadius: 1 }}
+							/>
 						</Box>
 						<Typography
 							variant="h6"
