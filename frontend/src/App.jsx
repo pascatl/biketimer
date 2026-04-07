@@ -366,6 +366,23 @@ export default function App() {
 				) : (
 					/* ── Event list ── */
 					<Stack spacing={2} sx={{ mt: 3 }}>
+						{upcomingEvents.length === 0 && (
+							<Box
+								sx={{
+									textAlign: "center",
+									py: 6,
+									px: 2,
+									color: "text.secondary",
+								}}
+							>
+								<Typography variant="body1" sx={{ fontWeight: 500 }}>
+									Keine Events in Aussicht.
+								</Typography>
+								<Typography variant="body2" sx={{ mt: 1 }}>
+									Erstelle doch einfach eines und lade andere dazu ein!
+								</Typography>
+							</Box>
+						)}
 						{upcomingEvents.map((event) => (
 							<Event
 								key={event.id}
