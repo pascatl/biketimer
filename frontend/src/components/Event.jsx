@@ -111,6 +111,13 @@ export default function Event(props) {
 	const [withdrawReason, setWithdrawReason] = useState("");
 	const [withdrawLoading, setWithdrawLoading] = useState(false);
 
+	// Delete confirmation dialog
+	const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+
+	// Revoke invitation confirmation dialog
+	const [revokeConfirmOpen, setRevokeConfirmOpen] = useState(false);
+	const [revokeTargetId, setRevokeTargetId] = useState(null);
+
 	// Toast notification
 	const [toast, setToast] = useState(null); // { message, severity }
 
@@ -206,6 +213,22 @@ export default function Event(props) {
 		}
 	};
 
+	const handleRevokeClick = (invId) => {
+		setRevokeTargetId(invId);
+		setRevokeConfirmOpen(true);
+	};
+
+	const handleConfirmRevoke = async () => {
+		setRevokeConfirmOpen(false);
+		await handleRevoke(revokeTargetId);
+		setRevokeTargetId(null);
+	};
+
+	const handleCancelRevoke = () => {
+		setRevokeConfirmOpen(false);
+		setRevokeTargetId(null);
+	};
+
 	const handleWithdraw = async () => {
 		if (!myInvitation) return;
 		setWithdrawLoading(true);
@@ -274,6 +297,15 @@ export default function Event(props) {
 		apiDeleteEvent(eventId)
 			.then(() => props.onDeleteEvent(eventId))
 			.catch(console.error);
+	};
+
+	const handleDeleteClick = () => {
+		setDeleteConfirmOpen(true);
+	};
+
+	const handleConfirmDelete = () => {
+		setDeleteConfirmOpen(false);
+		handleDelete();
 	};
 
 	const handleCancelEdit = () => {
@@ -473,7 +505,7 @@ export default function Event(props) {
 						)}
 						{isPast && canDelete && (
 							<Tooltip title="Löschen">
-								<IconButton size="small" onClick={handleDelete}
+								<IconButton size="small" onClick={handleDeleteClick}
 									sx={{ color: "#D1855C", "&:hover": { bgcolor: "rgba(209,133,92,0.08)" } }}>
 									<DeleteIcon fontSize="small" />
 								</IconButton>
@@ -605,7 +637,7 @@ export default function Event(props) {
 										size="small"
 										variant={variant}
 										icon={icon}
-										onDelete={canRevoke ? () => handleRevoke(inv.id) : undefined}
+										onDelete={canRevoke ? () => handleRevokeClick(inv.id) : undefined}
 										deleteIcon={canRevoke ? <CloseIcon sx={{ fontSize: "0.85rem " }} /> : undefined}
 										sx={chipSx}
 									/>
@@ -981,7 +1013,7 @@ export default function Event(props) {
 				<DialogActions sx={{ px: 3, py: 2, gap: 1 }}>
 					<Button
 						startIcon={<DeleteIcon />}
-						onClick={handleDelete}
+						onClick={handleDeleteClick}
 						sx={{ color: "#D1855C", mr: "auto" }}
 					>
 						Löschen
@@ -1181,6 +1213,103 @@ export default function Event(props) {
 						}}
 					>
 						{withdrawLoading ? "Wird gesendet…" : "Absagen"}
+					</Button>
+				</DialogActions>
+			</Dialog>
+
+			{/* Delete Confirmation Dialog */}
+			<Dialog
+				open={deleteConfirmOpen}
+				onClose={() => setDeleteConfirmOpen(false)}
+				maxWidth="xs"
+				fullWidth
+				PaperProps={{ sx: { borderRadius: 3 } }}
+			>
+				<DialogTitle sx={{ fontWeight: 700, color: "text.primary", pr: 6 }}>
+					Event löschen
+					<IconButton
+						onClick={() => setDeleteConfirmOpen(false)}
+						size="small"
+						sx={{ position: "absolute", right: 12, top: 12, color: "text.secondary" }}
+					>
+						<CloseIcon fontSize="small" />
+					</IconButton>
+				</DialogTitle>
+				<DialogContent>
+					<Typography variant="body2" color="text.secondary">
+						Möchtest du dieses Event wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.
+					</Typography>
+				</DialogContent>
+				<DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
+					<Button
+						onClick={() => setDeleteConfirmOpen(false)}
+						color="inherit"
+						sx={{ color: "text.secondary" }}
+					>
+						Abbrechen
+					</Button>
+					<Button
+						onClick={handleConfirmDelete}
+						variant="contained"
+						disableElevation
+						startIcon={<DeleteIcon />}
+						sx={{
+							bgcolor: "#D1855C",
+							color: "#fff",
+							fontWeight: 700,
+							borderRadius: 2,
+							"&:hover": { bgcolor: "#b8693f" },
+						}}
+					>
+						Löschen
+					</Button>
+				</DialogActions>
+			</Dialog>
+
+			{/* Revoke Invitation Confirmation Dialog */}
+			<Dialog
+				open={revokeConfirmOpen}
+				onClose={handleCancelRevoke}
+				maxWidth="xs"
+				fullWidth
+				PaperProps={{ sx: { borderRadius: 3 } }}
+			>
+				<DialogTitle sx={{ fontWeight: 700, color: "text.primary", pr: 6 }}>
+					Einladung entfernen
+					<IconButton
+						onClick={handleCancelRevoke}
+						size="small"
+						sx={{ position: "absolute", right: 12, top: 12, color: "text.secondary" }}
+					>
+						<CloseIcon fontSize="small" />
+					</IconButton>
+				</DialogTitle>
+				<DialogContent>
+					<Typography variant="body2" color="text.secondary">
+						Möchtest du diese Einladung wirklich entfernen?
+					</Typography>
+				</DialogContent>
+				<DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
+					<Button
+						onClick={handleCancelRevoke}
+						color="inherit"
+						sx={{ color: "text.secondary" }}
+					>
+						Abbrechen
+					</Button>
+					<Button
+						onClick={handleConfirmRevoke}
+						variant="contained"
+						disableElevation
+						sx={{
+							bgcolor: "#D1855C",
+							color: "#fff",
+							fontWeight: 700,
+							borderRadius: 2,
+							"&:hover": { bgcolor: "#b8693f" },
+						}}
+					>
+						Entfernen
 					</Button>
 				</DialogActions>
 			</Dialog>
