@@ -3,8 +3,8 @@ from sqlalchemy.orm import Session
 
 from ..auth import get_current_user
 from ..database import get_db
-from ..models import PushSubscription
-from ..schemas import PushSubscriptionCreate, PushPrefsUpdate, DEFAULT_NOTIF_PREFS
+from ..models import PushSubscription, User
+from ..schemas import PushSubscriptionCreate, PushPrefsUpdate, EmailPrefsUpdate, DEFAULT_NOTIF_PREFS, DEFAULT_EMAIL_PREFS
 
 router = APIRouter(prefix="/push", tags=["push"])
 
@@ -92,4 +92,31 @@ def unsubscribe(
     if existing:
         db.delete(existing)
         db.commit()
+    return {"ok": True}
+
+
+@router.get("/email-prefs")
+def get_email_prefs(
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    """Get email notification preferences for the current user."""
+    db_user = db.query(User).filter(User.keycloak_id == user["sub"]).first()
+    if not db_user or db_user.email_prefs is None:
+        return {"prefs": DEFAULT_EMAIL_PREFS}
+    return {"prefs": db_user.email_prefs}
+
+
+@router.patch("/email-prefs")
+def update_email_prefs(
+    data: EmailPrefsUpdate,
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    """Update email notification preferences for the current user."""
+    db_user = db.query(User).filter(User.keycloak_id == user["sub"]).first()
+    if not db_user:
+        raise HTTPException(status_code=404, detail="Benutzer nicht gefunden")
+    db_user.email_prefs = data.prefs
+    db.commit()
     return {"ok": True}
