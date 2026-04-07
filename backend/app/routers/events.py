@@ -12,6 +12,9 @@ from ..schemas import EventCreate, EventResponse, EventUpdate, InvitationCreate,
 from ..push_service import send_push_notification
 from ..email_service import send_invitation_email, send_event_update_email, send_event_cancel_email
 from ..ws_manager import manager as ws_manager
+from ..logger import get_logger
+
+_log = get_logger("events")
 
 router = APIRouter(prefix="/events", tags=["events"])
 
@@ -247,6 +250,9 @@ def create_event(
     except Exception:
         event_date_fmt = event_date_raw
     creator = user.get("name") or user.get("preferred_username", "Jemand")
+
+    _log.info(f"Event created: id={new_event.id} date={event_date_raw!r} by {creator!r} sub={user['sub']}")
+
     _push_admins(db, "admin_event_created", "Neues Event", f"{creator} hat ein Event am {event_date_fmt} angelegt.")
 
     ws_manager.dispatch_sync(
@@ -286,6 +292,8 @@ def update_event(
         event_date_fmt = _dt.strptime(event_date_raw, "%Y-%m-%d").strftime("%d.%m.%y")
     except Exception:
         event_date_fmt = event_date_raw
+
+    _log.info(f"Event updated: id={event_id} date={event_date_raw!r} by {user.get('name') or user.get('preferred_username', '?')!r} sub={user['sub']}")
     # Notify ALL invitees (any status) except the editor
     all_invitees = db.query(Invitation).filter(
         Invitation.event_id == event_id,
@@ -367,6 +375,8 @@ def delete_event(
 
     db.delete(event)
     db.commit()
+
+    _log.info(f"Event deleted: id={event_id} date={event_date_raw!r} by {deleter!r} sub={user['sub']}")
 
     ws_manager.dispatch_sync(
         {
@@ -453,6 +463,7 @@ def invite_users(
         db.commit()
         db.refresh(invitation)
         results.append({"user_id": uid, "ok": True, "invitation_id": invitation.id})
+        _log.info(f"Invitation created: event_id={event_id} invitee={invitee_email!r} by {inviter_name!r} sub={user['sub']}")
 
         # Send email notification if invitee has a real email and email pref enabled
         if invitee.email and not invitee.email.endswith("@local"):

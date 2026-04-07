@@ -3,6 +3,10 @@ import os
 
 from pywebpush import webpush, WebPushException
 
+from .logger import get_logger
+
+_log = get_logger("push")
+
 VAPID_PRIVATE_KEY = os.getenv("VAPID_PRIVATE_KEY", "")
 VAPID_PUBLIC_KEY = os.getenv("VAPID_PUBLIC_KEY", "")
 VAPID_CLAIMS_EMAIL = os.getenv("VAPID_CLAIMS_EMAIL", "mailto:admin@biketimer.local")
@@ -36,7 +40,8 @@ def send_push_notification(
             vapid_private_key=VAPID_PRIVATE_KEY,
             vapid_claims={"sub": VAPID_CLAIMS_EMAIL},
         )
+        _log.info(f"Push sent: \"{title}\" → {endpoint[:50]}...")
     except WebPushException as ex:
-        print(f"Push notification failed: {ex}")
+        _log.error(f"Push failed (WebPushException): {ex} → endpoint={endpoint[:50]}...")
     except Exception as ex:
-        print(f"Push notification error: {ex}")
+        _log.error(f"Push error: {ex} → endpoint={endpoint[:50]}...")

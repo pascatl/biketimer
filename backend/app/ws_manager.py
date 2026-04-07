@@ -43,6 +43,13 @@ class ConnectionManager:
             for ws, s in self._connections
         ]
 
+    def get_sub(self, websocket: WebSocket) -> Optional[str]:
+        """Return the sub currently associated with *websocket*, or None."""
+        for ws, s in self._connections:
+            if ws is websocket:
+                return s
+        return None
+
     async def _send_safe(self, websocket: WebSocket, message: dict) -> bool:
         try:
             await websocket.send_json(message)

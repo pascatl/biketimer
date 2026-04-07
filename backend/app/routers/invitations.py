@@ -12,6 +12,9 @@ from ..auth import get_current_user
 from ..database import get_db
 from ..models import Event, Invitation
 from ..ws_manager import manager as ws_manager
+from ..logger import get_logger
+
+_log = get_logger("invitations")
 
 router = APIRouter(prefix="/invitations", tags=["invitations"])
 
@@ -114,6 +117,8 @@ def accept_invitation(
     inv.responded_at = datetime.now(timezone.utc)
     db.commit()
 
+    _log.info(f"Invitation accepted: id={invitation_id} event_id={inv.event_id} by {user.get('name') or user.get('preferred_username', '?')!r} sub={user['sub']}")
+
     event = db.query(Event).filter(Event.id == inv.event_id).first()
     event_date_fmt = _fmt_event_date(event)
     actor_name = user.get("name") or user.get("preferred_username", "Jemand")
@@ -154,6 +159,8 @@ def decline_invitation(
     inv.invitee_keycloak_id = user["sub"]
     inv.responded_at = datetime.now(timezone.utc)
     db.commit()
+
+    _log.info(f"Invitation declined: id={invitation_id} event_id={inv.event_id} by {user.get('name') or user.get('preferred_username', '?')!r} sub={user['sub']}")
 
     event = db.query(Event).filter(Event.id == inv.event_id).first()
     event_date_fmt = _fmt_event_date(event)
@@ -203,6 +210,8 @@ def withdraw_invitation(
     inv.responded_at = datetime.now(timezone.utc)
     db.commit()
 
+    _log.info(f"Invitation withdrawn: id={invitation_id} event_id={inv.event_id} by {user.get('name') or user.get('preferred_username', '?')!r} sub={user['sub']}")
+
     event = db.query(Event).filter(Event.id == inv.event_id).first()
     event_date_fmt = _fmt_event_date(event)
     actor_name = user.get("name") or user.get("preferred_username", "Jemand")
@@ -250,6 +259,8 @@ def revoke_invitation(
 
     db.delete(inv)
     db.commit()
+
+    _log.info(f"Invitation revoked: id={invitation_id} event_id={event_id_for_ws} invitee_sub={revoked_invitee_sub} by {user.get('name') or user.get('preferred_username', '?')!r} sub={user['sub']}")
 
     event = db.query(Event).filter(Event.id == event_id_for_ws).first()
     event_date_fmt = _fmt_event_date(event)

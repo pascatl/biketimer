@@ -18,6 +18,9 @@ from ..database import get_db
 from ..kc_admin import get_admin_token, KEYCLOAK_URL, KEYCLOAK_REALM, ADMIN_USER, ADMIN_PASSWORD
 from ..models import User
 from ..email_service import send_welcome_email
+from ..logger import get_logger
+
+_log = get_logger("auth")
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -123,5 +126,6 @@ def register_user(body: RegisterRequest, db: Session = Depends(get_db)):
         except Exception:
             pass
 
+    _log.info(f"User registered: {display!r} email={body.email or '(none)'}")
     return {"ok": True, "message": "Registrierung erfolgreich. Du kannst dich jetzt einloggen."}
 

@@ -8,6 +8,9 @@ from ..database import get_db
 from ..models import Invitation, User, PushSubscription
 from ..push_service import send_push_notification
 from ..schemas import UserResponse
+from ..logger import get_logger
+
+_log = get_logger("users")
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -30,6 +33,7 @@ def _notify_admins_new_user(db, new_sub: str, name: str):
         if au.keycloak_id and au.keycloak_id != new_sub:
             _push_with_pref(db, au.keycloak_id, "admin_user_registered",
                             "Neuer Benutzer", f"{name} hat sich registriert.")
+    _log.info(f"New user registered: {name!r} sub={new_sub}")
 
 
 @router.get("", response_model=List[UserResponse])
@@ -77,6 +81,7 @@ def register_or_link_me(
         if changed:
             db.commit()
             db.refresh(existing)
+        _log.info(f"User login: {existing.name!r} sub={sub}")
         return existing
 
     # 2. Match by real e-mail

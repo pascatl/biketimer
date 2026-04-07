@@ -6,6 +6,9 @@ from email.mime.text import MIMEText
 from email.utils import formataddr, formatdate, make_msgid
 
 from .config import APP_NAME
+from .logger import get_logger
+
+_log = get_logger("email")
 
 SMTP_HOST = os.getenv("SMTP_HOST", "localhost")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
@@ -112,7 +115,7 @@ def send_invitation_email(
         decline_url = f"{api_base}/invitations/respond?token={invitation_token}&action=decline"
 
         if not invitation_token:
-            print("[email] WARNING: invitation_token is empty; RSVP links will not work")
+            _log.warning("invitation_token is empty; RSVP links will not work")
 
         html_body = _EMAIL_HTML.format(
             inviter_name=inviter_name,
@@ -154,10 +157,10 @@ def send_invitation_email(
                 server.login(SMTP_USER, SMTP_PASSWORD)
             server.send_message(msg)
 
-        print(f"[email] Invitation sent to {invitee_email}")
+        _log.info(f"Invitation sent to {invitee_email}")
     except Exception as exc:
         # Email failure should never block the API response
-        print(f"[email] ERROR sending to {invitee_email}: {exc}")
+        _log.error(f"ERROR sending invitation to {invitee_email}: {exc}")
 
 
 _WELCOME_HTML = """<!DOCTYPE html>
@@ -245,9 +248,9 @@ def send_welcome_email(recipient_email: str, display_name: str) -> None:
                 server.login(SMTP_USER, SMTP_PASSWORD)
             server.send_message(msg)
 
-        print(f"[email] Welcome mail sent to {recipient_email}")
+        _log.info(f"Welcome mail sent to {recipient_email}")
     except Exception as exc:
-        print(f"[email] ERROR sending welcome mail to {recipient_email}: {exc}")
+        _log.error(f"ERROR sending welcome mail to {recipient_email}: {exc}")
 
 
 _EVENT_UPDATE_HTML = """<!DOCTYPE html>
@@ -360,9 +363,9 @@ def send_event_update_email(
                 server.login(SMTP_USER, SMTP_PASSWORD)
             server.send_message(msg)
 
-        print(f"[email] Event update mail sent to {recipient_email}")
+        _log.info(f"Event update mail sent to {recipient_email}")
     except Exception as exc:
-        print(f"[email] ERROR sending event update mail to {recipient_email}: {exc}")
+        _log.error(f"ERROR sending event update mail to {recipient_email}: {exc}")
 
 
 _EVENT_CANCEL_HTML = """<!DOCTYPE html>
@@ -466,6 +469,6 @@ def send_event_cancel_email(
                 server.login(SMTP_USER, SMTP_PASSWORD)
             server.send_message(msg)
 
-        print(f"[email] Event cancel mail sent to {recipient_email}")
+        _log.info(f"Event cancel mail sent to {recipient_email}")
     except Exception as exc:
-        print(f"[email] ERROR sending event cancel mail to {recipient_email}: {exc}")
+        _log.error(f"ERROR sending event cancel mail to {recipient_email}: {exc}")

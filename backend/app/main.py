@@ -13,6 +13,9 @@ from .routers import events, invitations, users, admin, data, push, stats, auth,
 from .config import APP_NAME
 from .ws_manager import manager, set_event_loop
 from .auth import _decode_token
+from .logger import get_logger
+
+_log = get_logger("main")
 
 # Create tables that don't exist yet (safe with existing DB)
 Base.metadata.create_all(bind=engine)
@@ -37,7 +40,7 @@ try:
                     sql = f.read()
                 conn.execute(text(sql))
                 conn.commit()
-                print("Migration 002 applied successfully")
+                _log.info("Migration 002 applied successfully")
         else:
             # Tables exist, but ensure seed data is present
             result = conn.execute(text("SELECT COUNT(*) FROM users"))
@@ -52,9 +55,9 @@ try:
                         sql = f.read()
                     conn.execute(text(sql))
                     conn.commit()
-                    print("Migration 002 seed data applied")
+                    _log.info("Migration 002 seed data applied")
 except Exception as e:
-    print(f"Migration check: {e}")
+    _log.error(f"Migration 002 check: {e}")
 
 # Run migration 003: convert TIMESTAMP → TIMESTAMPTZ
 try:
@@ -77,9 +80,9 @@ try:
                     sql = f.read()
                 conn.execute(text(sql))
                 conn.commit()
-                print("Migration 003 (timestamptz) applied successfully")
+                _log.info("Migration 003 (timestamptz) applied successfully")
 except Exception as e:
-    print(f"Migration 003 check: {e}")
+    _log.error(f"Migration 003 check: {e}")
 
 # Run migration 004: add notification_prefs to push_subscriptions
 try:
@@ -101,9 +104,9 @@ try:
                     sql = f.read()
                 conn.execute(text(sql))
                 conn.commit()
-                print("Migration 004 (notification_prefs) applied successfully")
+                _log.info("Migration 004 (notification_prefs) applied successfully")
 except Exception as e:
-    print(f"Migration 004 check: {e}")
+    _log.error(f"Migration 004 check: {e}")
 
 # Run migration 005: add email_prefs to users
 try:
@@ -125,9 +128,9 @@ try:
                     sql = f.read()
                 conn.execute(text(sql))
                 conn.commit()
-                print("Migration 005 (email_prefs) applied successfully")
+                _log.info("Migration 005 (email_prefs) applied successfully")
 except Exception as e:
-    print(f"Migration 005 check: {e}")
+    _log.error(f"Migration 005 check: {e}")
 
 # Run migration 006: add event_comments table
 try:
@@ -148,9 +151,9 @@ try:
                     sql = f.read()
                 conn.execute(text(sql))
                 conn.commit()
-                print("Migration 006 (event_comments) applied successfully")
+                _log.info("Migration 006 (event_comments) applied successfully")
 except Exception as e:
-    print(f"Migration 006 check: {e}")
+    _log.error(f"Migration 006 check: {e}")
 
 # Run migration 007: update sport type icons and add Beachvolleyball
 # All SQL statements in this migration are idempotent, so it is safe to run on every startup.
@@ -166,9 +169,9 @@ try:
                 sql = f.read()
             conn.execute(text(sql))
             conn.commit()
-            print("Migration 007 (sport_type_icons) applied successfully")
+            _log.info("Migration 007 (sport_type_icons) applied successfully")
 except Exception as e:
-    print(f"Migration 007 check: {e}")
+    _log.error(f"Migration 007 check: {e}")
 
 FRONTEND_ORIGINS = os.getenv(
     "FRONTEND_ORIGINS",
@@ -216,6 +219,7 @@ async def websocket_endpoint(websocket: WebSocket):
     # Accept without token – token arrives as first encrypted frame,
     # never in the URL where it would appear in access logs.
     await manager.connect(websocket, sub=None)
+    _log.info("WS client connected (unauthenticated)")
     try:
         # 2) Grace period: client must send a valid auth frame within 10 s.
         #    After that, unauthenticated connections are closed.
@@ -226,6 +230,7 @@ async def websocket_endpoint(websocket: WebSocket):
         while True:
             remaining = deadline - asyncio.get_event_loop().time() if not authenticated else None
             if remaining is not None and remaining <= 0:
+                _log.warning("WS auth grace period expired – closing connection")
                 await websocket.close(code=1008)
                 manager.disconnect(websocket)
                 return
@@ -236,6 +241,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     timeout=remaining,
                 )
             except asyncio.TimeoutError:
+                _log.warning("WS auth timeout – closing connection")
                 await websocket.close(code=1008)
                 manager.disconnect(websocket)
                 return
@@ -258,13 +264,18 @@ async def websocket_endpoint(websocket: WebSocket):
                         pass  # invalid token – close rather than stay anonymous
                 if sub:
                     manager.set_sub(websocket, sub)
+                    if not authenticated:
+                        _log.info(f"WS authenticated sub={sub}")
                     authenticated = True
                 else:
+                    _log.warning("WS auth failed (invalid token) – closing connection")
                     await websocket.close(code=1008)
                     manager.disconnect(websocket)
                     return
             # All other frames are ignored (keep-alive, etc.)
     except WebSocketDisconnect:
+        sub = manager.get_sub(websocket)
+        _log.info(f"WS client disconnected sub={sub}")
         manager.disconnect(websocket)
 
 
