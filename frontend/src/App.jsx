@@ -228,8 +228,8 @@ export default function App() {
 			doRegisterPush();
 			return;
 		}
-		// Already denied → don't ask again
-		if (Notification.permission === "denied") return;
+		// Already denied → don't ask again (guard: Notification is undefined on most iOS Safari contexts)
+		if (typeof Notification !== "undefined" && Notification.permission === "denied") return;
 		// Already stored a 'no' decision
 		if (localStorage.getItem("push_dismissed") === "1") return;
 		// Show our custom dialog (only if push is available + VAPID configured)

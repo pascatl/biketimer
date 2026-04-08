@@ -1,5 +1,30 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
+
+class ErrorBoundary extends React.Component {
+	constructor(props) {
+		super(props);
+		this.state = { error: null };
+	}
+	static getDerivedStateFromError(error) {
+		return { error };
+	}
+	componentDidCatch(error, info) {
+		console.error("React error boundary caught:", error, info);
+	}
+	render() {
+		if (this.state.error) {
+			return (
+				<div style={{ padding: "2rem", fontFamily: "sans-serif", color: "#333" }}>
+					<h2>Etwas ist schiefgelaufen.</h2>
+					<p style={{ color: "#666" }}>{this.state.error?.message}</p>
+					<button onClick={() => window.location.reload()}>Seite neu laden</button>
+				</div>
+			);
+		}
+		return this.props.children;
+	}
+}
 import "@fontsource/josefin-sans/400.css";
 import "@fontsource/josefin-sans/600.css";
 import "@fontsource/josefin-sans/700.css";
@@ -35,12 +60,14 @@ function AuthGate() {
 }
 
 ReactDOM.createRoot(document.getElementById("root")).render(
-	<ThemeProvider theme={theme}>
-		<CssBaseline />
-		<BrowserRouter>
-			<AuthProvider>
-				<AuthGate />
-			</AuthProvider>
-		</BrowserRouter>
-	</ThemeProvider>,
+	<ErrorBoundary>
+		<ThemeProvider theme={theme}>
+			<CssBaseline />
+			<BrowserRouter>
+				<AuthProvider>
+					<AuthGate />
+				</AuthProvider>
+			</BrowserRouter>
+		</ThemeProvider>
+	</ErrorBoundary>,
 );

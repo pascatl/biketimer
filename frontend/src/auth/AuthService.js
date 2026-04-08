@@ -52,12 +52,16 @@ const STORAGE_KEY = "bt_refresh";
 let _persistMode = "local"; // "local" | "session"
 
 function _saveToken(token) {
-	if (_persistMode === "session") {
-		sessionStorage.setItem(STORAGE_KEY, token);
-		localStorage.removeItem(STORAGE_KEY);
-	} else {
-		localStorage.setItem(STORAGE_KEY, token);
-		sessionStorage.removeItem(STORAGE_KEY);
+	try {
+		if (_persistMode === "session") {
+			sessionStorage.setItem(STORAGE_KEY, token);
+			localStorage.removeItem(STORAGE_KEY);
+		} else {
+			localStorage.setItem(STORAGE_KEY, token);
+			sessionStorage.removeItem(STORAGE_KEY);
+		}
+	} catch {
+		// iOS Safari private mode throws QuotaExceededError – keep token in memory only
 	}
 }
 
@@ -136,7 +140,7 @@ export function logout() {
  * Returns user info on success, null if no stored token or refresh fails.
  */
 export async function restoreSession(onRefreshed) {
-	const stored = localStorage.getItem(STORAGE_KEY);
+	const stored = _loadToken();
 	if (!stored) return null;
 	_refreshToken = stored;
 	try {
