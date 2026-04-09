@@ -283,6 +283,20 @@ export async function deleteEventComment(eventId, commentId) {
 	return res.json();
 }
 
+export async function toggleCommentReaction(eventId, commentId, emoji) {
+	const headers = authHeaders();
+	const res = await fetch(`${API_URL}/events/${eventId}/comments/${commentId}/reactions`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json", ...headers },
+		body: JSON.stringify({ emoji }),
+	});
+	if (!res.ok) {
+		const body = await res.json().catch(() => ({}));
+		throw new Error(body.detail || "Fehler beim Reagieren");
+	}
+	return res.json();
+}
+
 // ── Admin ────────────────────────────────────────────────────
 
 export async function adminFetchUsers() {
