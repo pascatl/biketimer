@@ -551,8 +551,7 @@ export default function Event(props) {
 									<Typography
 										className="event-date"
 										variant="h5"
-										noWrap
-										sx={{ fontWeight: 700, lineHeight: 1.15, color: "text.primary", mt: 0.25 }}
+										sx={{ fontWeight: 700, lineHeight: 1.15, color: "text.primary", mt: 0.25, overflowWrap: "break-word", wordBreak: "break-word" }}
 									>
 										{title}
 									</Typography>
@@ -565,8 +564,7 @@ export default function Event(props) {
 									<Typography
 										className="event-date"
 										variant="h5"
-										noWrap
-										sx={{ fontWeight: 700, lineHeight: 1.15, color: "text.primary", mt: 0.25 }}
+										sx={{ fontWeight: 700, lineHeight: 1.15, color: "text.primary", mt: 0.25, overflowWrap: "break-word", wordBreak: "break-word" }}
 									>
 										{date ? convertDate(date)[1] : "Kein Datum"}
 									</Typography>
