@@ -149,6 +149,18 @@ class EventCommentCreate(BaseModel):
     content: str
 
 
+class CommentReactionUser(BaseModel):
+    keycloak_id: str
+    name: Optional[str] = None
+
+
+class CommentReactionGroup(BaseModel):
+    emoji: str
+    count: int
+    users: List[CommentReactionUser]
+    reacted_by_me: bool
+
+
 class EventCommentResponse(BaseModel):
     id: int
     event_id: int
@@ -156,8 +168,13 @@ class EventCommentResponse(BaseModel):
     author_name: Optional[str] = None
     content: str
     created_at: Optional[datetime] = None
+    reactions: List[CommentReactionGroup] = []
 
     model_config = {"from_attributes": True}
+
+
+class CommentReactionCreate(BaseModel):
+    emoji: str
 
 
 # ── Push subscription schemas ─────────────────────────────────

@@ -95,6 +95,24 @@ class EventComment(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     event = relationship("Event", back_populates="comments")
+    reactions = relationship(
+        "CommentReaction", back_populates="comment", cascade="all, delete-orphan"
+    )
+
+
+class CommentReaction(Base):
+    __tablename__ = "comment_reactions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    comment_id = Column(
+        Integer, ForeignKey("event_comments.id", ondelete="CASCADE"), nullable=False
+    )
+    user_keycloak_id = Column(String(255), nullable=False)
+    user_name = Column(String(255), nullable=True)
+    emoji = Column(String(50), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    comment = relationship("EventComment", back_populates="reactions")
 
 
 class Invitation(Base):

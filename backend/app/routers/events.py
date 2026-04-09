@@ -7,8 +7,8 @@ from sqlalchemy.orm import Session
 
 from ..auth import get_current_user
 from ..database import get_db
-from ..models import Event, Invitation, User, PushSubscription, EventComment
-from ..schemas import EventCreate, EventResponse, EventUpdate, InvitationCreate, EventCommentCreate, EventCommentResponse, DEFAULT_EMAIL_PREFS
+from ..models import Event, Invitation, User, PushSubscription, EventComment, CommentReaction
+from ..schemas import EventCreate, EventResponse, EventUpdate, InvitationCreate, EventCommentCreate, EventCommentResponse, CommentReactionCreate, DEFAULT_EMAIL_PREFS
 from ..push_service import send_push_notification
 from ..email_service import send_invitation_email, send_event_update_email, send_event_cancel_email
 from ..ws_manager import manager as ws_manager
@@ -515,6 +515,32 @@ def invite_users(
 # ── Comments ──────────────────────────────────────────────────
 
 
+def _serialize_comment(comment: EventComment, current_sub: str) -> dict:
+    """Build a comment dict including grouped emoji reactions."""
+    from collections import defaultdict
+    groups: dict = defaultdict(list)
+    for r in comment.reactions:
+        groups[r.emoji].append({"keycloak_id": r.user_keycloak_id, "name": r.user_name})
+    reactions = [
+        {
+            "emoji": emoji,
+            "count": len(users),
+            "users": users,
+            "reacted_by_me": any(u["keycloak_id"] == current_sub for u in users),
+        }
+        for emoji, users in groups.items()
+    ]
+    return {
+        "id": comment.id,
+        "event_id": comment.event_id,
+        "author_keycloak_id": comment.author_keycloak_id,
+        "author_name": comment.author_name,
+        "content": comment.content,
+        "created_at": comment.created_at,
+        "reactions": reactions,
+    }
+
+
 @router.get("/{event_id}/comments", response_model=List[EventCommentResponse])
 def get_event_comments(
     event_id: int,
@@ -537,12 +563,14 @@ def get_event_comments(
         ).first()
         if not has_access:
             raise HTTPException(status_code=403, detail="Kein Zugriff auf dieses Event")
-    return (
+    comments = (
         db.query(EventComment)
         .filter(EventComment.event_id == event_id)
         .order_by(EventComment.created_at.asc())
         .all()
     )
+    current_sub = user["sub"]
+    return [_serialize_comment(c, current_sub) for c in comments]
 
 
 @router.post(
@@ -602,7 +630,7 @@ def create_event_comment(
         exclude_sub=user["sub"],
     )
 
-    return comment
+    return _serialize_comment(comment, user["sub"])
 
 
 @router.delete("/{event_id}/comments/{comment_id}")
@@ -643,3 +671,70 @@ def delete_event_comment(
     )
 
     return {"ok": True}
+
+
+# ── Comment Reactions ─────────────────────────────────────────
+
+
+@router.post("/{event_id}/comments/{comment_id}/reactions", status_code=status.HTTP_200_OK)
+def toggle_comment_reaction(
+    event_id: int,
+    comment_id: int,
+    reaction_in: CommentReactionCreate,
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    """Toggle an emoji reaction on a comment. Adds if not present, removes if already reacted."""
+    comment = (
+        db.query(EventComment)
+        .filter(EventComment.id == comment_id, EventComment.event_id == event_id)
+        .first()
+    )
+    if not comment:
+        raise HTTPException(status_code=404, detail="Kommentar nicht gefunden")
+
+    emoji = reaction_in.emoji.strip()
+    if not emoji:
+        raise HTTPException(status_code=422, detail="Emoji darf nicht leer sein")
+
+    sub = user["sub"]
+    existing = (
+        db.query(CommentReaction)
+        .filter(
+            CommentReaction.comment_id == comment_id,
+            CommentReaction.user_keycloak_id == sub,
+            CommentReaction.emoji == emoji,
+        )
+        .first()
+    )
+
+    if existing:
+        db.delete(existing)
+        db.commit()
+        action = "removed"
+    else:
+        reaction = CommentReaction(
+            comment_id=comment_id,
+            user_keycloak_id=sub,
+            user_name=user.get("name") or user.get("preferred_username"),
+            emoji=emoji,
+        )
+        db.add(reaction)
+        db.commit()
+        action = "added"
+
+    db.refresh(comment)
+
+    # Notify all event members so reactions update live
+    all_invitees = db.query(Invitation).filter(Invitation.event_id == event_id).all()
+    recipient_subs = list({i.invitee_keycloak_id for i in all_invitees if i.invitee_keycloak_id})
+    ws_manager.dispatch_sync(
+        {
+            "type": "event_comment_reaction_updated",
+            "event_id": event_id,
+            "comment_id": comment_id,
+        },
+        recipient_subs=recipient_subs,
+    )
+
+    return {"ok": True, "action": action, "comment": _serialize_comment(comment, sub)}

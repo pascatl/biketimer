@@ -67,9 +67,11 @@ import {
 	fetchEventComments,
 	createEventComment,
 	deleteEventComment,
+	toggleCommentReaction,
 } from "../api";
 import { useAuth } from "../auth/AuthContext";
 import { trackEvent } from "../matomo";
+import EmojiPicker from "./EmojiPicker";
 
 const ICON_MAP = {
 	DirectionsBike: <DirectionsBikeIcon />,
@@ -304,6 +306,19 @@ export default function Event(props) {
 		try {
 			await deleteEventComment(eventId, commentId);
 			await loadComments();
+		} catch (err) {
+			setToast({ message: err.message, severity: "error" });
+		}
+	};
+
+	const handleReaction = async (commentId, emoji) => {
+		if (!authenticated) return;
+		try {
+			const res = await toggleCommentReaction(eventId, commentId, emoji);
+			// Update comment reactions in place for immediate feedback
+			setComments((prev) =>
+				prev.map((c) => (c.id === commentId ? res.comment : c)),
+			);
 		} catch (err) {
 			setToast({ message: err.message, severity: "error" });
 		}
@@ -976,6 +991,50 @@ export default function Event(props) {
 												<Typography variant="body2" sx={{ color: "text.primary", lineHeight: 1.5, whiteSpace: "pre-wrap" }}>
 													{c.content}
 												</Typography>
+
+												{/* ── Emoji Reactions ── */}
+												<Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 0.5, mt: 0.75 }}>
+													{(c.reactions || []).map((r) => (
+														<Tooltip
+															key={r.emoji}
+															title={r.users.map((u) => u.name || u.keycloak_id).join(", ")}
+														>
+															<Box
+																component="span"
+																onClick={() => authenticated && handleReaction(c.id, r.emoji)}
+																sx={{
+																	display: "inline-flex",
+																	alignItems: "center",
+																	gap: 0.35,
+																	px: 0.75,
+																	py: 0.25,
+																	borderRadius: 10,
+																	fontSize: "0.8rem",
+																	fontWeight: r.reacted_by_me ? 700 : 500,
+																	cursor: authenticated ? "pointer" : "default",
+																	bgcolor: r.reacted_by_me
+																		? "rgba(45,60,89,0.15)"
+																		: "rgba(45,60,89,0.06)",
+																	border: r.reacted_by_me
+																		? "1px solid rgba(45,60,89,0.35)"
+																		: "1px solid rgba(45,60,89,0.12)",
+																	transition: "all 0.15s",
+																	"&:hover": authenticated
+																		? { bgcolor: "rgba(45,60,89,0.2)", transform: "scale(1.08)" }
+																		: {},
+																}}
+															>
+																<span style={{ fontSize: "0.95rem" }}>{r.emoji}</span>
+																<Typography component="span" sx={{ fontSize: "0.72rem", lineHeight: 1, color: "text.secondary" }}>
+																	{r.count}
+																</Typography>
+															</Box>
+														</Tooltip>
+													))}
+													{authenticated && (
+														<EmojiPicker onSelect={(emoji) => handleReaction(c.id, emoji)} />
+													)}
+												</Box>
 											</Box>
 										);
 									})}
