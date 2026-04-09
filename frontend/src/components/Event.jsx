@@ -517,7 +517,7 @@ export default function Event(props) {
 					title={
 						<Box
 							onClick={props.onOpenDetail ? () => props.onOpenDetail(eventId) : undefined}
-							sx={props.onOpenDetail ? { cursor: "pointer", "&:hover .event-date": { textDecoration: "underline" } } : {}}
+							sx={{ overflow: "hidden", ...(props.onOpenDetail ? { cursor: "pointer", "&:hover .event-date": { textDecoration: "underline" } } : {}) }}
 						>
 							<Typography
 								variant="overline"
@@ -536,6 +536,7 @@ export default function Event(props) {
 									<Typography
 										className="event-date"
 										variant="h5"
+										noWrap
 										sx={{ fontWeight: 700, lineHeight: 1.15, color: "text.primary", mt: 0.25 }}
 									>
 										{title}
@@ -549,6 +550,7 @@ export default function Event(props) {
 									<Typography
 										className="event-date"
 										variant="h5"
+										noWrap
 										sx={{ fontWeight: 700, lineHeight: 1.15, color: "text.primary", mt: 0.25 }}
 									>
 										{date ? convertDate(date)[1] : "Kein Datum"}
@@ -561,7 +563,7 @@ export default function Event(props) {
 						</Box>
 					}
 					action={
-					<Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 0.5, mt: 0.5 }}>
+					<Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 0.5, mt: 0.5, mr: 1 }}>
 						<Box sx={{ display: "flex", alignItems: "center", gap: 0.25 }}>
 						{isPast && (
 							<Chip
@@ -609,7 +611,7 @@ export default function Event(props) {
 						<WeatherWidget date={date} time={startTime} lat={meetingLat} lon={meetingLon} iconSize={48} />
 					</Box>
 				}
-				sx={{ pb: 0.5, pt: 2 }}
+				sx={{ pb: 0.5, pt: 2, "& .MuiCardHeader-content": { minWidth: 0, overflow: "hidden" } }}
 				/>
 
 				{/* ── Chip Row (Organisator / Trikot) ── */}
