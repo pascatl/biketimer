@@ -88,11 +88,24 @@ export default function WeatherWidget({ date, time = "15:00", lat, lon, iconSize
         }}
       >
         <Box
-          component="img"
-          src={data.icon_url}
-          alt={data.description}
-          sx={{ width: iconSize, height: iconSize }}
-        />
+          sx={{
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            bgcolor: "rgba(255,255,255,0.75)",
+            borderRadius: "50%",
+            width: iconSize,
+            height: iconSize,
+            boxShadow: "0 1px 4px rgba(0,0,0,0.15)",
+          }}
+        >
+          <Box
+            component="img"
+            src={data.icon_url}
+            alt={data.description}
+            sx={{ width: iconSize * 0.85, height: iconSize * 0.85 }}
+          />
+        </Box>
         <Typography variant="body2" sx={{ fontWeight: 700, color: "text.secondary", fontSize: `${Math.round(iconSize * 0.38)}px` }}>
           {data.temp}°C
         </Typography>
