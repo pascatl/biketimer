@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from ..auth import require_admin
 from ..kc_admin import delete_kc_user
 from ..database import get_db
-from ..models import User, Jersey, SportType
+from ..models import User, Jersey, SportType, UserGroup
 from ..schemas import (
     UserCreate,
     UserUpdate,
@@ -19,6 +19,8 @@ from ..schemas import (
     SportTypeCreate,
     SportTypeUpdate,
     SportTypeResponse,
+    UserGroupsUpdate,
+    UserGroupsResponse,
 )
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -235,3 +237,38 @@ def admin_delete_sport_type(
 def get_vapid_public_key():
     """Return VAPID public key for push notification subscription."""
     return {"publicKey": os.getenv("VAPID_PUBLIC_KEY", "")}
+
+
+# ── User Group management ─────────────────────────────────────
+
+
+@router.get("/users/{user_id}/groups", response_model=UserGroupsResponse)
+def admin_get_user_groups(
+    user_id: int,
+    db: Session = Depends(get_db),
+    user: dict = Depends(require_admin),
+):
+    """Get group memberships for a specific user."""
+    u = db.query(User).filter(User.id == user_id).first()
+    if not u:
+        raise HTTPException(status_code=404, detail="Benutzer nicht gefunden")
+    rows = db.query(UserGroup.sport_type_key).filter(UserGroup.user_id == user_id).all()
+    return UserGroupsResponse(groups=[r[0] for r in rows])
+
+
+@router.put("/users/{user_id}/groups", response_model=UserGroupsResponse)
+def admin_update_user_groups(
+    user_id: int,
+    body: UserGroupsUpdate,
+    db: Session = Depends(get_db),
+    user: dict = Depends(require_admin),
+):
+    """Replace group memberships for a specific user."""
+    u = db.query(User).filter(User.id == user_id).first()
+    if not u:
+        raise HTTPException(status_code=404, detail="Benutzer nicht gefunden")
+    db.query(UserGroup).filter(UserGroup.user_id == user_id).delete()
+    for key in set(body.groups):
+        db.add(UserGroup(user_id=user_id, sport_type_key=key))
+    db.commit()
+    return UserGroupsResponse(groups=list(set(body.groups)))

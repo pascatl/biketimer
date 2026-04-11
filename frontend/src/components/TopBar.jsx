@@ -40,6 +40,7 @@ const TopBar = ({
 	onAdminOpen,
 	onStatsOpen,
 	onInboxOpen,
+	onGroupsChanged,
 }) => {
 	const { authenticated, openLogin, logout } = useAuth();
 	const [notifOpen, setNotifOpen] = useState(false);
@@ -222,6 +223,8 @@ const TopBar = ({
 				open={notifOpen}
 				onClose={() => setNotifOpen(false)}
 				isAdmin={isAdmin}
+				sportTypes={sportTypes}
+				onGroupsChanged={onGroupsChanged}
 			/>
 		</>
 	);

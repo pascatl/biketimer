@@ -1,6 +1,23 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Container, Box, Stack, Button, IconButton, Tooltip, Typography, CircularProgress, Collapse, Chip, Dialog, DialogTitle, DialogContent, DialogActions, Snackbar, Alert } from "@mui/material";
+import {
+	Container,
+	Box,
+	Stack,
+	Button,
+	IconButton,
+	Tooltip,
+	Typography,
+	CircularProgress,
+	Collapse,
+	Chip,
+	Dialog,
+	DialogTitle,
+	DialogContent,
+	DialogActions,
+	Snackbar,
+	Alert,
+} from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import NotificationsIcon from "@mui/icons-material/Notifications";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
@@ -10,6 +27,7 @@ import TopBar from "./components/TopBar";
 import InboxDrawer from "./components/InboxDrawer";
 import AdminPanel from "./components/AdminPanel";
 import StatsPanel from "./components/StatsPanel";
+import GroupOnboarding from "./components/GroupOnboarding";
 import Footer from "./components/Footer";
 import {
 	fetchMyEvents,
@@ -22,6 +40,8 @@ import {
 	fetchVapidPublicKey,
 	subscribePush,
 	registerMe,
+	fetchMyGroups,
+	updateMyGroups,
 } from "./api";
 import { useAuth } from "./auth/AuthContext";
 import { trackEvent } from "./matomo";
@@ -49,6 +69,10 @@ export default function App() {
 	const [detailError, setDetailError] = useState(null);
 	// Push permission dialog
 	const [pushDialogOpen, setPushDialogOpen] = useState(false);
+
+	// Group onboarding dialog
+	const [groupOnboardingOpen, setGroupOnboardingOpen] = useState(false);
+	const [myGroups, setMyGroups] = useState(null); // null = not loaded
 
 	// WebSocket toast
 	const [wsToast, setWsToast] = useState(null); // { message: string }
@@ -137,11 +161,30 @@ export default function App() {
 		loadEvents();
 	}, [loadEvents]);
 
-	// ── Link Keycloak account to DB on login ─────────────────
+	// ── Link Keycloak account to DB on login + check group membership ─
 	useEffect(() => {
 		if (!authenticated) return;
-		registerMe().catch(console.error);
+		registerMe()
+			.then(() => fetchMyGroups())
+			.then((data) => {
+				const groups = data?.groups || [];
+				setMyGroups(groups);
+				if (groups.length === 0) {
+					setGroupOnboardingOpen(true);
+				}
+			})
+			.catch(console.error);
 	}, [authenticated]);
+
+	const handleGroupsSaved = async (selectedKeys) => {
+		await updateMyGroups(selectedKeys);
+		setMyGroups(selectedKeys);
+		setGroupOnboardingOpen(false);
+	};
+
+	const handleGroupsChanged = (updatedGroups) => {
+		setMyGroups(updatedGroups);
+	};
 
 	// ── Load invitations (only when logged in) ────────────────
 	const loadInvitations = useCallback(async () => {
@@ -159,35 +202,36 @@ export default function App() {
 	}, [loadInvitations]);
 
 	// ── WebSocket: real-time updates replacing the 30 s poll ──
-	const handleWsMessage = useCallback((data) => {
-		// Backend already routes messages to the right users server-side
-		// and excludes the actor. Just show the toast if there's a message.
-		if (data.message) {
-			setWsToast({ message: data.message });
-		}
+	const handleWsMessage = useCallback(
+		(data) => {
+			// Backend already routes messages to the right users server-side
+			// and excludes the actor. Just show the toast if there's a message.
+			if (data.message) {
+				setWsToast({ message: data.message });
+			}
 
-		const isEventChange =
-			data.type?.startsWith("event_") ||
-			data.type?.startsWith("invitation_");
+			const isEventChange =
+				data.type?.startsWith("event_") || data.type?.startsWith("invitation_");
 
-		if (isEventChange) {
-			// Reload the flat event list (dates, titles, member counts)
-			loadEvents();
-			// Bump the refresh key so every Event card reloads its internal
-			// invitations and comments lists too
-			setEventRefreshKey((k) => k + 1);
-			// Also refresh the user's own invitation inbox
-			if (authenticated) loadInvitations();
-		}
-	}, [loadEvents, loadInvitations, authenticated]);
+			if (isEventChange) {
+				// Reload the flat event list (dates, titles, member counts)
+				loadEvents();
+				// Bump the refresh key so every Event card reloads its internal
+				// invitations and comments lists too
+				setEventRefreshKey((k) => k + 1);
+				// Also refresh the user's own invitation inbox
+				if (authenticated) loadInvitations();
+			}
+		},
+		[loadEvents, loadInvitations, authenticated],
+	);
 
 	useWebSocket("/api/ws", handleWsMessage, authenticated);
 
 	// ── Register for push notifications ───────────────────────
 	const doRegisterPush = useCallback(async () => {
 		try {
-			if (!("serviceWorker" in navigator) || !("PushManager" in window))
-				return;
+			if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
 			const vapidKey = await fetchVapidPublicKey();
 			if (!vapidKey) return;
 
@@ -229,7 +273,11 @@ export default function App() {
 			return;
 		}
 		// Already denied → don't ask again (guard: Notification is undefined on most iOS Safari contexts)
-		if (typeof Notification !== "undefined" && Notification.permission === "denied") return;
+		if (
+			typeof Notification !== "undefined" &&
+			Notification.permission === "denied"
+		)
+			return;
 		// Already stored a 'no' decision
 		if (localStorage.getItem("push_dismissed") === "1") return;
 		// Show our custom dialog (only if push is available + VAPID configured)
@@ -251,11 +299,15 @@ export default function App() {
 	today.setHours(0, 0, 0, 0);
 	const todayMs = today.getTime();
 	const upcomingEvents = currentEvents.filter(
-		(e) => new Date(e.event_data?.event_date + "T00:00:00").getTime() >= todayMs,
+		(e) =>
+			new Date(e.event_data?.event_date + "T00:00:00").getTime() >= todayMs,
 	);
 	// Reversed so most-recent past event appears first
 	const pastEvents = currentEvents
-		.filter((e) => new Date(e.event_data?.event_date + "T00:00:00").getTime() < todayMs)
+		.filter(
+			(e) =>
+				new Date(e.event_data?.event_date + "T00:00:00").getTime() < todayMs,
+		)
 		.reverse();
 
 	// ── Load event for detail view when URL has /events/:id ───
@@ -333,7 +385,7 @@ export default function App() {
 			sx={{
 				bgcolor: "background.default",
 				minHeight: "100vh",
-			pt: "72px",
+				pt: "72px",
 				pb: "56px", // leave room for fixed footer
 			}}
 		>
@@ -345,8 +397,15 @@ export default function App() {
 				invitationCount={invitations.length}
 				isAdmin={isAdmin}
 				onAdminOpen={() => setAdminOpen(true)}
-				onStatsOpen={() => { trackEvent("Navigation", "Statistiken geöffnet"); setStatsOpen(true); }}
-				onInboxOpen={() => { trackEvent("Navigation", "Postfach geöffnet"); setInboxOpen(true); }}
+				onStatsOpen={() => {
+					trackEvent("Navigation", "Statistiken geöffnet");
+					setStatsOpen(true);
+				}}
+				onInboxOpen={() => {
+					trackEvent("Navigation", "Postfach geöffnet");
+					setInboxOpen(true);
+				}}
+				onGroupsChanged={handleGroupsChanged}
 			/>
 			<Container maxWidth="md">
 				{urlEventId ? (
@@ -387,7 +446,11 @@ export default function App() {
 								onDeleteEvent={() => handleBackToList()}
 								refreshToken={eventRefreshKey}
 								onInvitationResponded={loadInvitations}
-								isPast={new Date(detailEvent.event_data?.event_date + "T00:00:00").getTime() < todayMs}
+								isPast={
+									new Date(
+										detailEvent.event_data?.event_date + "T00:00:00",
+									).getTime() < todayMs
+								}
 							/>
 						)}
 					</Box>
@@ -442,7 +505,9 @@ export default function App() {
 										"&:hover": { bgcolor: "rgba(45,60,89,0.05)" },
 									}}
 								>
-									<HistoryIcon sx={{ fontSize: "1.1rem", color: "text.disabled" }} />
+									<HistoryIcon
+										sx={{ fontSize: "1.1rem", color: "text.disabled" }}
+									/>
 									<Typography
 										variant="body2"
 										sx={{ fontWeight: 600, color: "text.secondary", flex: 1 }}
@@ -465,7 +530,9 @@ export default function App() {
 											fontSize: "1.2rem",
 											color: "text.disabled",
 											transition: "transform 0.2s",
-											transform: pastExpanded ? "rotate(180deg)" : "rotate(0deg)",
+											transform: pastExpanded
+												? "rotate(180deg)"
+												: "rotate(0deg)",
 										}}
 									/>
 								</Box>
@@ -545,7 +612,8 @@ export default function App() {
 				</DialogTitle>
 				<DialogContent>
 					<Typography variant="body2" sx={{ color: "text.secondary" }}>
-						Möchtest du Push-Benachrichtigungen erhalten, wenn du zu einem Event eingeladen wirst?
+						Möchtest du Push-Benachrichtigungen erhalten, wenn du zu einem Event
+						eingeladen wirst?
 					</Typography>
 				</DialogContent>
 				<DialogActions sx={{ px: 3, pb: 2 }}>
@@ -572,6 +640,14 @@ export default function App() {
 					</Button>
 				</DialogActions>
 			</Dialog>
+
+			{/* Group onboarding dialog */}
+			<GroupOnboarding
+				open={groupOnboardingOpen}
+				sportTypes={sportTypes}
+				onSave={handleGroupsSaved}
+				onClose={() => setGroupOnboardingOpen(false)}
+			/>
 		</Box>
 	);
 }

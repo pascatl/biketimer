@@ -74,6 +74,7 @@ import {
 	createEventComment,
 	deleteEventComment,
 	toggleCommentReaction,
+	fetchUsers,
 } from "../api";
 import { useAuth } from "../auth/AuthContext";
 import { trackEvent } from "../matomo";
@@ -180,8 +181,26 @@ export default function Event(props) {
 
 	const canEdit = user?.is_admin ? authenticated : !isPast && canDelete;
 
-	// Exclude logged-in user from invite list
-	const invitableUsers = allUsers.filter((u) => {
+	// Users filtered by event's sport-type group (for invite dialog)
+	const [groupUsers, setGroupUsers] = useState(null); // null = not loaded yet
+
+	const loadGroupUsers = useCallback(async () => {
+		try {
+			const data = await fetchUsers(eventType);
+			setGroupUsers(data);
+		} catch {
+			setGroupUsers(null);
+		}
+	}, [eventType]);
+
+	// Reload group-filtered users when invite dialog opens or event type changes
+	useEffect(() => {
+		if (inviteOpen) loadGroupUsers();
+	}, [inviteOpen, loadGroupUsers]);
+
+	// Exclude logged-in user from invite list; prefer group-filtered list if available
+	const baseUsers = groupUsers || allUsers;
+	const invitableUsers = baseUsers.filter((u) => {
 		if (user?.sub && u.keycloak_id === user.sub) return false;
 		if (user?.email && u.email === user.email) return false;
 		return true;

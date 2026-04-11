@@ -28,7 +28,10 @@ export async function fetchMyEvents() {
 export async function fetchEvent(id) {
 	const headers = authHeaders();
 	const res = await fetch(`${API_URL}/events/${id}`, { headers });
-	if (!res.ok) throw new Error(res.status === 403 ? "Kein Zugriff" : "Event nicht gefunden");
+	if (!res.ok)
+		throw new Error(
+			res.status === 403 ? "Kein Zugriff" : "Event nicht gefunden",
+		);
 	return res.json();
 }
 
@@ -83,7 +86,9 @@ export async function inviteUsersToEvent(eventId, userIds) {
 
 export async function fetchEventInvitations(eventId) {
 	const headers = authHeaders();
-	const res = await fetch(`${API_URL}/events/${eventId}/invitations`, { headers });
+	const res = await fetch(`${API_URL}/events/${eventId}/invitations`, {
+		headers,
+	});
 	if (!res.ok) return [];
 	return res.json();
 }
@@ -139,9 +144,12 @@ export async function fetchStats() {
 
 // ── Users ────────────────────────────────────────────────────
 
-export async function fetchUsers() {
+export async function fetchUsers(group) {
 	const headers = authHeaders();
-	const res = await fetch(`${API_URL}/users`, { headers });
+	const url = group
+		? `${API_URL}/users?group=${encodeURIComponent(group)}`
+		: `${API_URL}/users`;
+	const res = await fetch(url, { headers });
 	if (!res.ok) throw new Error("Fehler beim Laden der Benutzer");
 	return res.json();
 }
@@ -157,7 +165,32 @@ export async function registerMe() {
 	return res.json();
 }
 
-export async function registerUser({ username, email, password, display_name }) {
+// ── User Groups ──────────────────────────────────────────────
+
+export async function fetchMyGroups() {
+	const headers = authHeaders();
+	const res = await fetch(`${API_URL}/users/me/groups`, { headers });
+	if (!res.ok) return { groups: [] };
+	return res.json();
+}
+
+export async function updateMyGroups(groups) {
+	const headers = authHeaders();
+	const res = await fetch(`${API_URL}/users/me/groups`, {
+		method: "PUT",
+		headers: { "Content-Type": "application/json", ...headers },
+		body: JSON.stringify({ groups }),
+	});
+	if (!res.ok) throw new Error("Fehler beim Speichern der Gruppen");
+	return res.json();
+}
+
+export async function registerUser({
+	username,
+	email,
+	password,
+	display_name,
+}) {
 	/** In-app registration: creates a new Keycloak + DB user. */
 	const res = await fetch(`${API_URL}/auth/register`, {
 		method: "POST",
@@ -243,7 +276,8 @@ export async function updateEmailPrefs(prefs) {
 		headers: { "Content-Type": "application/json", ...headers },
 		body: JSON.stringify({ prefs }),
 	});
-	if (!res.ok) throw new Error("Fehler beim Speichern der E-Mail-Einstellungen");
+	if (!res.ok)
+		throw new Error("Fehler beim Speichern der E-Mail-Einstellungen");
 	return res.json();
 }
 
@@ -272,10 +306,13 @@ export async function createEventComment(eventId, content) {
 
 export async function deleteEventComment(eventId, commentId) {
 	const headers = authHeaders();
-	const res = await fetch(`${API_URL}/events/${eventId}/comments/${commentId}`, {
-		method: "DELETE",
-		headers,
-	});
+	const res = await fetch(
+		`${API_URL}/events/${eventId}/comments/${commentId}`,
+		{
+			method: "DELETE",
+			headers,
+		},
+	);
 	if (!res.ok) {
 		const body = await res.json().catch(() => ({}));
 		throw new Error(body.detail || "Fehler beim Löschen des Kommentars");
@@ -285,11 +322,14 @@ export async function deleteEventComment(eventId, commentId) {
 
 export async function toggleCommentReaction(eventId, commentId, emoji) {
 	const headers = authHeaders();
-	const res = await fetch(`${API_URL}/events/${eventId}/comments/${commentId}/reactions`, {
-		method: "POST",
-		headers: { "Content-Type": "application/json", ...headers },
-		body: JSON.stringify({ emoji }),
-	});
+	const res = await fetch(
+		`${API_URL}/events/${eventId}/comments/${commentId}/reactions`,
+		{
+			method: "POST",
+			headers: { "Content-Type": "application/json", ...headers },
+			body: JSON.stringify({ emoji }),
+		},
+	);
 	if (!res.ok) {
 		const body = await res.json().catch(() => ({}));
 		throw new Error(body.detail || "Fehler beim Reagieren");
@@ -413,5 +453,27 @@ export async function adminDeleteSportType(id) {
 		headers,
 	});
 	if (!res.ok) throw new Error("Fehler beim Löschen");
+	return res.json();
+}
+
+// ── Admin: User Groups ───────────────────────────────────────
+
+export async function adminFetchUserGroups(userId) {
+	const headers = authHeaders();
+	const res = await fetch(`${API_URL}/admin/users/${userId}/groups`, {
+		headers,
+	});
+	if (!res.ok) return { groups: [] };
+	return res.json();
+}
+
+export async function adminUpdateUserGroups(userId, groups) {
+	const headers = authHeaders();
+	const res = await fetch(`${API_URL}/admin/users/${userId}/groups`, {
+		method: "PUT",
+		headers: { "Content-Type": "application/json", ...headers },
+		body: JSON.stringify({ groups }),
+	});
+	if (!res.ok) throw new Error("Fehler beim Speichern der Gruppen");
 	return res.json();
 }

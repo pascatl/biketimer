@@ -50,6 +50,8 @@ import {
 	adminCreateSportType,
 	adminUpdateSportType,
 	adminDeleteSportType,
+	adminFetchUserGroups,
+	adminUpdateUserGroups,
 } from "../api";
 
 function TabPanel({ children, value, index }) {
@@ -72,7 +74,12 @@ function ConfirmDeleteDialog({ open, message, onConfirm, onCancel }) {
 					onClick={onCancel}
 					size="small"
 					aria-label="Dialog schließen"
-					sx={{ position: "absolute", right: 12, top: 12, color: "text.secondary" }}
+					sx={{
+						position: "absolute",
+						right: 12,
+						top: 12,
+						color: "text.secondary",
+					}}
 				>
 					<CloseIcon fontSize="small" />
 				</IconButton>
@@ -83,7 +90,11 @@ function ConfirmDeleteDialog({ open, message, onConfirm, onCancel }) {
 				</Typography>
 			</DialogContent>
 			<DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
-				<Button onClick={onCancel} color="inherit" sx={{ color: "text.secondary" }}>
+				<Button
+					onClick={onCancel}
+					color="inherit"
+					sx={{ color: "text.secondary" }}
+				>
 					Abbrechen
 				</Button>
 				<Button
@@ -107,16 +118,28 @@ function ConfirmDeleteDialog({ open, message, onConfirm, onCancel }) {
 }
 
 // ── User Management ──────────────────────────────────────────
-function UserManager() {
+function UserManager({ sportTypes }) {
 	const [users, setUsers] = useState([]);
 	const [editId, setEditId] = useState(null);
 	const [editData, setEditData] = useState({});
 	const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 	const [deleteTargetId, setDeleteTargetId] = useState(null);
+	// Group management per user
+	const [userGroups, setUserGroups] = useState({}); // { userId: [keys] }
 
 	const load = useCallback(async () => {
 		try {
-			setUsers(await adminFetchUsers());
+			const uList = await adminFetchUsers();
+			setUsers(uList);
+			// Load groups for all users in parallel
+			const groupResults = await Promise.all(
+				uList.map((u) =>
+					adminFetchUserGroups(u.id).then((res) => [u.id, res.groups || []]),
+				),
+			);
+			const map = {};
+			for (const [uid, groups] of groupResults) map[uid] = groups;
+			setUserGroups(map);
 		} catch (e) {
 			console.error(e);
 		}
@@ -155,6 +178,23 @@ function UserManager() {
 		setEditId(u.id);
 		setEditData({ name: u.name, email: u.email || "", is_active: u.is_active });
 	};
+
+	const handleToggleGroup = async (userId, key) => {
+		const current = userGroups[userId] || [];
+		const updated = current.includes(key)
+			? current.filter((k) => k !== key)
+			: [...current, key];
+		setUserGroups((prev) => ({ ...prev, [userId]: updated }));
+		try {
+			await adminUpdateUserGroups(userId, updated);
+		} catch (e) {
+			// Revert on error
+			setUserGroups((prev) => ({ ...prev, [userId]: current }));
+			console.error(e);
+		}
+	};
+
+	const sportTypeEntries = sportTypes ? Object.entries(sportTypes) : [];
 
 	return (
 		<Box>
@@ -231,7 +271,57 @@ function UserManager() {
 							<>
 								<ListItemText
 									primary={u.name}
-									secondary={u.email || "–"}
+									secondary={
+										<Box component="span">
+											<Box component="span" sx={{ display: "block" }}>
+												{u.email || "–"}
+											</Box>
+											{sportTypeEntries.length > 0 && (
+												<Box
+													component="span"
+													sx={{
+														display: "flex",
+														gap: 0.5,
+														flexWrap: "wrap",
+														mt: 0.5,
+													}}
+												>
+													{sportTypeEntries.map(([key, t]) => {
+														const isMember = (userGroups[u.id] || []).includes(
+															key,
+														);
+														return (
+															<Chip
+																key={key}
+																label={t.label || key}
+																size="small"
+																clickable
+																onClick={() => handleToggleGroup(u.id, key)}
+																variant={isMember ? "filled" : "outlined"}
+																sx={{
+																	fontSize: "0.65rem",
+																	height: 22,
+																	bgcolor: isMember
+																		? t.color || "#2D3C59"
+																		: "transparent",
+																	color: isMember
+																		? "#fff"
+																		: t.color || "#2D3C59",
+																	borderColor: t.color || "#2D3C59",
+																	fontWeight: isMember ? 700 : 500,
+																	"&:hover": {
+																		bgcolor: isMember
+																			? t.color || "#2D3C59"
+																			: `${t.color || "#2D3C59"}22`,
+																	},
+																}}
+															/>
+														);
+													})}
+												</Box>
+											)}
+										</Box>
+									}
 									sx={{ opacity: u.is_active ? 1 : 0.5 }}
 								/>
 								<ListItemSecondaryAction>
@@ -513,7 +603,12 @@ function SportTypeManager() {
 		load();
 	}, [load]);
 
-	const iconOptions = ["DirectionsBike", "Landscape", "SportsTennis", "SportsVolleyball"];
+	const iconOptions = [
+		"DirectionsBike",
+		"Landscape",
+		"SportsTennis",
+		"SportsVolleyball",
+	];
 
 	const handleAdd = async () => {
 		if (!newData.key.trim() || !newData.label.trim()) return;
@@ -635,7 +730,9 @@ function SportTypeManager() {
 									>
 										{iconOptions.map((opt) => (
 											<MenuItem key={opt} value={opt}>
-												<Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+												<Box
+													sx={{ display: "flex", alignItems: "center", gap: 1 }}
+												>
 													{SPORT_ICON_MAP[opt]}
 													{opt}
 												</Box>
@@ -813,6 +910,21 @@ function SportTypeManager() {
 // ── Main Admin Panel ─────────────────────────────────────────
 export default function AdminPanel({ open, onClose }) {
 	const [tab, setTab] = useState(0);
+	const [sportTypesMap, setSportTypesMap] = useState({});
+
+	// Load sport types for the user-group chips
+	useEffect(() => {
+		if (!open) return;
+		adminFetchSportTypes()
+			.then((list) => {
+				const map = {};
+				list.forEach((t) => {
+					map[t.key] = { label: t.label, icon: t.icon, color: t.color };
+				});
+				setSportTypesMap(map);
+			})
+			.catch(console.error);
+	}, [open]);
 
 	return (
 		<Dialog
@@ -884,7 +996,7 @@ export default function AdminPanel({ open, onClose }) {
 				</Tabs>
 
 				<TabPanel value={tab} index={0}>
-					<UserManager />
+					<UserManager sportTypes={sportTypesMap} />
 				</TabPanel>
 				<TabPanel value={tab} index={1}>
 					<JerseyManager />

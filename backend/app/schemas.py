@@ -88,6 +88,17 @@ class UserResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+# ── Group (user ↔ sport_type) schemas ─────────────────────────
+
+
+class UserGroupsUpdate(BaseModel):
+    groups: List[str]  # list of sport_type keys
+
+
+class UserGroupsResponse(BaseModel):
+    groups: List[str]  # list of sport_type keys
+
+
 # ── Jersey schemas ────────────────────────────────────────────
 
 

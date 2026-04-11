@@ -28,6 +28,19 @@ class User(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
+class UserGroup(Base):
+    __tablename__ = "user_groups"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    sport_type_key = Column(
+        String(100), ForeignKey("sport_types.key", ondelete="CASCADE"), nullable=False
+    )
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
 class Jersey(Base):
     __tablename__ = "jerseys"
 
@@ -72,7 +85,9 @@ class Event(Base):
     creator_email = Column(String(255), nullable=True)
     creator_name = Column(String(255), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
 
     invitations = relationship(
         "Invitation", back_populates="event", cascade="all, delete-orphan"
@@ -126,11 +141,12 @@ class Invitation(Base):
     inviter_name = Column(String(255), nullable=True)
     invitee_email = Column(String(255), nullable=False)
     invitee_keycloak_id = Column(String(255), nullable=True)
-    status = Column(String(20), default="pending")  # pending | accepted | declined | withdrawn
+    status = Column(
+        String(20), default="pending"
+    )  # pending | accepted | declined | withdrawn
     token = Column(UUID(as_uuid=True), default=uuid.uuid4, unique=True)
     decline_reason = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     responded_at = Column(DateTime(timezone=True), nullable=True)
 
     event = relationship("Event", back_populates="invitations")
-

@@ -1,13 +1,13 @@
-from typing import List
+from typing import List, Optional
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from ..auth import get_current_user
 from ..database import get_db
-from ..models import Invitation, User, PushSubscription
+from ..models import Invitation, User, PushSubscription, UserGroup
 from ..push_service import send_push_notification
-from ..schemas import UserResponse
+from ..schemas import UserResponse, UserGroupsUpdate, UserGroupsResponse
 from ..logger import get_logger
 
 _log = get_logger("users")
@@ -16,23 +16,36 @@ router = APIRouter(prefix="/users", tags=["users"])
 
 
 def _push_with_pref(db, keycloak_id: str, pref_key: str, title: str, body: str):
-    subs = db.query(PushSubscription).filter(PushSubscription.keycloak_id == keycloak_id).all()
+    subs = (
+        db.query(PushSubscription)
+        .filter(PushSubscription.keycloak_id == keycloak_id)
+        .all()
+    )
     for sub in subs:
         prefs = sub.notification_prefs or {}
         if prefs.get(pref_key, False):  # default False = opt-in
             try:
-                send_push_notification(sub.endpoint, sub.p256dh, sub.auth, title=title, body=body)
+                send_push_notification(
+                    sub.endpoint, sub.p256dh, sub.auth, title=title, body=body
+                )
             except Exception:
                 pass
 
 
 def _notify_admins_new_user(db, new_sub: str, name: str):
     """Send admin_user_registered push only to admin users."""
-    admin_users = db.query(User).filter(User.is_active == True, User.is_admin == True).all()
+    admin_users = (
+        db.query(User).filter(User.is_active == True, User.is_admin == True).all()
+    )
     for au in admin_users:
         if au.keycloak_id and au.keycloak_id != new_sub:
-            _push_with_pref(db, au.keycloak_id, "admin_user_registered",
-                            "Neuer Benutzer", f"{name} hat sich registriert.")
+            _push_with_pref(
+                db,
+                au.keycloak_id,
+                "admin_user_registered",
+                "Neuer Benutzer",
+                f"{name} hat sich registriert.",
+            )
     _log.info(f"New user registered: {name!r} sub={new_sub}")
 
 
@@ -40,9 +53,18 @@ def _notify_admins_new_user(db, new_sub: str, name: str):
 def get_users(
     db: Session = Depends(get_db),
     user: dict = Depends(get_current_user),
+    group: Optional[str] = Query(None, description="Filter by sport_type key (group)"),
 ):
-    """Return all active users (for invite lists). Requires authentication."""
-    return db.query(User).filter(User.is_active == True).order_by(User.name.asc()).all()
+    """Return all active users, optionally filtered by group membership."""
+    query = db.query(User).filter(User.is_active == True)
+    if group:
+        member_ids = (
+            db.query(UserGroup.user_id)
+            .filter(UserGroup.sport_type_key == group)
+            .subquery()
+        )
+        query = query.filter(User.id.in_(member_ids))
+    return query.order_by(User.name.asc()).all()
 
 
 @router.get("/all", response_model=List[UserResponse])
@@ -99,9 +121,7 @@ def register_or_link_me(
     # 3. Match by display name (seeded users have no keycloak_id)
     if name:
         by_name = (
-            db.query(User)
-            .filter(User.name == name, User.keycloak_id.is_(None))
-            .first()
+            db.query(User).filter(User.name == name, User.keycloak_id.is_(None)).first()
         )
         if by_name:
             by_name.keycloak_id = sub
@@ -115,8 +135,13 @@ def register_or_link_me(
             return by_name
 
     # 4. No match – create a new user
-    new_user = User(keycloak_id=sub, name=name, email=email, is_active=True,
-                    is_admin=user.get("is_admin", False))
+    new_user = User(
+        keycloak_id=sub,
+        name=name,
+        email=email,
+        is_active=True,
+        is_admin=user.get("is_admin", False),
+    )
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
@@ -141,3 +166,46 @@ def _migrate_invitations(db: Session, user_obj: User, sub: str, real_email):
             inv.invitee_email = real_email
     if pending:
         db.commit()
+
+
+# ── Group membership endpoints ────────────────────────────────
+
+
+@router.get("/me/groups", response_model=UserGroupsResponse)
+def get_my_groups(
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    """Return the sport-type group keys the current user belongs to."""
+    sub = user["sub"]
+    db_user = db.query(User).filter(User.keycloak_id == sub).first()
+    if not db_user:
+        return UserGroupsResponse(groups=[])
+    rows = (
+        db.query(UserGroup.sport_type_key).filter(UserGroup.user_id == db_user.id).all()
+    )
+    return UserGroupsResponse(groups=[r[0] for r in rows])
+
+
+@router.put("/me/groups", response_model=UserGroupsResponse)
+def update_my_groups(
+    body: UserGroupsUpdate,
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    """Replace the current user's group memberships with the given list."""
+    sub = user["sub"]
+    db_user = db.query(User).filter(User.keycloak_id == sub).first()
+    if not db_user:
+        return UserGroupsResponse(groups=[])
+
+    # Remove old memberships
+    db.query(UserGroup).filter(UserGroup.user_id == db_user.id).delete()
+
+    # Insert new memberships
+    for key in set(body.groups):
+        db.add(UserGroup(user_id=db_user.id, sport_type_key=key))
+    db.commit()
+
+    _log.info(f"User {db_user.name!r} updated groups: {body.groups}")
+    return UserGroupsResponse(groups=list(set(body.groups)))
