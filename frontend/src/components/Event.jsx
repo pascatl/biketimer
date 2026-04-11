@@ -21,6 +21,7 @@ import {
 	ListItemText,
 	Menu,
 	MenuItem,
+	Slider,
 	Snackbar,
 	Alert,
 	Stack,
@@ -53,6 +54,7 @@ import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import CommentIcon from "@mui/icons-material/Comment";
 import SendIcon from "@mui/icons-material/Send";
+import SpeedIcon from "@mui/icons-material/Speed";
 import RouteWidget from "./RouteWidget";
 import MeetingPointPicker from "./MeetingPointPicker";
 import WeatherWidget from "./WheaterWidget";
@@ -86,6 +88,15 @@ const DEFAULT_TYPE_META = {
 	color: "#2D3C59",
 };
 
+const PACE_OPTIONS = [
+	{ value: 1, label: "Gemütlich", description: "25-27 km/h", color: "#94A378" },
+	{ value: 2, label: "Moderat", description: "27–30 km/h", color: "#E5BA41" },
+	{ value: 3, label: "Schnell", description: ">30 km/h", color: "#D1855C" },
+];
+
+const getPaceMeta = (value) =>
+	PACE_OPTIONS.find((p) => p.value === value) || null;
+
 export default function Event(props) {
 	const event_data = props.data.event_data;
 	const { authenticated, user } = useAuth();
@@ -96,14 +107,21 @@ export default function Event(props) {
 	const [startTime, setStartTime] = useState(event_data.event_startTime);
 	const [comment, setComment] = useState(event_data.event_comment);
 	const [link, setLink] = useState(event_data.event_link);
-	const [meetingText, setMeetingText] = useState(event_data.event_meeting_text || "");
-	const [meetingLat, setMeetingLat] = useState(event_data.event_meeting_lat ?? null);
-	const [meetingLon, setMeetingLon] = useState(event_data.event_meeting_lon ?? null);
+	const [meetingText, setMeetingText] = useState(
+		event_data.event_meeting_text || "",
+	);
+	const [meetingLat, setMeetingLat] = useState(
+		event_data.event_meeting_lat ?? null,
+	);
+	const [meetingLon, setMeetingLon] = useState(
+		event_data.event_meeting_lon ?? null,
+	);
 	const [leader, setLeader] = useState(event_data.event_leader);
 	const [jersey, setJersey] = useState(event_data.event_jersey);
 	const [eventType, setEventType] = useState(
 		event_data.event_type || "rennrad",
 	);
+	const [pace, setPace] = useState(event_data.event_pace ?? null);
 	const [editMode, setEditMode] = useState(false);
 	const [currentEvent, setCurrentEvent] = useState(props.data);
 	const [leaderAnchor, setLeaderAnchor] = useState(null);
@@ -151,9 +169,10 @@ export default function Event(props) {
 		authenticated &&
 		(user?.is_admin ||
 			user?.sub === props.data.creator_keycloak_id ||
-			(leader && (user?.name === leader || user?.preferred_username === leader)));
+			(leader &&
+				(user?.name === leader || user?.preferred_username === leader)));
 
-	const canEdit = user?.is_admin ? authenticated : (!isPast && canDelete);
+	const canEdit = user?.is_admin ? authenticated : !isPast && canDelete;
 
 	// Exclude logged-in user from invite list
 	const invitableUsers = allUsers.filter((u) => {
@@ -231,13 +250,18 @@ export default function Event(props) {
 		setLeader(d.event_leader);
 		setJersey(d.event_jersey);
 		setEventType(d.event_type || "rennrad");
+		setPace(d.event_pace ?? null);
 	}, [props.data]); // eslint-disable-line react-hooks/exhaustive-deps
 
 	const handleRespond = async (action) => {
 		if (!myInvitation) return;
 		try {
 			await respondInvitation(myInvitation.id, action);
-			trackEvent("Einladung", action === "accept" ? "Angenommen" : "Abgelehnt", String(eventId));
+			trackEvent(
+				"Einladung",
+				action === "accept" ? "Angenommen" : "Abgelehnt",
+				String(eventId),
+			);
 			await loadInvitations();
 			// Also notify App.jsx so global inbox + all other event cards refresh
 			onInvitationResponded?.();
@@ -326,12 +350,22 @@ export default function Event(props) {
 
 	const handleShare = () => {
 		const url = `${window.location.origin}/events/${eventId}`;
-		const shareTitle = title || (date ? new Date(date + "T00:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "2-digit" }) : "Event");
+		const shareTitle =
+			title ||
+			(date
+				? new Date(date + "T00:00:00").toLocaleDateString("de-DE", {
+						day: "2-digit",
+						month: "2-digit",
+						year: "2-digit",
+					})
+				: "Event");
 		if (navigator.share) {
-			navigator.share({
-				title: shareTitle,
-				url,
-			}).catch(() => {});
+			navigator
+				.share({
+					title: shareTitle,
+					url,
+				})
+				.catch(() => {});
 		} else {
 			navigator.clipboard.writeText(url).then(() => {
 				setToast({ message: "Link kopiert!", severity: "success" });
@@ -355,6 +389,7 @@ export default function Event(props) {
 				event_meeting_text: meetingText,
 				event_meeting_lat: meetingLat,
 				event_meeting_lon: meetingLon,
+				event_pace: eventType === "rennrad" ? pace : null,
 			},
 		});
 	};
@@ -404,6 +439,7 @@ export default function Event(props) {
 		setMeetingText(d.event_meeting_text || "");
 		setMeetingLat(d.event_meeting_lat ?? null);
 		setMeetingLon(d.event_meeting_lon ?? null);
+		setPace(d.event_pace ?? null);
 		setEditMode(false);
 	};
 
@@ -464,9 +500,10 @@ export default function Event(props) {
 		.map((inv) => inv.invitee_name || null)
 		.filter(Boolean);
 	// Only show users who are in the invitation list; fall back to all default_users if no invitations yet
-	const leaderOptions = invitedUserNames.length > 0
-		? default_users.filter((u) => invitedUserNames.includes(u))
-		: default_users;
+	const leaderOptions =
+		invitedUserNames.length > 0
+			? default_users.filter((u) => invitedUserNames.includes(u))
+			: default_users;
 
 	const hasBody =
 		invitations.length > 0 ||
@@ -482,32 +519,70 @@ export default function Event(props) {
 				elevation={0}
 				sx={{
 					borderRadius: "10px",
-					border: isPast ? "1px solid rgba(45,60,89,0.07)" : "1px solid rgba(45,60,89,0.1)",
+					border: isPast
+						? "1px solid rgba(45,60,89,0.07)"
+						: "1px solid rgba(45,60,89,0.1)",
 					overflow: "hidden",
 					transition: "box-shadow 0.2s, opacity 0.2s",
 					opacity: isPast ? 0.72 : 1,
-					"&:hover": { boxShadow: "0 4px 20px rgba(45,60,89,0.12)", opacity: 1 },
+					"&:hover": {
+						boxShadow: "0 4px 20px rgba(45,60,89,0.12)",
+						opacity: 1,
+					},
 				}}
 			>
 				{/* ── Farbiger Akzentstreifen oben ── */}
-				<Box sx={{ height: 4, bgcolor: isPast ? "rgba(45,60,89,0.2)" : typeMeta.color }} />
+				<Box
+					sx={{
+						height: 4,
+						bgcolor: isPast ? "rgba(45,60,89,0.2)" : typeMeta.color,
+					}}
+				/>
 
 				{/* ── Author info ── */}
 				{(props.data.creator_name || props.data.created_at) && (
-					<Box sx={{ px: 2, pt: 0.75, pb: 0.25, display: "flex", alignItems: "center", gap: 0.5, borderBottom: "1px solid rgba(45,60,89,0.06)" }}>
+					<Box
+						sx={{
+							px: 2,
+							pt: 0.75,
+							pb: 0.25,
+							display: "flex",
+							alignItems: "center",
+							gap: 0.5,
+							borderBottom: "1px solid rgba(45,60,89,0.06)",
+						}}
+					>
 						<PersonIcon sx={{ fontSize: "0.75rem", color: "text.disabled" }} />
-						<Typography variant="caption" sx={{ color: "text.disabled", fontSize: "0.68rem" }}>
-							{props.data.creator_name ? `Erstellt von ${props.data.creator_name}` : ""}
+						<Typography
+							variant="caption"
+							sx={{ color: "text.disabled", fontSize: "0.68rem" }}
+						>
+							{props.data.creator_name
+								? `Erstellt von ${props.data.creator_name}`
+								: ""}
 							{props.data.creator_name && props.data.created_at ? " am " : ""}
 							{props.data.created_at
-								? new Date((props.data.created_at || "").replace(/([+\-]\d{2}:\d{2}|Z)?$/, "Z")).toLocaleDateString("de-DE", {
-									day: "2-digit",
-									month: "2-digit",
-									year: "2-digit",
-								}) + ", " + new Date((props.data.created_at || "").replace(/([+\-]\d{2}:\d{2}|Z)?$/, "Z")).toLocaleTimeString("de-DE", {
-									hour: "2-digit",
-									minute: "2-digit",
-								}) + " Uhr"
+								? new Date(
+										(props.data.created_at || "").replace(
+											/([+\-]\d{2}:\d{2}|Z)?$/,
+											"Z",
+										),
+									).toLocaleDateString("de-DE", {
+										day: "2-digit",
+										month: "2-digit",
+										year: "2-digit",
+									}) +
+									", " +
+									new Date(
+										(props.data.created_at || "").replace(
+											/([+\-]\d{2}:\d{2}|Z)?$/,
+											"Z",
+										),
+									).toLocaleTimeString("de-DE", {
+										hour: "2-digit",
+										minute: "2-digit",
+									}) +
+									" Uhr"
 								: ""}
 						</Typography>
 					</Box>
@@ -516,23 +591,35 @@ export default function Event(props) {
 				{/* ── Header ── */}
 				<CardHeader
 					avatar={
-					<Tooltip title={typeMeta.label}>
-						<Avatar
-							sx={{
-								bgcolor: typeMeta.color,
-								width: 48,
-								height: 48,
-								boxShadow: `0 2px 8px ${typeMeta.color}44`,
-							}}
-						>
-							{typeMeta.icon}
-						</Avatar>
-					</Tooltip>
-				}
+						<Tooltip title={typeMeta.label}>
+							<Avatar
+								sx={{
+									bgcolor: typeMeta.color,
+									width: 48,
+									height: 48,
+									boxShadow: `0 2px 8px ${typeMeta.color}44`,
+								}}
+							>
+								{typeMeta.icon}
+							</Avatar>
+						</Tooltip>
+					}
 					title={
 						<Box
-							onClick={props.onOpenDetail ? () => props.onOpenDetail(eventId) : undefined}
-							sx={{ overflow: "hidden", ...(props.onOpenDetail ? { cursor: "pointer", "&:hover .event-date": { textDecoration: "underline" } } : {}) }}
+							onClick={
+								props.onOpenDetail
+									? () => props.onOpenDetail(eventId)
+									: undefined
+							}
+							sx={{
+								overflow: "hidden",
+								...(props.onOpenDetail
+									? {
+											cursor: "pointer",
+											"&:hover .event-date": { textDecoration: "underline" },
+										}
+									: {}),
+							}}
 						>
 							<Typography
 								variant="overline"
@@ -551,12 +638,23 @@ export default function Event(props) {
 									<Typography
 										className="event-date"
 										variant="h5"
-										sx={{ fontWeight: 700, lineHeight: 1.15, color: "text.primary", mt: 0.25, overflowWrap: "break-word", wordBreak: "break-word" }}
+										sx={{
+											fontWeight: 700,
+											lineHeight: 1.15,
+											color: "text.primary",
+											mt: 0.25,
+											overflowWrap: "break-word",
+											wordBreak: "break-word",
+										}}
 									>
 										{title}
 									</Typography>
-									<Typography variant="body2" sx={{ color: "text.secondary", mt: 0.25 }}>
-										{date ? convertDate(date)[1] : "Kein Datum"} · {startTime || "Uhrzeit offen"}
+									<Typography
+										variant="body2"
+										sx={{ color: "text.secondary", mt: 0.25 }}
+									>
+										{date ? convertDate(date)[1] : "Kein Datum"} ·{" "}
+										{startTime || "Uhrzeit offen"}
 									</Typography>
 								</>
 							) : (
@@ -564,11 +662,21 @@ export default function Event(props) {
 									<Typography
 										className="event-date"
 										variant="h5"
-										sx={{ fontWeight: 700, lineHeight: 1.15, color: "text.primary", mt: 0.25, overflowWrap: "break-word", wordBreak: "break-word" }}
+										sx={{
+											fontWeight: 700,
+											lineHeight: 1.15,
+											color: "text.primary",
+											mt: 0.25,
+											overflowWrap: "break-word",
+											wordBreak: "break-word",
+										}}
 									>
 										{date ? convertDate(date)[1] : "Kein Datum"}
 									</Typography>
-									<Typography variant="body2" sx={{ color: "text.secondary", mt: 0.25 }}>
+									<Typography
+										variant="body2"
+										sx={{ color: "text.secondary", mt: 0.25 }}
+									>
 										{startTime || "Uhrzeit offen"}
 									</Typography>
 								</>
@@ -576,60 +684,124 @@ export default function Event(props) {
 						</Box>
 					}
 					action={
-					<Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 0.5, mt: 0.5, mr: 1 }}>
-						<Box sx={{ display: "flex", alignItems: "center", gap: 0.25 }}>
-						{isPast && (
-							<Chip
-								icon={<HistoryIcon sx={{ fontSize: "0.85rem " }} />}
-								label="Vergangen"
-								size="small"
-								sx={{
-									height: 22, fontSize: "0.65rem", fontWeight: 700,
-									bgcolor: "rgba(45,60,89,0.08)", color: "text.disabled",
-									"& .MuiChip-icon": { color: "text.disabled" },
-								}}
+						<Box
+							sx={{
+								display: "flex",
+								flexDirection: "column",
+								alignItems: "flex-end",
+								gap: 0.5,
+								mt: 0.5,
+								mr: 1,
+							}}
+						>
+							<Box sx={{ display: "flex", alignItems: "center", gap: 0.25 }}>
+								{isPast && (
+									<Chip
+										icon={<HistoryIcon sx={{ fontSize: "0.85rem " }} />}
+										label="Vergangen"
+										size="small"
+										sx={{
+											height: 22,
+											fontSize: "0.65rem",
+											fontWeight: 700,
+											bgcolor: "rgba(45,60,89,0.08)",
+											color: "text.disabled",
+											"& .MuiChip-icon": { color: "text.disabled" },
+										}}
+									/>
+								)}
+								{isPast && canDelete && (
+									<Tooltip title="Löschen">
+										<IconButton
+											size="small"
+											onClick={handleDeleteClick}
+											sx={{
+												color: "#D1855C",
+												"&:hover": { bgcolor: "rgba(209,133,92,0.08)" },
+											}}
+										>
+											<DeleteIcon fontSize="small" />
+										</IconButton>
+									</Tooltip>
+								)}
+								{canEdit && (
+									<Tooltip title="Person einladen">
+										<IconButton
+											size="small"
+											onClick={() => setInviteOpen(true)}
+											sx={{
+												color: "text.secondary",
+												"&:hover": {
+													bgcolor: "rgba(45,60,89,0.08)",
+													color: "primary.main",
+												},
+											}}
+										>
+											<PersonAddAltIcon fontSize="small" />
+										</IconButton>
+									</Tooltip>
+								)}
+								{canEdit && !editMode && (
+									<Tooltip title="Bearbeiten">
+										<IconButton
+											size="small"
+											onClick={() => setEditMode(true)}
+											sx={{
+												color: "text.secondary",
+												"&:hover": {
+													bgcolor: "rgba(45,60,89,0.08)",
+													color: "primary.main",
+												},
+											}}
+										>
+											<EditIcon fontSize="small" />
+										</IconButton>
+									</Tooltip>
+								)}
+								<Tooltip title="Teilen / Link kopieren">
+									<IconButton
+										size="small"
+										onClick={handleShare}
+										sx={{
+											color: "text.secondary",
+											"&:hover": {
+												bgcolor: "rgba(45,60,89,0.08)",
+												color: "primary.main",
+											},
+										}}
+									>
+										<ShareIcon fontSize="small" />
+									</IconButton>
+								</Tooltip>
+							</Box>
+							<WeatherWidget
+								date={date}
+								time={startTime}
+								lat={meetingLat}
+								lon={meetingLon}
+								iconSize={48}
 							/>
-						)}
-						{isPast && canDelete && (
-							<Tooltip title="Löschen">
-								<IconButton size="small" onClick={handleDeleteClick}
-									sx={{ color: "#D1855C", "&:hover": { bgcolor: "rgba(209,133,92,0.08)" } }}>
-									<DeleteIcon fontSize="small" />
-								</IconButton>
-							</Tooltip>
-						)}
-						{canEdit && (
-							<Tooltip title="Person einladen">
-								<IconButton size="small" onClick={() => setInviteOpen(true)}
-									sx={{ color: "text.secondary", "&:hover": { bgcolor: "rgba(45,60,89,0.08)", color: "primary.main" } }}>
-									<PersonAddAltIcon fontSize="small" />
-								</IconButton>
-							</Tooltip>
-						)}
-						{canEdit && !editMode && (
-							<Tooltip title="Bearbeiten">
-								<IconButton size="small" onClick={() => setEditMode(true)}
-									sx={{ color: "text.secondary", "&:hover": { bgcolor: "rgba(45,60,89,0.08)", color: "primary.main" } }}>
-									<EditIcon fontSize="small" />
-								</IconButton>
-							</Tooltip>
-						)}
-						<Tooltip title="Teilen / Link kopieren">
-							<IconButton size="small" onClick={handleShare}
-								sx={{ color: "text.secondary", "&:hover": { bgcolor: "rgba(45,60,89,0.08)", color: "primary.main" } }}>
-								<ShareIcon fontSize="small" />
-							</IconButton>
-						</Tooltip>
 						</Box>
-						<WeatherWidget date={date} time={startTime} lat={meetingLat} lon={meetingLon} iconSize={48} />
-					</Box>
-				}
-				sx={{ pb: 0.5, pt: 2, "& .MuiCardHeader-content": { minWidth: 0, overflow: "hidden" } }}
+					}
+					sx={{
+						pb: 0.5,
+						pt: 2,
+						"& .MuiCardHeader-content": { minWidth: 0, overflow: "hidden" },
+					}}
 				/>
 
-				{/* ── Chip Row (Organisator / Trikot) ── */}
-				{(leader || jersey) && (
-					<Box sx={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 0.75, px: 2, pb: 1 }}>
+				{/* ── Chip Row (Organisator / Trikot / Tempo) ── */}
+				{(leader || jersey || (eventType === "rennrad" && pace)) && (
+					<Box
+						sx={{
+							display: "flex",
+							alignItems: "center",
+							flexWrap: "wrap",
+							gap: 0.75,
+							px: 2,
+							pb: 1,
+						}}
+					>
 						{leader && (
 							<Chip
 								icon={<EmojiPeopleIcon sx={{ fontSize: "1.2rem " }} />}
@@ -660,38 +832,70 @@ export default function Event(props) {
 								}}
 							/>
 						)}
+						{eventType === "rennrad" &&
+							pace &&
+							(() => {
+								const pm = getPaceMeta(pace);
+								if (!pm) return null;
+								return (
+									<Chip
+										icon={<SpeedIcon sx={{ fontSize: "1.2rem" }} />}
+										label={`${pm.label} (${pm.description})`}
+										sx={{
+											bgcolor: `${pm.color}22`,
+											color: pm.color,
+											fontWeight: 700,
+											border: `1px solid ${pm.color}55`,
+											height: 36,
+											"& .MuiChip-label": { fontSize: "0.9rem", px: 1 },
+											"& .MuiChip-icon": {
+												fontSize: "1.2rem",
+												color: pm.color,
+											},
+										}}
+									/>
+								);
+							})()}
 					</Box>
 				)}
-
-
-			{/* ── Body ── */}
-			{hasBody && (
 				<CardContent sx={{ pt: 1, pb: hasBody ? 2 : 0 }}>
-						{/* Meeting Point */}
-						{(meetingText || meetingLat != null) && (
-							<MeetingPointPicker
-								lat={meetingLat}
-								lon={meetingLon}
-								text={meetingText}
-								readOnly
-							/>
-						)}
+					{/* Meeting Point */}
+					{(meetingText || meetingLat != null) && (
+						<MeetingPointPicker
+							lat={meetingLat}
+							lon={meetingLon}
+							text={meetingText}
+							readOnly
+						/>
+					)}
 
-						{/* Einladungen: strukturierte Statusanzeige */}
-						{invitations.length > 0 && (() => {
-							const accepted = invitations.filter((i) => i.status === "accepted");
-							const declined = invitations.filter((i) => i.status === "declined" || i.status === "withdrawn");
-							const pending  = invitations.filter((i) => i.status === "pending");
+					{/* Einladungen: strukturierte Statusanzeige */}
+					{invitations.length > 0 &&
+						(() => {
+							const accepted = invitations.filter(
+								(i) => i.status === "accepted",
+							);
+							const declined = invitations.filter(
+								(i) => i.status === "declined" || i.status === "withdrawn",
+							);
+							const pending = invitations.filter((i) => i.status === "pending");
 
 							const buildChip = (inv) => {
 								const rawFallback = inv.invitee_email?.endsWith("@local")
 									? inv.invitee_email.replace("@local", "")
 									: inv.invitee_email?.split("@")[0] || "?";
 								const label = inv.invitee_name || rawFallback;
-								const canRevoke = authenticated && user?.sub === inv.inviter_keycloak_id && inv.invitee_keycloak_id !== user?.sub;
+								const canRevoke =
+									authenticated &&
+									user?.sub === inv.inviter_keycloak_id &&
+									inv.invitee_keycloak_id !== user?.sub;
 								const reasonTip = inv.decline_reason
 									? `Absage: ${inv.decline_reason}`
-									: inv.status === "withdrawn" ? "Abgesagt" : inv.status === "declined" ? "Abgelehnt" : null;
+									: inv.status === "withdrawn"
+										? "Abgesagt"
+										: inv.status === "declined"
+											? "Abgelehnt"
+											: null;
 
 								let chipSx = {};
 								let icon = undefined;
@@ -699,21 +903,42 @@ export default function Event(props) {
 
 								if (inv.status === "accepted") {
 									chipSx = {
-										bgcolor: "#94A378", color: "#fff", fontWeight: 600, fontSize: "0.75rem",
-										"& .MuiChip-deleteIcon": { color: "rgba(255,255,255,0.7)", "&:hover": { color: "#fff" } },
+										bgcolor: "#94A378",
+										color: "#fff",
+										fontWeight: 600,
+										fontSize: "0.75rem",
+										"& .MuiChip-deleteIcon": {
+											color: "rgba(255,255,255,0.7)",
+											"&:hover": { color: "#fff" },
+										},
 									};
 									icon = <HowToRegIcon sx={{ fontSize: "0.95rem " }} />;
-								} else if (inv.status === "declined" || inv.status === "withdrawn") {
+								} else if (
+									inv.status === "declined" ||
+									inv.status === "withdrawn"
+								) {
 									chipSx = {
-										bgcolor: "#D1855C", color: "#fff", fontWeight: 600, fontSize: "0.75rem",
-										"& .MuiChip-deleteIcon": { color: "rgba(255,255,255,0.7)", "&:hover": { color: "#fff" } },
+										bgcolor: "#D1855C",
+										color: "#fff",
+										fontWeight: 600,
+										fontSize: "0.75rem",
+										"& .MuiChip-deleteIcon": {
+											color: "rgba(255,255,255,0.7)",
+											"&:hover": { color: "#fff" },
+										},
 									};
 								} else {
 									// pending
 									variant = "outlined";
 									chipSx = {
-										borderColor: "#E5BA41", color: "#E5BA41", fontWeight: 600, fontSize: "0.75rem",
-										"& .MuiChip-deleteIcon": { color: "rgba(229,186,65,0.6)", "&:hover": { color: "#E5BA41" } },
+										borderColor: "#E5BA41",
+										color: "#E5BA41",
+										fontWeight: 600,
+										fontSize: "0.75rem",
+										"& .MuiChip-deleteIcon": {
+											color: "rgba(229,186,65,0.6)",
+											"&:hover": { color: "#E5BA41" },
+										},
 									};
 								}
 
@@ -724,37 +949,100 @@ export default function Event(props) {
 										size="small"
 										variant={variant}
 										icon={icon}
-										onDelete={canRevoke ? () => handleRevokeClick(inv.id) : undefined}
-										deleteIcon={canRevoke ? <CloseIcon sx={{ fontSize: "0.85rem " }} /> : undefined}
+										onDelete={
+											canRevoke ? () => handleRevokeClick(inv.id) : undefined
+										}
+										deleteIcon={
+											canRevoke ? (
+												<CloseIcon sx={{ fontSize: "0.85rem " }} />
+											) : undefined
+										}
 										sx={chipSx}
 									/>
 								);
-								return reasonTip
-									? <Tooltip key={inv.id} title={reasonTip}>{chip}</Tooltip>
-									: chip;
+								return reasonTip ? (
+									<Tooltip key={inv.id} title={reasonTip}>
+										{chip}
+									</Tooltip>
+								) : (
+									chip
+								);
 							};
 
 							return (
-								<Box sx={{ display: "flex", flexDirection: "column", gap: 0.75, mt: 0.5, mb: 0.5 }}>
+								<Box
+									sx={{
+										display: "flex",
+										flexDirection: "column",
+										gap: 0.75,
+										mt: 0.5,
+										mb: 0.5,
+									}}
+								>
 									{accepted.length > 0 && (
-										<Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 0.75 }}>
-											<Typography variant="caption" sx={{ color: "#94A378", fontWeight: 700, minWidth: 72, flexShrink: 0 }}>
+										<Box
+											sx={{
+												display: "flex",
+												flexWrap: "wrap",
+												alignItems: "center",
+												gap: 0.75,
+											}}
+										>
+											<Typography
+												variant="caption"
+												sx={{
+													color: "#94A378",
+													fontWeight: 700,
+													minWidth: 72,
+													flexShrink: 0,
+												}}
+											>
 												Zugesagt
 											</Typography>
 											{accepted.map(buildChip)}
 										</Box>
 									)}
 									{declined.length > 0 && (
-										<Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 0.75 }}>
-											<Typography variant="caption" sx={{ color: "#D1855C", fontWeight: 700, minWidth: 72, flexShrink: 0 }}>
+										<Box
+											sx={{
+												display: "flex",
+												flexWrap: "wrap",
+												alignItems: "center",
+												gap: 0.75,
+											}}
+										>
+											<Typography
+												variant="caption"
+												sx={{
+													color: "#D1855C",
+													fontWeight: 700,
+													minWidth: 72,
+													flexShrink: 0,
+												}}
+											>
 												Abgesagt
 											</Typography>
 											{declined.map(buildChip)}
 										</Box>
 									)}
 									{pending.length > 0 && (
-										<Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 0.75 }}>
-											<Typography variant="caption" sx={{ color: "#E5BA41", fontWeight: 700, minWidth: 72, flexShrink: 0 }}>
+										<Box
+											sx={{
+												display: "flex",
+												flexWrap: "wrap",
+												alignItems: "center",
+												gap: 0.75,
+											}}
+										>
+											<Typography
+												variant="caption"
+												sx={{
+													color: "#E5BA41",
+													fontWeight: 700,
+													minWidth: 72,
+													flexShrink: 0,
+												}}
+											>
 												Eingeladen
 											</Typography>
 											{pending.map(buildChip)}
@@ -764,96 +1052,98 @@ export default function Event(props) {
 							);
 						})()}
 
-						{/* Inline-Antwort für eingeladene Nutzer */}
-						{!isPast && myInvitation?.status === "pending" && (
-							<Box
+					{/* Inline-Antwort für eingeladene Nutzer */}
+					{!isPast && myInvitation?.status === "pending" && (
+						<Box
+							sx={{
+								mt: 1,
+								p: 1.5,
+								borderRadius: 2,
+								bgcolor: "rgba(229,186,65,0.1)",
+								border: "1px solid rgba(229,186,65,0.4)",
+								display: "flex",
+								alignItems: "center",
+								gap: 1.5,
+								flexWrap: "wrap",
+							}}
+						>
+							<Typography
+								variant="body2"
+								sx={{ fontWeight: 600, flex: 1, color: "text.primary" }}
+							>
+								Du wurdest eingeladen
+							</Typography>
+							<Button
+								size="small"
+								variant="contained"
+								disableElevation
+								onClick={() => handleRespond("accept")}
 								sx={{
-									mt: 1,
-									p: 1.5,
+									bgcolor: "#94A378",
+									color: "#fff",
 									borderRadius: 2,
-									bgcolor: "rgba(229,186,65,0.1)",
-									border: "1px solid rgba(229,186,65,0.4)",
-									display: "flex",
-									alignItems: "center",
-									gap: 1.5,
-									flexWrap: "wrap",
+									"&:hover": { bgcolor: "#7a8f61" },
 								}}
 							>
-								<Typography
-									variant="body2"
-									sx={{ fontWeight: 600, flex: 1, color: "text.primary" }}
-								>
-									Du wurdest eingeladen
-								</Typography>
-								<Button
-									size="small"
-									variant="contained"
-									disableElevation
-									onClick={() => handleRespond("accept")}
-									sx={{
-										bgcolor: "#94A378",
-										color: "#fff",
-										borderRadius: 2,
-										"&:hover": { bgcolor: "#7a8f61" },
-									}}
-								>
-									Teilnehmen
-								</Button>
-								<Button
-									size="small"
-									variant="outlined"
-									onClick={() => handleRespond("decline")}
-									sx={{
-										borderColor: "#D1855C",
-										color: "#D1855C",
-										borderRadius: 2,
-										"&:hover": { bgcolor: "rgba(209,133,92,0.08)" },
-									}}
-								>
-									Ablehnen
-								</Button>
-							</Box>
-						)}
-
-						{/* Withdrawal option for accepted invitations */}
-						{!isPast && myInvitation?.status === "accepted" && (
-							<Box
+								Teilnehmen
+							</Button>
+							<Button
+								size="small"
+								variant="outlined"
+								onClick={() => handleRespond("decline")}
 								sx={{
-									mt: 1,
-									p: 1.5,
+									borderColor: "#D1855C",
+									color: "#D1855C",
 									borderRadius: 2,
-									bgcolor: "rgba(148,163,120,0.1)",
-									border: "1px solid rgba(148,163,120,0.4)",
-									display: "flex",
-									alignItems: "center",
-									gap: 1.5,
-									flexWrap: "wrap",
+									"&:hover": { bgcolor: "rgba(209,133,92,0.08)" },
 								}}
 							>
-								<Typography
-									variant="body2"
-									sx={{ fontWeight: 600, flex: 1, color: "text.primary" }}
-								>
-									Du hast zugesagt
-								</Typography>
-								<Button
-									size="small"
-									variant="outlined"
-									onClick={() => setWithdrawOpen(true)}
-									sx={{
-										borderColor: "#D1855C",
-										color: "#D1855C",
-										borderRadius: 2,
-										"&:hover": { bgcolor: "rgba(209,133,92,0.08)" },
-									}}
-								>
-									Absagen
-								</Button>
-							</Box>
-						)}
+								Ablehnen
+							</Button>
+						</Box>
+					)}
 
-						{/* Re-accept option after declining/withdrawing */}
-						{!isPast && (myInvitation?.status === "declined" || myInvitation?.status === "withdrawn") && (
+					{/* Withdrawal option for accepted invitations */}
+					{!isPast && myInvitation?.status === "accepted" && (
+						<Box
+							sx={{
+								mt: 1,
+								p: 1.5,
+								borderRadius: 2,
+								bgcolor: "rgba(148,163,120,0.1)",
+								border: "1px solid rgba(148,163,120,0.4)",
+								display: "flex",
+								alignItems: "center",
+								gap: 1.5,
+								flexWrap: "wrap",
+							}}
+						>
+							<Typography
+								variant="body2"
+								sx={{ fontWeight: 600, flex: 1, color: "text.primary" }}
+							>
+								Du hast zugesagt
+							</Typography>
+							<Button
+								size="small"
+								variant="outlined"
+								onClick={() => setWithdrawOpen(true)}
+								sx={{
+									borderColor: "#D1855C",
+									color: "#D1855C",
+									borderRadius: 2,
+									"&:hover": { bgcolor: "rgba(209,133,92,0.08)" },
+								}}
+							>
+								Absagen
+							</Button>
+						</Box>
+					)}
+
+					{/* Re-accept option after declining/withdrawing */}
+					{!isPast &&
+						(myInvitation?.status === "declined" ||
+							myInvitation?.status === "withdrawn") && (
 							<Box
 								sx={{
 									mt: 1,
@@ -890,202 +1180,279 @@ export default function Event(props) {
 							</Box>
 						)}
 
-						{/* Comment */}
-						{comment && (
-							<Typography
-								variant="body2"
+					{/* Comment */}
+					{comment && (
+						<Typography
+							variant="body2"
+							sx={{
+								mt: 1.5,
+								color: "text.secondary",
+								fontStyle: "italic",
+								lineHeight: 1.6,
+							}}
+						>
+							{comment}
+						</Typography>
+					)}
+
+					{/* Link / Route */}
+					{link ? (
+						props.onOpenDetail ? (
+							<Button
+								component="a"
+								href={link}
+								target="_blank"
+								rel="noopener noreferrer"
+								variant="outlined"
+								size="small"
+								endIcon={<OpenInNewIcon sx={{ fontSize: "0.8rem " }} />}
 								sx={{
 									mt: 1.5,
+									borderRadius: 2,
+									textTransform: "none",
+									fontSize: "0.78rem",
+									borderColor: "rgba(45,60,89,0.25)",
 									color: "text.secondary",
-									fontStyle: "italic",
-									lineHeight: 1.6,
+									"&:hover": { bgcolor: "rgba(45,60,89,0.04)" },
 								}}
 							>
-								{comment}
+								Route ansehen
+							</Button>
+						) : (
+							<RouteWidget link={link} />
+						)
+					) : null}
+
+					{/* ── Comments Section ── */}
+					<Box sx={{ mt: 2 }}>
+						<Box
+							sx={{ display: "flex", alignItems: "center", gap: 0.5, mb: 1 }}
+						>
+							<CommentIcon
+								sx={{ fontSize: "0.9rem", color: "text.disabled" }}
+							/>
+							<Typography
+								variant="caption"
+								sx={{
+									fontWeight: 700,
+									color: "text.secondary",
+									letterSpacing: 0.5,
+								}}
+							>
+								Kommentare {comments.length > 0 ? `(${comments.length})` : ""}
 							</Typography>
+						</Box>
+
+						{/* Existing comments */}
+						{comments.length > 0 && (
+							<Stack spacing={1} sx={{ mb: 1.5 }}>
+								{comments.map((c) => {
+									const canDeleteComment =
+										authenticated &&
+										(user?.sub === c.author_keycloak_id || user?.is_admin);
+									const createdDate = c.created_at
+										? new Date(
+												(c.created_at || "").replace(
+													/([+\-]\d{2}:\d{2}|Z)?$/,
+													"Z",
+												),
+											)
+										: null;
+									return (
+										<Box
+											key={c.id}
+											sx={{
+												p: 1.25,
+												borderRadius: 2,
+												bgcolor: "rgba(45,60,89,0.04)",
+												border: "1px solid rgba(45,60,89,0.08)",
+												position: "relative",
+											}}
+										>
+											<Box
+												sx={{
+													display: "flex",
+													alignItems: "center",
+													gap: 0.75,
+													mb: 0.5,
+												}}
+											>
+												<Typography
+													variant="caption"
+													sx={{
+														fontWeight: 700,
+														color: "primary.main",
+														fontSize: "0.72rem",
+													}}
+												>
+													{c.author_name || "Unbekannt"}
+												</Typography>
+												{createdDate && (
+													<Typography
+														variant="caption"
+														sx={{ color: "text.disabled", fontSize: "0.68rem" }}
+													>
+														{createdDate.toLocaleDateString("de-DE", {
+															day: "2-digit",
+															month: "2-digit",
+															year: "2-digit",
+														})}
+														{", "}
+														{createdDate.toLocaleTimeString("de-DE", {
+															hour: "2-digit",
+															minute: "2-digit",
+														})}{" "}
+														Uhr
+													</Typography>
+												)}
+												{canDeleteComment && (
+													<Tooltip title="Kommentar löschen">
+														<IconButton
+															size="small"
+															onClick={() => handleCommentDelete(c.id)}
+															sx={{
+																ml: "auto",
+																p: 0.25,
+																color: "text.disabled",
+																"&:hover": { color: "#D1855C" },
+															}}
+														>
+															<CloseIcon sx={{ fontSize: "0.85rem" }} />
+														</IconButton>
+													</Tooltip>
+												)}
+											</Box>
+											<Typography
+												variant="body2"
+												sx={{
+													color: "text.primary",
+													lineHeight: 1.5,
+													whiteSpace: "pre-wrap",
+												}}
+											>
+												{c.content}
+											</Typography>
+
+											{/* ── Emoji Reactions ── */}
+											<Box
+												sx={{
+													display: "flex",
+													flexWrap: "wrap",
+													alignItems: "center",
+													gap: 0.5,
+													mt: 0.75,
+												}}
+											>
+												{(c.reactions || []).map((r) => (
+													<Tooltip
+														key={r.emoji}
+														title={r.users
+															.map((u) => u.name || u.keycloak_id)
+															.join(", ")}
+													>
+														<Box
+															component="span"
+															onClick={() =>
+																authenticated && handleReaction(c.id, r.emoji)
+															}
+															sx={{
+																display: "inline-flex",
+																alignItems: "center",
+																gap: 0.35,
+																px: 0.75,
+																py: 0.25,
+																borderRadius: 10,
+																fontSize: "0.8rem",
+																fontWeight: r.reacted_by_me ? 700 : 500,
+																cursor: authenticated ? "pointer" : "default",
+																bgcolor: r.reacted_by_me
+																	? "rgba(45,60,89,0.15)"
+																	: "rgba(45,60,89,0.06)",
+																border: r.reacted_by_me
+																	? "1px solid rgba(45,60,89,0.35)"
+																	: "1px solid rgba(45,60,89,0.12)",
+																transition: "all 0.15s",
+																"&:hover": authenticated
+																	? {
+																			bgcolor: "rgba(45,60,89,0.2)",
+																			transform: "scale(1.08)",
+																		}
+																	: {},
+															}}
+														>
+															<span style={{ fontSize: "0.95rem" }}>
+																{r.emoji}
+															</span>
+															<Typography
+																component="span"
+																sx={{
+																	fontSize: "0.72rem",
+																	lineHeight: 1,
+																	color: "text.secondary",
+																}}
+															>
+																{r.count}
+															</Typography>
+														</Box>
+													</Tooltip>
+												))}
+												{authenticated && (
+													<EmojiPicker
+														onSelect={(emoji) => handleReaction(c.id, emoji)}
+													/>
+												)}
+											</Box>
+										</Box>
+									);
+								})}
+							</Stack>
 						)}
 
-						{/* Link / Route */}
-						{link ? (
-							props.onOpenDetail ? (
-								<Button
-									component="a"
-									href={link}
-									target="_blank"
-									rel="noopener noreferrer"
-									variant="outlined"
+						{/* New comment input */}
+						{authenticated && (
+							<Box sx={{ display: "flex", gap: 1, alignItems: "flex-end" }}>
+								<TextField
 									size="small"
-									endIcon={<OpenInNewIcon sx={{ fontSize: "0.8rem " }} />}
-									sx={{
-										mt: 1.5, borderRadius: 2, textTransform: "none",
-										fontSize: "0.78rem", borderColor: "rgba(45,60,89,0.25)",
-										color: "text.secondary",
-										"&:hover": { bgcolor: "rgba(45,60,89,0.04)" },
+									fullWidth
+									multiline
+									maxRows={4}
+									placeholder="Kommentar schreiben…"
+									value={newComment}
+									onChange={(e) => setNewComment(e.target.value)}
+									onKeyDown={(e) => {
+										if (e.key === "Enter" && !e.shiftKey) {
+											e.preventDefault();
+											handleCommentSubmit();
+										}
 									}}
-								>
-									Route ansehen
-								</Button>
-							) : (
-								<RouteWidget link={link} />
-							)
-						) : null}
-
-						{/* ── Comments Section ── */}
-						<Box sx={{ mt: 2 }}>
-							<Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mb: 1 }}>
-								<CommentIcon sx={{ fontSize: "0.9rem", color: "text.disabled" }} />
-								<Typography variant="caption" sx={{ fontWeight: 700, color: "text.secondary", letterSpacing: 0.5 }}>
-									Kommentare {comments.length > 0 ? `(${comments.length})` : ""}
-								</Typography>
+									InputProps={{ sx: { borderRadius: 2, fontSize: "0.875rem" } }}
+								/>
+								<Tooltip title="Senden">
+									<span>
+										<IconButton
+											onClick={handleCommentSubmit}
+											disabled={commentLoading || !newComment.trim()}
+											size="small"
+											sx={{
+												bgcolor: "primary.main",
+												color: "#fff",
+												borderRadius: 2,
+												p: 1,
+												"&:hover": { bgcolor: "primary.dark" },
+												"&.Mui-disabled": {
+													bgcolor: "rgba(45,60,89,0.12)",
+													color: "text.disabled",
+												},
+											}}
+										>
+											<SendIcon sx={{ fontSize: "1rem" }} />
+										</IconButton>
+									</span>
+								</Tooltip>
 							</Box>
-
-							{/* Existing comments */}
-							{comments.length > 0 && (
-								<Stack spacing={1} sx={{ mb: 1.5 }}>
-									{comments.map((c) => {
-										const canDeleteComment =
-											authenticated &&
-											(user?.sub === c.author_keycloak_id || user?.is_admin);
-										const createdDate = c.created_at
-											? new Date(
-												(c.created_at || "").replace(/([+\-]\d{2}:\d{2}|Z)?$/, "Z"),
-											)
-											: null;
-										return (
-											<Box
-												key={c.id}
-												sx={{
-													p: 1.25,
-													borderRadius: 2,
-													bgcolor: "rgba(45,60,89,0.04)",
-													border: "1px solid rgba(45,60,89,0.08)",
-													position: "relative",
-												}}
-											>
-												<Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mb: 0.5 }}>
-													<Typography variant="caption" sx={{ fontWeight: 700, color: "primary.main", fontSize: "0.72rem" }}>
-														{c.author_name || "Unbekannt"}
-													</Typography>
-													{createdDate && (
-														<Typography variant="caption" sx={{ color: "text.disabled", fontSize: "0.68rem" }}>
-															{createdDate.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "2-digit" })}
-															{", "}
-															{createdDate.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })} Uhr
-														</Typography>
-													)}
-													{canDeleteComment && (
-														<Tooltip title="Kommentar löschen">
-															<IconButton
-																size="small"
-																onClick={() => handleCommentDelete(c.id)}
-																sx={{
-																	ml: "auto", p: 0.25, color: "text.disabled",
-																	"&:hover": { color: "#D1855C" },
-																}}
-															>
-																<CloseIcon sx={{ fontSize: "0.85rem" }} />
-															</IconButton>
-														</Tooltip>
-													)}
-												</Box>
-												<Typography variant="body2" sx={{ color: "text.primary", lineHeight: 1.5, whiteSpace: "pre-wrap" }}>
-													{c.content}
-												</Typography>
-
-												{/* ── Emoji Reactions ── */}
-												<Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 0.5, mt: 0.75 }}>
-													{(c.reactions || []).map((r) => (
-														<Tooltip
-															key={r.emoji}
-															title={r.users.map((u) => u.name || u.keycloak_id).join(", ")}
-														>
-															<Box
-																component="span"
-																onClick={() => authenticated && handleReaction(c.id, r.emoji)}
-																sx={{
-																	display: "inline-flex",
-																	alignItems: "center",
-																	gap: 0.35,
-																	px: 0.75,
-																	py: 0.25,
-																	borderRadius: 10,
-																	fontSize: "0.8rem",
-																	fontWeight: r.reacted_by_me ? 700 : 500,
-																	cursor: authenticated ? "pointer" : "default",
-																	bgcolor: r.reacted_by_me
-																		? "rgba(45,60,89,0.15)"
-																		: "rgba(45,60,89,0.06)",
-																	border: r.reacted_by_me
-																		? "1px solid rgba(45,60,89,0.35)"
-																		: "1px solid rgba(45,60,89,0.12)",
-																	transition: "all 0.15s",
-																	"&:hover": authenticated
-																		? { bgcolor: "rgba(45,60,89,0.2)", transform: "scale(1.08)" }
-																		: {},
-																}}
-															>
-																<span style={{ fontSize: "0.95rem" }}>{r.emoji}</span>
-																<Typography component="span" sx={{ fontSize: "0.72rem", lineHeight: 1, color: "text.secondary" }}>
-																	{r.count}
-																</Typography>
-															</Box>
-														</Tooltip>
-													))}
-													{authenticated && (
-														<EmojiPicker onSelect={(emoji) => handleReaction(c.id, emoji)} />
-													)}
-												</Box>
-											</Box>
-										);
-									})}
-								</Stack>
-							)}
-
-							{/* New comment input */}
-							{authenticated && (
-								<Box sx={{ display: "flex", gap: 1, alignItems: "flex-end" }}>
-									<TextField
-										size="small"
-										fullWidth
-										multiline
-										maxRows={4}
-										placeholder="Kommentar schreiben…"
-										value={newComment}
-										onChange={(e) => setNewComment(e.target.value)}
-										onKeyDown={(e) => {
-											if (e.key === "Enter" && !e.shiftKey) {
-												e.preventDefault();
-												handleCommentSubmit();
-											}
-										}}
-										InputProps={{ sx: { borderRadius: 2, fontSize: "0.875rem" } }}
-									/>
-									<Tooltip title="Senden">
-										<span>
-											<IconButton
-												onClick={handleCommentSubmit}
-												disabled={commentLoading || !newComment.trim()}
-												size="small"
-												sx={{
-													bgcolor: "primary.main",
-													color: "#fff",
-													borderRadius: 2,
-													p: 1,
-													"&:hover": { bgcolor: "primary.dark" },
-													"&.Mui-disabled": { bgcolor: "rgba(45,60,89,0.12)", color: "text.disabled" },
-												}}
-											>
-												<SendIcon sx={{ fontSize: "1rem" }} />
-											</IconButton>
-										</span>
-									</Tooltip>
-								</Box>
-							)}
-						</Box>
-					</CardContent>
-				)}
-
-
+						)}
+					</Box>
+				</CardContent>
 			</Card>
 
 			{/* ── Edit Dialog ── */}
@@ -1098,17 +1465,28 @@ export default function Event(props) {
 			>
 				<DialogTitle sx={{ fontWeight: 700, pr: 6 }}>
 					Event bearbeiten
-					<IconButton onClick={handleCancelEdit} size="small" sx={{ position: "absolute", right: 12, top: 12, color: "text.secondary" }}>
+					<IconButton
+						onClick={handleCancelEdit}
+						size="small"
+						sx={{
+							position: "absolute",
+							right: 12,
+							top: 12,
+							color: "text.secondary",
+						}}
+					>
 						<CloseIcon fontSize="small" />
 					</IconButton>
 				</DialogTitle>
 				<DialogContent dividers>
 					<Stack spacing={2.5}>
-
 						{/* Typ */}
 						{Object.keys(default_types).length > 0 && (
 							<Box>
-								<Typography variant="body2" sx={{ color: "text.secondary", mb: 1, fontWeight: 600 }}>
+								<Typography
+									variant="body2"
+									sx={{ color: "text.secondary", mb: 1, fontWeight: 600 }}
+								>
 									Event-Typ
 								</Typography>
 								<Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75 }}>
@@ -1123,9 +1501,13 @@ export default function Event(props) {
 												variant={isActive ? "filled" : "outlined"}
 												sx={{
 													fontWeight: isActive ? 700 : 500,
-													bgcolor: isActive ? (val.color || "#2D3C59") : undefined,
+													bgcolor: isActive
+														? val.color || "#2D3C59"
+														: undefined,
 													color: isActive ? "#fff" : undefined,
-													borderColor: isActive ? (val.color || "#2D3C59") : undefined,
+													borderColor: isActive
+														? val.color || "#2D3C59"
+														: undefined,
 												}}
 											/>
 										);
@@ -1147,20 +1529,35 @@ export default function Event(props) {
 						<Divider />
 
 						{/* Datum & Uhrzeit */}
-						<LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={de}>
+						<LocalizationProvider
+							dateAdapter={AdapterDateFns}
+							adapterLocale={de}
+						>
 							<Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap" }}>
 								<DatePicker
 									label="Datum"
 									value={date ? parseISO(date) : null}
 									onChange={(d) => setDate(d ? formatFns(d, "yyyy-MM-dd") : "")}
-									slotProps={{ textField: { size: "small", sx: { flex: 1, minWidth: 160 } } }}
+									slotProps={{
+										textField: {
+											size: "small",
+											sx: { flex: 1, minWidth: 160 },
+										},
+									}}
 								/>
 								<TimePicker
 									label="Uhrzeit"
-									value={startTime ? parseFns(startTime, "HH:mm", new Date()) : null}
+									value={
+										startTime ? parseFns(startTime, "HH:mm", new Date()) : null
+									}
 									onChange={(t) => setStartTime(t ? formatFns(t, "HH:mm") : "")}
 									ampm={false}
-									slotProps={{ textField: { size: "small", sx: { flex: 1, minWidth: 140 } } }}
+									slotProps={{
+										textField: {
+											size: "small",
+											sx: { flex: 1, minWidth: 140 },
+										},
+									}}
 								/>
 							</Box>
 						</LocalizationProvider>
@@ -1175,16 +1572,36 @@ export default function Event(props) {
 								startIcon={<EmojiPeopleIcon />}
 								endIcon={<KeyboardArrowDownIcon />}
 								sx={{
-									flex: 1, minWidth: 140, justifyContent: "space-between",
-									textTransform: "none", fontWeight: 600,
-									borderRadius: 2, borderColor: "primary.main", color: "primary.main",
+									flex: 1,
+									minWidth: 140,
+									justifyContent: "space-between",
+									textTransform: "none",
+									fontWeight: 600,
+									borderRadius: 2,
+									borderColor: "primary.main",
+									color: "primary.main",
 								}}
 							>
 								{leader || "Organisator …"}
 							</Button>
-							<Menu anchorEl={leaderAnchor} open={Boolean(leaderAnchor)} onClose={() => setLeaderAnchor(null)} PaperProps={{ sx: { borderRadius: 2 } }}>
+							<Menu
+								anchorEl={leaderAnchor}
+								open={Boolean(leaderAnchor)}
+								onClose={() => setLeaderAnchor(null)}
+								PaperProps={{ sx: { borderRadius: 2 } }}
+							>
 								{leaderOptions.map((u) => (
-									<MenuItem key={u} selected={u === leader} onClick={() => { setLeader(u); setLeaderAnchor(null); }} sx={{ fontFamily: '"Josefin Sans", sans-serif' }}>{u}</MenuItem>
+									<MenuItem
+										key={u}
+										selected={u === leader}
+										onClick={() => {
+											setLeader(u);
+											setLeaderAnchor(null);
+										}}
+										sx={{ fontFamily: '"Josefin Sans", sans-serif' }}
+									>
+										{u}
+									</MenuItem>
 								))}
 							</Menu>
 							<Button
@@ -1193,16 +1610,36 @@ export default function Event(props) {
 								startIcon={<CheckroomIcon />}
 								endIcon={<KeyboardArrowDownIcon />}
 								sx={{
-									flex: 1, minWidth: 120, justifyContent: "space-between",
-									textTransform: "none", fontWeight: 600,
-									borderRadius: 2, borderColor: "divider", color: "text.secondary",
+									flex: 1,
+									minWidth: 120,
+									justifyContent: "space-between",
+									textTransform: "none",
+									fontWeight: 600,
+									borderRadius: 2,
+									borderColor: "divider",
+									color: "text.secondary",
 								}}
 							>
 								{jersey || "Trikot …"}
 							</Button>
-							<Menu anchorEl={jerseyAnchor} open={Boolean(jerseyAnchor)} onClose={() => setJerseyAnchor(null)} PaperProps={{ sx: { borderRadius: 2 } }}>
+							<Menu
+								anchorEl={jerseyAnchor}
+								open={Boolean(jerseyAnchor)}
+								onClose={() => setJerseyAnchor(null)}
+								PaperProps={{ sx: { borderRadius: 2 } }}
+							>
 								{jerseyNames.map((j) => (
-									<MenuItem key={j} selected={j === jersey} onClick={() => { setJersey(j); setJerseyAnchor(null); }} sx={{ fontFamily: '"Josefin Sans", sans-serif' }}>{j}</MenuItem>
+									<MenuItem
+										key={j}
+										selected={j === jersey}
+										onClick={() => {
+											setJersey(j);
+											setJerseyAnchor(null);
+										}}
+										sx={{ fontFamily: '"Josefin Sans", sans-serif' }}
+									>
+										{j}
+									</MenuItem>
 								))}
 							</Menu>
 						</Box>
@@ -1231,11 +1668,62 @@ export default function Event(props) {
 							placeholder="https://www.komoot.com/tour/..."
 						/>
 
+						{/* Tempo-Slider (nur Rennrad) */}
+						{eventType === "rennrad" && (
+							<Box>
+								<Typography
+									variant="body2"
+									sx={{
+										color: "text.secondary",
+										mb: 0.5,
+										fontWeight: 600,
+										display: "flex",
+										alignItems: "center",
+										gap: 0.5,
+									}}
+								>
+									<SpeedIcon sx={{ fontSize: "1.1rem" }} /> Tempo
+									<Typography
+										component="span"
+										variant="caption"
+										sx={{ color: "text.disabled", ml: 0.5, fontWeight: 400 }}
+									>
+										({getPaceMeta(pace || 2)?.description})
+									</Typography>
+								</Typography>
+								<Box sx={{ px: 2 }}>
+									<Slider
+										value={pace || 2}
+										onChange={(_, v) => setPace(v)}
+										min={1}
+										max={3}
+										step={1}
+										marks={PACE_OPTIONS.map((p) => ({
+											value: p.value,
+											label: p.label,
+										}))}
+										valueLabelDisplay="off"
+										sx={{
+											"& .MuiSlider-markLabel": {
+												fontSize: "0.78rem",
+												fontWeight: 600,
+											},
+											"& .MuiSlider-thumb": { width: 20, height: 20 },
+											color: getPaceMeta(pace || 2)?.color || "primary.main",
+										}}
+									/>
+								</Box>
+							</Box>
+						)}
+
 						<Divider />
 
 						{/* Treffpunkt */}
 						<Box>
-							<Typography variant="body2" sx={{ color: "text.secondary", mb: 1, fontWeight: 600 }}>
+							<Typography
+								variant="body2"
+								sx={{ color: "text.secondary", mb: 1, fontWeight: 600 }}
+							>
 								Treffpunkt
 							</Typography>
 							<MeetingPointPicker
@@ -1247,7 +1735,6 @@ export default function Event(props) {
 								onChangeText={setMeetingText}
 							/>
 						</Box>
-
 					</Stack>
 				</DialogContent>
 				<DialogActions sx={{ px: 3, py: 2, gap: 1 }}>
@@ -1258,10 +1745,20 @@ export default function Event(props) {
 					>
 						Löschen
 					</Button>
-					<Button onClick={handleCancelEdit} color="inherit" sx={{ color: "text.secondary" }}>
+					<Button
+						onClick={handleCancelEdit}
+						color="inherit"
+						sx={{ color: "text.secondary" }}
+					>
 						Abbrechen
 					</Button>
-					<Button variant="contained" disableElevation startIcon={<SaveIcon />} onClick={handleSave} sx={{ bgcolor: "primary.main", borderRadius: 2 }}>
+					<Button
+						variant="contained"
+						disableElevation
+						startIcon={<SaveIcon />}
+						onClick={handleSave}
+						sx={{ bgcolor: "primary.main", borderRadius: 2 }}
+					>
 						Speichern
 					</Button>
 				</DialogActions>
@@ -1302,112 +1799,113 @@ export default function Event(props) {
 								onChange={(e) => setInviteSearch(e.target.value)}
 								InputProps={{ sx: { borderRadius: 2 } }}
 							/>
-							</Box>
-							{inviteError && (
-								<Typography
-									variant="body2"
-									color="error"
-									sx={{ fontWeight: 600, px: 3 }}
-								>
-									{inviteError}
-								</Typography>
-							)}
-							{/* Alle auswählen */}
-							<ListItem
-								disablePadding
-								sx={{ borderBottom: "1px solid rgba(45,60,89,0.08)" }}
+						</Box>
+						{inviteError && (
+							<Typography
+								variant="body2"
+								color="error"
+								sx={{ fontWeight: 600, px: 3 }}
 							>
-								<ListItemButton
-									onClick={toggleAllInvitees}
-									dense
-									sx={{ px: 3, py: 0.75 }}
-								>
-									<Checkbox
-										checked={
-											selectedInvitees.length === invitableUsers.length &&
-											invitableUsers.length > 0
-										}
-										indeterminate={
-											selectedInvitees.length > 0 &&
-											selectedInvitees.length < invitableUsers.length
-										}
-										size="small"
-										sx={{ mr: 1 }}
-									/>
-									<ListItemText
-										primary="Alle auswählen"
-										primaryTypographyProps={{
-											fontWeight: 700,
-											fontSize: "0.9rem",
-										}}
-									/>
-								</ListItemButton>
-							</ListItem>
-							{/* Benutzerliste */}
-							<List dense sx={{ maxHeight: 300, overflow: "auto", py: 0 }}>
-								{invitableUsers
-									.filter((u) =>
-										u.name.toLowerCase().includes(inviteSearch.toLowerCase()),
-									)
-									.map((u) => {
-										const isChecked = selectedInvitees.some(
-											(s) => s.id === u.id,
-										);
-										return (
-											<ListItem key={u.id} disablePadding>
-												<ListItemButton
-													onClick={() => toggleInvitee(u)}
-													dense
-													sx={{ px: 3, py: 0.5 }}
-												>
-													<Checkbox
-														checked={isChecked}
-														size="small"
-														sx={{ mr: 1 }}
-													/>
-													<ListItemText primary={u.name} />
-												</ListItemButton>
-											</ListItem>
-										);
-									})}
-							</List>
-						</Stack>
+								{inviteError}
+							</Typography>
+						)}
+						{/* Alle auswählen */}
+						<ListItem
+							disablePadding
+							sx={{ borderBottom: "1px solid rgba(45,60,89,0.08)" }}
+						>
+							<ListItemButton
+								onClick={toggleAllInvitees}
+								dense
+								sx={{ px: 3, py: 0.75 }}
+							>
+								<Checkbox
+									checked={
+										selectedInvitees.length === invitableUsers.length &&
+										invitableUsers.length > 0
+									}
+									indeterminate={
+										selectedInvitees.length > 0 &&
+										selectedInvitees.length < invitableUsers.length
+									}
+									size="small"
+									sx={{ mr: 1 }}
+								/>
+								<ListItemText
+									primary="Alle auswählen"
+									primaryTypographyProps={{
+										fontWeight: 700,
+										fontSize: "0.9rem",
+									}}
+								/>
+							</ListItemButton>
+						</ListItem>
+						{/* Benutzerliste */}
+						<List dense sx={{ maxHeight: 300, overflow: "auto", py: 0 }}>
+							{invitableUsers
+								.filter((u) =>
+									u.name.toLowerCase().includes(inviteSearch.toLowerCase()),
+								)
+								.map((u) => {
+									const isChecked = selectedInvitees.some((s) => s.id === u.id);
+									return (
+										<ListItem key={u.id} disablePadding>
+											<ListItemButton
+												onClick={() => toggleInvitee(u)}
+												dense
+												sx={{ px: 3, py: 0.5 }}
+											>
+												<Checkbox
+													checked={isChecked}
+													size="small"
+													sx={{ mr: 1 }}
+												/>
+												<ListItemText primary={u.name} />
+											</ListItemButton>
+										</ListItem>
+									);
+								})}
+						</List>
+					</Stack>
 				</DialogContent>
 				<DialogActions sx={{ px: 3, pb: 2 }}>
-						<Chip
-							label={`${selectedInvitees.length} ausgewählt`}
-							size="small"
-							sx={{ mr: "auto", fontWeight: 600 }}
-						/>
-						<Button
-							onClick={handleInviteClose}
-							color="inherit"
-							sx={{ color: "text.secondary" }}
-						>
-							Abbrechen
-						</Button>
-						<Button
-							variant="contained"
-							disableElevation
-							onClick={handleInviteSubmit}
-							disabled={inviteLoading || selectedInvitees.length === 0}
-							sx={{
-								bgcolor: "#E5BA41",
-								color: "#2D3C59",
-								fontWeight: 700,
-								borderRadius: 2,
-								"&:hover": { bgcolor: "#d4a92e" },
-							}}
-						>
-							{inviteLoading ? "Sende..." : "Einladen"}
-						</Button>
-					</DialogActions>
+					<Chip
+						label={`${selectedInvitees.length} ausgewählt`}
+						size="small"
+						sx={{ mr: "auto", fontWeight: 600 }}
+					/>
+					<Button
+						onClick={handleInviteClose}
+						color="inherit"
+						sx={{ color: "text.secondary" }}
+					>
+						Abbrechen
+					</Button>
+					<Button
+						variant="contained"
+						disableElevation
+						onClick={handleInviteSubmit}
+						disabled={inviteLoading || selectedInvitees.length === 0}
+						sx={{
+							bgcolor: "#E5BA41",
+							color: "#2D3C59",
+							fontWeight: 700,
+							borderRadius: 2,
+							"&:hover": { bgcolor: "#d4a92e" },
+						}}
+					>
+						{inviteLoading ? "Sende..." : "Einladen"}
+					</Button>
+				</DialogActions>
 			</Dialog>
 
 			{/* Withdrawal Dialog */}
 			<Dialog
 				open={withdrawOpen}
-				onClose={() => { setWithdrawOpen(false); setWithdrawReason(""); }}
+				onClose={() => {
+					setWithdrawOpen(false);
+					setWithdrawReason("");
+				}}
 				maxWidth="xs"
 				fullWidth
 				PaperProps={{ sx: { borderRadius: 3 } }}
@@ -1417,7 +1915,8 @@ export default function Event(props) {
 				</DialogTitle>
 				<DialogContent>
 					<Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-						Bitte gib einen Grund an, warum du an einem Event nicht teilnimmst, zu dem du schon zugesagt hattest.
+						Bitte gib einen Grund an, warum du an einem Event nicht teilnimmst,
+						zu dem du schon zugesagt hattest.
 					</Typography>
 					<TextField
 						label="Begründung"
@@ -1433,7 +1932,10 @@ export default function Event(props) {
 				</DialogContent>
 				<DialogActions sx={{ px: 3, pb: 2 }}>
 					<Button
-						onClick={() => { setWithdrawOpen(false); setWithdrawReason(""); }}
+						onClick={() => {
+							setWithdrawOpen(false);
+							setWithdrawReason("");
+						}}
 						color="inherit"
 						sx={{ color: "text.secondary" }}
 					>
@@ -1470,14 +1972,20 @@ export default function Event(props) {
 					<IconButton
 						onClick={() => setDeleteConfirmOpen(false)}
 						size="small"
-						sx={{ position: "absolute", right: 12, top: 12, color: "text.secondary" }}
+						sx={{
+							position: "absolute",
+							right: 12,
+							top: 12,
+							color: "text.secondary",
+						}}
 					>
 						<CloseIcon fontSize="small" />
 					</IconButton>
 				</DialogTitle>
 				<DialogContent>
 					<Typography variant="body2" color="text.secondary">
-						Möchtest du dieses Event wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.
+						Möchtest du dieses Event wirklich löschen? Diese Aktion kann nicht
+						rückgängig gemacht werden.
 					</Typography>
 				</DialogContent>
 				<DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
@@ -1519,7 +2027,12 @@ export default function Event(props) {
 					<IconButton
 						onClick={handleCancelRevoke}
 						size="small"
-						sx={{ position: "absolute", right: 12, top: 12, color: "text.secondary" }}
+						sx={{
+							position: "absolute",
+							right: 12,
+							top: 12,
+							color: "text.secondary",
+						}}
 					>
 						<CloseIcon fontSize="small" />
 					</IconButton>

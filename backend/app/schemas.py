@@ -21,6 +21,7 @@ class EventData(BaseModel):
     event_meeting_text: Optional[str] = ""
     event_meeting_lat: Optional[float] = None
     event_meeting_lon: Optional[float] = None
+    event_pace: Optional[int] = None  # 1=gemütlich, 2=moderat, 3=schnell (Rennrad only)
 
 
 class EventCreate(BaseModel):
