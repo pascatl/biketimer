@@ -202,15 +202,6 @@ export default function App() {
 		setGroupOnboardingOpen(false);
 	};
 
-	const handleWhatsNewClose = async () => {
-		setWhatsNewOpen(false);
-		const ids = changelogEntries.map((e) => e.id);
-		try {
-			await markChangelogSeen(ids);
-		} catch { /* ignore */ }
-		setChangelogEntries([]);
-	};
-
 	const handleGroupsChanged = (updatedGroups) => {
 		setMyGroups(updatedGroups);
 	};

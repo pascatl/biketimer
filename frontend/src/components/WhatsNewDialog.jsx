@@ -56,10 +56,7 @@ export default function WhatsNewDialog({ open, entries, onClose }) {
 				{entries.map((entry, idx) => (
 					<Box key={entry.id}>
 						{idx > 0 && <Divider sx={{ my: 2 }} />}
-						<Typography
-							variant="subtitle1"
-							sx={{ fontWeight: 700, mb: 0.5 }}
-						>
+						<Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 0.5 }}>
 							{entry.title}
 						</Typography>
 						<Typography

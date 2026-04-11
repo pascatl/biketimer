@@ -9,7 +9,7 @@ from sqlalchemy import text
 
 from .database import engine
 from .models import Base
-from .routers import events, invitations, users, admin, data, push, stats, auth, weather, changelog
+from .routers import events, invitations, users, admin, data, push, stats, auth, weather
 from .config import APP_NAME
 from .ws_manager import manager, set_event_loop
 from .auth import _decode_token
@@ -229,7 +229,11 @@ async def websocket_endpoint(websocket: WebSocket):
         deadline = asyncio.get_event_loop().time() + AUTH_GRACE_SECONDS
 
         while True:
-            remaining = deadline - asyncio.get_event_loop().time() if not authenticated else None
+            remaining = (
+                deadline - asyncio.get_event_loop().time()
+                if not authenticated
+                else None
+            )
             if remaining is not None and remaining <= 0:
                 _log.warning("WS auth grace period expired – closing connection")
                 await websocket.close(code=1008)
