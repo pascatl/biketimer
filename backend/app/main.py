@@ -9,7 +9,18 @@ from sqlalchemy import text
 
 from .database import engine
 from .models import Base
-from .routers import events, invitations, users, admin, data, push, stats, auth, weather
+from .routers import (
+    events,
+    invitations,
+    users,
+    admin,
+    data,
+    push,
+    stats,
+    auth,
+    weather,
+    changelog,
+)
 from .config import APP_NAME
 from .ws_manager import manager, set_event_loop
 from .auth import _decode_token
@@ -172,6 +183,40 @@ try:
             _log.info("Migration 007 (sport_type_icons) applied successfully")
 except Exception as e:
     _log.error(f"Migration 007 check: {e}")
+
+# Run migration 011: user_groups table (idempotent – IF NOT EXISTS)
+try:
+    with engine.connect() as conn:
+        migration_path = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)),
+            "migrations",
+            "011_user_groups.sql",
+        )
+        if os.path.exists(migration_path):
+            with open(migration_path) as f:
+                sql = f.read()
+            conn.execute(text(sql))
+            conn.commit()
+            _log.info("Migration 011 (user_groups) applied successfully")
+except Exception as e:
+    _log.error(f"Migration 011 check: {e}")
+
+# Run migration 012: changelog tables + seed data (idempotent – IF NOT EXISTS / ON CONFLICT)
+try:
+    with engine.connect() as conn:
+        migration_path = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)),
+            "migrations",
+            "012_changelog.sql",
+        )
+        if os.path.exists(migration_path):
+            with open(migration_path) as f:
+                sql = f.read()
+            conn.execute(text(sql))
+            conn.commit()
+            _log.info("Migration 012 (changelog) applied successfully")
+except Exception as e:
+    _log.error(f"Migration 012 check: {e}")
 
 FRONTEND_ORIGINS = os.getenv(
     "FRONTEND_ORIGINS",
