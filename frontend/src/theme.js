@@ -45,8 +45,7 @@ const theme = createTheme({
 				root: {
 					borderRadius: 8,
 					fontWeight: 600,
-					"& .MuiButton-startIcon": { display: "flex", alignItems: "center" },
-					"& .MuiButton-endIcon": { display: "flex", alignItems: "center" },
+					"& .MuiSvgIcon-root": { transform: "translateY(-1px)" },
 				},
 				containedPrimary: {
 					background: "#2D3C59",
@@ -56,7 +55,11 @@ const theme = createTheme({
 		},
 		MuiChip: {
 			styleOverrides: {
-				root: { fontFamily: '"Josefin Sans", sans-serif', fontWeight: 600 },
+				root: {
+					fontFamily: '"Josefin Sans", sans-serif',
+					fontWeight: 600,
+					"& .MuiSvgIcon-root": { transform: "translateY(-1px)" },
+				},
 			},
 		},
 		MuiAppBar: {
