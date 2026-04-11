@@ -21,87 +21,100 @@ const DEFAULT_LAT = 49.583332;
 const DEFAULT_LON = 11.016667;
 
 function isWithinForecastWindow(dateStr) {
-  if (!dateStr) return false;
-  const eventDate = new Date(dateStr + "T00:00:00");
-  const now = new Date();
-  const diffDays = (eventDate - now) / (1000 * 60 * 60 * 24);
-  return diffDays >= 0 && diffDays <= 5;
+	if (!dateStr) return false;
+	const eventDate = new Date(dateStr + "T00:00:00");
+	const now = new Date();
+	const diffDays = (eventDate - now) / (1000 * 60 * 60 * 24);
+	return diffDays >= 0 && diffDays <= 5;
 }
 
-export default function WeatherWidget({ date, time = "15:00", lat, lon, iconSize = 44 }) {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+export default function WeatherWidget({
+	date,
+	time = "15:00",
+	lat,
+	lon,
+	iconSize = 44,
+}) {
+	const [data, setData] = useState(null);
+	const [loading, setLoading] = useState(false);
+	const [error, setError] = useState(null);
 
-  const useLat = lat ?? DEFAULT_LAT;
-  const useLon = lon ?? DEFAULT_LON;
+	const useLat = lat ?? DEFAULT_LAT;
+	const useLon = lon ?? DEFAULT_LON;
 
-  useEffect(() => {
-    if (!date || !isWithinForecastWindow(date)) return;
+	useEffect(() => {
+		if (!date || !isWithinForecastWindow(date)) return;
 
-    setLoading(true);
-    setError(null);
+		setLoading(true);
+		setError(null);
 
-    const params = new URLSearchParams({
-      lat: useLat,
-      lon: useLon,
-      date,
-      time: time || "15:00",
-    });
+		const params = new URLSearchParams({
+			lat: useLat,
+			lon: useLon,
+			date,
+			time: time || "15:00",
+		});
 
-    const token = getAccessToken();
-    const authHeader = token ? { Authorization: `Bearer ${token}` } : {};
+		const token = getAccessToken();
+		const authHeader = token ? { Authorization: `Bearer ${token}` } : {};
 
-    fetch(`/api/weather/forecast?${params}`, {
-      headers: { "Content-Type": "application/json", ...authHeader },
-    })
-      .then((r) => {
-        if (!r.ok) throw new Error(r.status);
-        return r.json();
-      })
-      .then((d) => {
-        setData(d);
-        setLoading(false);
-      })
-      .catch(() => {
-        setError(true);
-        setLoading(false);
-      });
-  }, [date, time, useLat, useLon]);
+		fetch(`/api/weather/forecast?${params}`, {
+			headers: { "Content-Type": "application/json", ...authHeader },
+		})
+			.then((r) => {
+				if (!r.ok) throw new Error(r.status);
+				return r.json();
+			})
+			.then((d) => {
+				setData(d);
+				setLoading(false);
+			})
+			.catch(() => {
+				setError(true);
+				setLoading(false);
+			});
+	}, [date, time, useLat, useLon]);
 
-  if (!date || !isWithinForecastWindow(date)) return null;
-  if (loading) return <CircularProgress size={14} sx={{ ml: 1 }} />;
-  if (error || !data) return null;
+	if (!date || !isWithinForecastWindow(date)) return null;
+	if (loading) return <CircularProgress size={14} sx={{ ml: 1 }} />;
+	if (error || !data) return null;
 
-  return (
-    <Tooltip
-      title={`${data.description} · gefühlt ${data.feels_like}°C (${data.dt_txt.slice(11, 16)} Uhr)`}
-      placement="bottom"
-    >
-      <Box
-        sx={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 0.5,
-          cursor: "default",
-          userSelect: "none",
-          bgcolor: "rgba(45,60,89,0.07)",
-          borderRadius: "8px",
-          px: 1,
-          py: 0.5,
-          boxShadow: "0 1px 4px rgba(0,0,0,0.10)",
-        }}
-      >
-        <Box
-          component="img"
-          src={data.icon_url}
-          alt={data.description}
-          sx={{ width: iconSize * 0.85, height: iconSize * 0.85 }}
-        />
-        <Typography variant="body2" sx={{ fontWeight: 700, color: "text.secondary", fontSize: `${Math.round(iconSize * 0.38)}px` }}>
-          {data.temp}°C
-        </Typography>
-      </Box>
-    </Tooltip>
-  );
+	return (
+		<Tooltip
+			title={`${data.description} · gefühlt ${data.feels_like}°C (${data.dt_txt.slice(11, 16)} Uhr)`}
+			placement="bottom"
+		>
+			<Box
+				sx={{
+					display: "inline-flex",
+					alignItems: "center",
+					gap: 0.5,
+					cursor: "default",
+					userSelect: "none",
+					bgcolor: "rgba(255, 196, 57, 0.62)",
+					borderRadius: "8px",
+					px: 1,
+					py: 0.5,
+					boxShadow: "0 1px 4px rgba(0,0,0,0.10)",
+				}}
+			>
+				<Box
+					component="img"
+					src={data.icon_url}
+					alt={data.description}
+					sx={{ width: iconSize * 0.85, height: iconSize * 0.85 }}
+				/>
+				<Typography
+					variant="body2"
+					sx={{
+						fontWeight: 700,
+						color: "text.secondary",
+						fontSize: `${Math.round(iconSize * 0.38)}px`,
+					}}
+				>
+					{data.temp}°C
+				</Typography>
+			</Box>
+		</Tooltip>
+	);
 }
