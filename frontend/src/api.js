@@ -480,6 +480,13 @@ export async function adminUpdateUserGroups(userId, groups) {
 
 // ── Changelog / "Was gibt's Neues" ──────────────────────────
 
+export async function fetchAllChangelog() {
+	const headers = authHeaders();
+	const res = await fetch(`${API_URL}/changelog`, { headers });
+	if (!res.ok) return [];
+	return res.json();
+}
+
 export async function fetchUnseenChangelog() {
 	const headers = authHeaders();
 	const res = await fetch(`${API_URL}/changelog/unseen`, { headers });

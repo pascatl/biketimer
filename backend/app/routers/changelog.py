@@ -14,6 +14,23 @@ _log = get_logger("changelog")
 router = APIRouter(prefix="/changelog", tags=["changelog"])
 
 
+def _entry_to_response(e):
+    return ChangelogEntryResponse(
+        id=e.id,
+        slug=e.slug,
+        title=e.title,
+        body=e.body,
+        created_at=e.created_at.isoformat() if e.created_at else "",
+    )
+
+
+@router.get("", response_model=List[ChangelogEntryResponse])
+def get_all_changelog(kc_user=Depends(get_current_user), db: Session = Depends(get_db)):
+    """Return all changelog entries, newest first."""
+    entries = db.query(ChangelogEntry).order_by(ChangelogEntry.created_at.desc()).all()
+    return [_entry_to_response(e) for e in entries]
+
+
 @router.get("/unseen", response_model=List[ChangelogEntryResponse])
 def get_unseen_changelog(
     kc_user=Depends(get_current_user), db: Session = Depends(get_db)
@@ -36,16 +53,7 @@ def get_unseen_changelog(
         .all()
     )
 
-    return [
-        ChangelogEntryResponse(
-            id=e.id,
-            slug=e.slug,
-            title=e.title,
-            body=e.body,
-            created_at=e.created_at.isoformat() if e.created_at else "",
-        )
-        for e in entries
-    ]
+    return [_entry_to_response(e) for e in entries]
 
 
 @router.post("/seen")

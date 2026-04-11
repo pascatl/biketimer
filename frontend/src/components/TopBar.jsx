@@ -15,9 +15,11 @@ import SettingsIcon from "@mui/icons-material/Settings";
 import BarChartIcon from "@mui/icons-material/BarChart";
 import NotificationsIcon from "@mui/icons-material/Notifications";
 import TuneIcon from "@mui/icons-material/Tune";
+import NewReleasesIcon from "@mui/icons-material/NewReleases";
 import ControlButtons from "./ControlButtons";
 import { InboxButton } from "./InboxDrawer";
 import NotifPrefsDrawer from "./NotifPrefsDrawer";
+import ChangelogDrawer from "./ChangelogDrawer";
 import { useAuth } from "../auth/AuthContext";
 import { APP_NAME } from "../config";
 import { trackEvent } from "../matomo";
@@ -46,6 +48,7 @@ const TopBar = ({
 }) => {
 	const { authenticated, openLogin, logout } = useAuth();
 	const [notifOpen, setNotifOpen] = useState(false);
+	const [changelogOpen, setChangelogOpen] = useState(false);
 
 	const handleLogin = () => openLogin();
 	const handleLogout = () => logout();
@@ -162,6 +165,26 @@ const TopBar = ({
 											<BarChartIcon sx={{ fontSize: "1.2rem" }} />
 										</Button>
 									</Tooltip>
+									{/* Changelog button */}
+
+									<Tooltip title="Was gibt's Neues?">
+										<Button
+											size="small"
+											onClick={() => {
+												trackEvent("Navigation", "Changelog geöffnet");
+												setChangelogOpen(true);
+											}}
+											sx={{
+												color: "rgba(255,255,255,0.75)",
+												minWidth: 0,
+												px: 0.75,
+												"&:hover": { color: "#E5BA41" },
+											}}
+										>
+											<NewReleasesIcon sx={{ fontSize: "1.2rem" }} />
+										</Button>
+									</Tooltip>
+
 									<Tooltip title="Abmelden">
 										<Button
 											size="small"
@@ -225,6 +248,10 @@ const TopBar = ({
 				isAdmin={isAdmin}
 				sportTypes={sportTypes}
 				onGroupsChanged={onGroupsChanged}
+			/>
+			<ChangelogDrawer
+				open={changelogOpen}
+				onClose={() => setChangelogOpen(false)}
 			/>
 		</>
 	);
