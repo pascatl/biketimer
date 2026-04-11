@@ -28,6 +28,7 @@ import {
 	TextField,
 	Tooltip,
 	Typography,
+	CircularProgress,
 } from "@mui/material";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { TimePicker } from "@mui/x-date-pickers/TimePicker";
@@ -55,9 +56,12 @@ import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import CommentIcon from "@mui/icons-material/Comment";
 import SendIcon from "@mui/icons-material/Send";
 import SpeedIcon from "@mui/icons-material/Speed";
+import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
+import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import RouteWidget from "./RouteWidget";
 import MeetingPointPicker from "./MeetingPointPicker";
 import WeatherWidget from "./WheaterWidget";
+import axios from "axios";
 import {
 	updateEvent as apiUpdateEvent,
 	deleteEvent as apiDeleteEvent,
@@ -155,6 +159,8 @@ export default function Event(props) {
 	const [commentLoading, setCommentLoading] = useState(false);
 
 	const isMounted = useRef(false);
+	const linkTimerRef = useRef(null);
+	const [linkStatus, setLinkStatus] = useState(null); // null | "checking" | "valid" | "invalid"
 
 	const default_users = props.default_users || [];
 	const default_types = props.default_types || {};
@@ -345,6 +351,50 @@ export default function Event(props) {
 			);
 		} catch (err) {
 			setToast({ message: err.message, severity: "error" });
+		}
+	};
+
+	const KOMOOT_API = "https://ptom.de/api/biketimer/komoot";
+	const STRAVA_API = "https://ptom.de/api/biketimer/strava";
+	const validateRouteLink = async (url) => {
+		if (!url.trim()) {
+			setLinkStatus(null);
+			return;
+		}
+		if (!URL.canParse(url)) {
+			setLinkStatus("invalid");
+			return;
+		}
+		const parsed = new URL(url);
+		const path = parsed.pathname.split("/");
+		const parts = parsed.hostname.split(".");
+		const host = parts[parts.length - 2];
+		setLinkStatus("checking");
+		try {
+			if (host === "komoot") {
+				const share_token = parsed.searchParams.get("share_token");
+				const tour_id = path[path.length - 1];
+				if (!tour_id || !share_token) {
+					setLinkStatus("invalid");
+					return;
+				}
+				await axios.get(
+					`${KOMOOT_API}?tour_id=${tour_id}&share_token=${share_token}`,
+				);
+				setLinkStatus("valid");
+			} else if (host === "strava") {
+				const route_id = path[path.length - 1];
+				if (!route_id || path[path.length - 2] !== "routes") {
+					setLinkStatus("invalid");
+					return;
+				}
+				await axios.get(`${STRAVA_API}?route_id=${route_id}`);
+				setLinkStatus("valid");
+			} else {
+				setLinkStatus("invalid");
+			}
+		} catch {
+			setLinkStatus("invalid");
 		}
 	};
 
@@ -1663,9 +1713,36 @@ export default function Event(props) {
 							label="Strava / Komoot Link"
 							fullWidth
 							value={link}
-							onChange={(e) => setLink(e.target.value)}
+							onChange={(e) => {
+								const val = e.target.value;
+								setLink(val);
+								setLinkStatus(null);
+								if (linkTimerRef.current) clearTimeout(linkTimerRef.current);
+								if (val.trim()) {
+									linkTimerRef.current = setTimeout(
+										() => validateRouteLink(val),
+										500,
+									);
+								}
+							}}
 							size="small"
 							placeholder="https://www.komoot.com/tour/..."
+							InputProps={{
+								endAdornment:
+									linkStatus === "checking" ? (
+										<CircularProgress size={18} />
+									) : linkStatus === "valid" ? (
+										<CheckCircleOutlineIcon sx={{ color: "#94A378" }} />
+									) : linkStatus === "invalid" ? (
+										<ErrorOutlineIcon sx={{ color: "#D1855C" }} />
+									) : null,
+							}}
+							helperText={
+								linkStatus === "invalid"
+									? "Route konnte nicht geladen werden"
+									: null
+							}
+							error={linkStatus === "invalid"}
 						/>
 
 						{/* Tempo-Slider (nur Rennrad) */}
