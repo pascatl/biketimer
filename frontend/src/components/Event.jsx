@@ -125,7 +125,7 @@ export default function Event(props) {
 	const [eventType, setEventType] = useState(
 		event_data.event_type || "rennrad",
 	);
-	const [pace, setPace] = useState(event_data.event_pace ?? null);
+	const [pace, setPace] = useState(event_data.event_pace ?? 2);
 	const [editMode, setEditMode] = useState(false);
 	const [currentEvent, setCurrentEvent] = useState(props.data);
 	const [leaderAnchor, setLeaderAnchor] = useState(null);
@@ -256,7 +256,7 @@ export default function Event(props) {
 		setLeader(d.event_leader);
 		setJersey(d.event_jersey);
 		setEventType(d.event_type || "rennrad");
-		setPace(d.event_pace ?? null);
+		setPace(d.event_pace ?? 2);
 	}, [props.data]); // eslint-disable-line react-hooks/exhaustive-deps
 
 	const handleRespond = async (action) => {
@@ -489,7 +489,7 @@ export default function Event(props) {
 		setMeetingText(d.event_meeting_text || "");
 		setMeetingLat(d.event_meeting_lat ?? null);
 		setMeetingLon(d.event_meeting_lon ?? null);
-		setPace(d.event_pace ?? null);
+		setPace(d.event_pace ?? 2);
 		setEditMode(false);
 	};
 
