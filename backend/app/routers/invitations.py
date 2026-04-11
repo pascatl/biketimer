@@ -6,7 +6,7 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import RedirectResponse
 from sqlalchemy import or_
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import joinedload, Session
 
 from ..auth import get_current_user
 from ..database import get_db
@@ -21,13 +21,16 @@ router = APIRouter(prefix="/invitations", tags=["invitations"])
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
 
 
+EVENT_DATE_FORMAT = "%Y-%m-%d"
+
+
 def _fmt_event_date(event: "Event | None") -> str:
     """Return a human-readable date string for the event, e.g. '12.04.25'."""
     if not event:
         return ""
     raw = event.event_data.get("event_date", "")
     try:
-        return datetime.strptime(raw, "%Y-%m-%d").strftime("%d.%m.%y")
+        return datetime.strptime(raw, EVENT_DATE_FORMAT).strftime("%d.%m.%y")
     except ValueError:
         return raw
 
@@ -48,12 +51,26 @@ def get_my_invitations(
     rows = (
         db.query(Invitation)
         .filter(or_(*conditions), Invitation.status == "pending")
+        .options(joinedload(Invitation.event))
         .all()
     )
 
+    today = datetime.now(timezone.utc).date()
+
     result = []
     for inv in rows:
-        event = db.query(Event).filter(Event.id == inv.event_id).first()
+        event = inv.event
+
+        # Skip invitations for past events
+        if event:
+            raw_date = event.event_data.get("event_date", "")
+            try:
+                event_date = datetime.strptime(raw_date, EVENT_DATE_FORMAT).date()
+                if event_date < today:
+                    continue
+            except ValueError:
+                pass
+
         result.append(
             {
                 "id": inv.id,
