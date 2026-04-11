@@ -130,6 +130,31 @@ class CommentReaction(Base):
     comment = relationship("EventComment", back_populates="reactions")
 
 
+class ChangelogEntry(Base):
+    __tablename__ = "changelog_entries"
+
+    id = Column(Integer, primary_key=True, index=True)
+    slug = Column(String(100), unique=True, nullable=False)
+    title = Column(String(255), nullable=False)
+    body = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class ChangelogSeen(Base):
+    __tablename__ = "changelog_seen"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    changelog_id = Column(
+        Integer,
+        ForeignKey("changelog_entries.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    seen_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
 class Invitation(Base):
     __tablename__ = "invitations"
 

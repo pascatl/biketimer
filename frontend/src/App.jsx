@@ -28,6 +28,7 @@ import InboxDrawer from "./components/InboxDrawer";
 import AdminPanel from "./components/AdminPanel";
 import StatsPanel from "./components/StatsPanel";
 import GroupOnboarding from "./components/GroupOnboarding";
+import WhatsNewDialog from "./components/WhatsNewDialog";
 import Footer from "./components/Footer";
 import {
 	fetchMyEvents,
@@ -42,6 +43,8 @@ import {
 	registerMe,
 	fetchMyGroups,
 	updateMyGroups,
+	fetchUnseenChangelog,
+	markChangelogSeen,
 } from "./api";
 import { useAuth } from "./auth/AuthContext";
 import { trackEvent } from "./matomo";
@@ -73,6 +76,10 @@ export default function App() {
 	// Group onboarding dialog
 	const [groupOnboardingOpen, setGroupOnboardingOpen] = useState(false);
 	const [myGroups, setMyGroups] = useState(null); // null = not loaded
+
+	// "Was gibt's Neues" dialog
+	const [changelogEntries, setChangelogEntries] = useState([]);
+	const [whatsNewOpen, setWhatsNewOpen] = useState(false);
 
 	// WebSocket toast
 	const [wsToast, setWsToast] = useState(null); // { message: string }
@@ -176,10 +183,32 @@ export default function App() {
 			.catch(console.error);
 	}, [authenticated]);
 
+	// ── Check for unseen changelog on every app load (when authenticated) ─
+	useEffect(() => {
+		if (!authenticated) return;
+		fetchUnseenChangelog()
+			.then((entries) => {
+				if (entries && entries.length > 0) {
+					setChangelogEntries(entries);
+					setWhatsNewOpen(true);
+				}
+			})
+			.catch(console.error);
+	}, [authenticated]);
+
 	const handleGroupsSaved = async (selectedKeys) => {
 		await updateMyGroups(selectedKeys);
 		setMyGroups(selectedKeys);
 		setGroupOnboardingOpen(false);
+	};
+
+	const handleWhatsNewClose = async () => {
+		setWhatsNewOpen(false);
+		const ids = changelogEntries.map((e) => e.id);
+		try {
+			await markChangelogSeen(ids);
+		} catch { /* ignore */ }
+		setChangelogEntries([]);
 	};
 
 	const handleGroupsChanged = (updatedGroups) => {
@@ -648,6 +677,13 @@ export default function App() {
 				sportTypes={sportTypes}
 				onSave={handleGroupsSaved}
 				onClose={() => setGroupOnboardingOpen(false)}
+			/>
+
+			{/* "Was gibt's Neues" dialog */}
+			<WhatsNewDialog
+				open={whatsNewOpen}
+				entries={changelogEntries}
+				onClose={handleWhatsNewClose}
 			/>
 		</Box>
 	);

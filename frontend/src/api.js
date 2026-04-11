@@ -477,3 +477,23 @@ export async function adminUpdateUserGroups(userId, groups) {
 	if (!res.ok) throw new Error("Fehler beim Speichern der Gruppen");
 	return res.json();
 }
+
+// ── Changelog / "Was gibt's Neues" ──────────────────────────
+
+export async function fetchUnseenChangelog() {
+	const headers = authHeaders();
+	const res = await fetch(`${API_URL}/changelog/unseen`, { headers });
+	if (!res.ok) return [];
+	return res.json();
+}
+
+export async function markChangelogSeen(entryIds) {
+	const headers = authHeaders();
+	const res = await fetch(`${API_URL}/changelog/seen`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json", ...headers },
+		body: JSON.stringify(entryIds),
+	});
+	if (!res.ok) throw new Error("Fehler beim Markieren als gelesen");
+	return res.json();
+}

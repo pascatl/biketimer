@@ -9,7 +9,7 @@ from sqlalchemy import text
 
 from .database import engine
 from .models import Base
-from .routers import events, invitations, users, admin, data, push, stats, auth, weather
+from .routers import events, invitations, users, admin, data, push, stats, auth, weather, changelog
 from .config import APP_NAME
 from .ws_manager import manager, set_event_loop
 from .auth import _decode_token
@@ -205,6 +205,7 @@ app.include_router(push.router, prefix="/api")
 app.include_router(stats.router, prefix="/api")
 app.include_router(auth.router, prefix="/api")
 app.include_router(weather.router, prefix="/api")
+app.include_router(changelog.router, prefix="/api")
 
 
 @app.websocket("/api/ws")

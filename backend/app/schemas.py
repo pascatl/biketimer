@@ -231,3 +231,16 @@ class PushSubscriptionResponse(BaseModel):
     endpoint: str
 
     model_config = {"from_attributes": True}
+
+
+# ── Changelog schemas ─────────────────────────────────────────
+
+
+class ChangelogEntryResponse(BaseModel):
+    id: int
+    slug: str
+    title: str
+    body: str
+    created_at: str
+
+    model_config = {"from_attributes": True}
