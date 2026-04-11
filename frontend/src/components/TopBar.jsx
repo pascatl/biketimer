@@ -14,6 +14,7 @@ import LoginIcon from "@mui/icons-material/Login";
 import SettingsIcon from "@mui/icons-material/Settings";
 import BarChartIcon from "@mui/icons-material/BarChart";
 import NotificationsIcon from "@mui/icons-material/Notifications";
+import TuneIcon from "@mui/icons-material/Tune";
 import ControlButtons from "./ControlButtons";
 import { InboxButton } from "./InboxDrawer";
 import NotifPrefsDrawer from "./NotifPrefsDrawer";
@@ -35,6 +36,7 @@ const TopBar = ({
 	onAddEvent,
 	defaultEvent,
 	sportTypes,
+	myGroups,
 	invitationCount,
 	isAdmin,
 	onAdminOpen,
@@ -107,16 +109,13 @@ const TopBar = ({
 							{authenticated && (
 								<InboxButton count={invitationCount} onClick={onInboxOpen} />
 							)}
-							{/* Notifications prefs button */}
+							{/* Settings button */}
 							{authenticated && (
-								<Tooltip title="Benachrichtigungseinstellungen">
+								<Tooltip title="Einstellungen">
 									<Button
 										size="small"
 										onClick={() => {
-											trackEvent(
-												"Navigation",
-												"Benachrichtigungseinstellungen geöffnet",
-											);
+											trackEvent("Navigation", "Einstellungen geöffnet");
 											setNotifOpen(true);
 										}}
 										sx={{
@@ -126,7 +125,7 @@ const TopBar = ({
 											"&:hover": { color: "#E5BA41" },
 										}}
 									>
-										<NotificationsIcon sx={{ fontSize: "1.2rem" }} />
+										<SettingsIcon sx={{ fontSize: "1.2rem" }} />
 									</Button>
 								</Tooltip>
 							)}
@@ -145,7 +144,7 @@ const TopBar = ({
 													"&:hover": { color: "#E5BA41" },
 												}}
 											>
-												<SettingsIcon sx={{ fontSize: "1.2rem" }} />
+												<TuneIcon sx={{ fontSize: "1.2rem" }} />
 											</Button>
 										</Tooltip>
 									)}
@@ -213,6 +212,7 @@ const TopBar = ({
 									onAddEvent={onAddEvent}
 									defaultEvent={defaultEvent}
 									sportTypes={sportTypes}
+									myGroups={myGroups}
 								/>
 							)}
 						</Box>

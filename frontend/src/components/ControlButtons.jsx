@@ -52,7 +52,17 @@ const DEFAULT_TIME = (() => {
 })();
 
 export default function ControlButtons(props) {
-	const sportTypes = props.sportTypes || {};
+	const allSportTypes = props.sportTypes || {};
+	const myGroups = props.myGroups;
+	// Filter sport types to only show types the user belongs to
+	const sportTypes =
+		Array.isArray(myGroups) && myGroups.length > 0
+			? Object.fromEntries(
+					Object.entries(allSportTypes).filter(([key]) =>
+						myGroups.includes(key),
+					),
+				)
+			: allSportTypes;
 	const firstTypeKey = Object.keys(sportTypes)[0] || "rennrad";
 
 	const [addOpen, setAddOpen] = useState(false);

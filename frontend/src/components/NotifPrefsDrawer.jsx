@@ -47,7 +47,9 @@ export default function NotifPrefsDrawer({
 	const [pushPrefs, setPushPrefs] = useState(null);
 	const [emailPrefs, setEmailPrefs] = useState(null);
 	const [myGroups, setMyGroups] = useState(null);
-	const [saving, setSaving] = useState(false);
+	const [savingGroups, setSavingGroups] = useState(false);
+	const [savingPush, setSavingPush] = useState(false);
+	const [savingEmail, setSavingEmail] = useState(false);
 	const [error, setError] = useState(null);
 	const [pushGranted, setPushGranted] = useState(false);
 
@@ -74,44 +76,44 @@ export default function NotifPrefsDrawer({
 			? myGroups.filter((k) => k !== key)
 			: [...myGroups, key];
 		setMyGroups(updated);
-		setSaving(true);
+		setSavingGroups(true);
 		try {
 			await updateMyGroups(updated);
 			onGroupsChanged?.(updated);
 		} catch {
 			setError("Speichern fehlgeschlagen.");
 		} finally {
-			setSaving(false);
+			setSavingGroups(false);
 		}
 	};
 
 	const handlePushToggle = async (key) => {
 		const newPrefs = { ...pushPrefs, [key]: !pushPrefs[key] };
 		setPushPrefs(newPrefs);
-		setSaving(true);
+		setSavingPush(true);
 		try {
 			await updatePushPrefs(newPrefs);
 		} catch {
 			setError("Speichern fehlgeschlagen.");
 		} finally {
-			setSaving(false);
+			setSavingPush(false);
 		}
 	};
 
 	const handleEmailToggle = async (key) => {
 		const newPrefs = { ...emailPrefs, [key]: !emailPrefs[key] };
 		setEmailPrefs(newPrefs);
-		setSaving(true);
+		setSavingEmail(true);
 		try {
 			await updateEmailPrefs(newPrefs);
 		} catch {
 			setError("Speichern fehlgeschlagen.");
 		} finally {
-			setSaving(false);
+			setSavingEmail(false);
 		}
 	};
 
-	const renderPrefRows = (prefList, prefs, onToggle) =>
+	const renderPrefRows = (prefList, prefs, onToggle, isSaving) =>
 		prefList.map(({ key, label }) => (
 			<FormControlLabel
 				key={key}
@@ -120,7 +122,7 @@ export default function NotifPrefsDrawer({
 						size="small"
 						checked={prefs[key] ?? false}
 						onChange={() => onToggle(key)}
-						disabled={saving}
+						disabled={isSaving}
 					/>
 				}
 				label={<Typography variant="body2">{label}</Typography>}
@@ -211,7 +213,7 @@ export default function NotifPrefsDrawer({
 												size="small"
 												checked={myGroups?.includes(key) ?? false}
 												onChange={() => handleGroupToggle(key)}
-												disabled={saving}
+												disabled={savingGroups}
 												sx={{
 													color: t.color || "#2D3C59",
 													"&.Mui-checked": { color: t.color || "#2D3C59" },
@@ -235,6 +237,14 @@ export default function NotifPrefsDrawer({
 							<Divider sx={{ mb: 2 }} />
 						</>
 					)}
+
+					{/* ── Benachrichtigungen (section header) ── */}
+					<Typography
+						variant="subtitle1"
+						sx={{ fontWeight: 700, mb: 1.5, color: "text.primary" }}
+					>
+						Benachrichtigungen
+					</Typography>
 
 					{/* ── Push Notifications ── */}
 					<Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
@@ -274,7 +284,12 @@ export default function NotifPrefsDrawer({
 						Für dich
 					</Typography>
 					<Box sx={{ mt: 1, mb: 2 }}>
-						{renderPrefRows(USER_PREFS, pushPrefs, handlePushToggle)}
+						{renderPrefRows(
+							USER_PREFS,
+							pushPrefs,
+							handlePushToggle,
+							savingPush,
+						)}
 					</Box>
 
 					{isAdmin && (
@@ -292,7 +307,12 @@ export default function NotifPrefsDrawer({
 								Admin
 							</Typography>
 							<Box sx={{ mt: 1, mb: 2 }}>
-								{renderPrefRows(ADMIN_PREFS, pushPrefs, handlePushToggle)}
+								{renderPrefRows(
+									ADMIN_PREFS,
+									pushPrefs,
+									handlePushToggle,
+									savingPush,
+								)}
 							</Box>
 						</>
 					)}
@@ -327,7 +347,12 @@ export default function NotifPrefsDrawer({
 						Für dich
 					</Typography>
 					<Box sx={{ mt: 1, mb: 2 }}>
-						{renderPrefRows(USER_PREFS, emailPrefs, handleEmailToggle)}
+						{renderPrefRows(
+							USER_PREFS,
+							emailPrefs,
+							handleEmailToggle,
+							savingEmail,
+						)}
 					</Box>
 
 					{isAdmin && (
@@ -345,7 +370,12 @@ export default function NotifPrefsDrawer({
 								Admin
 							</Typography>
 							<Box sx={{ mt: 1 }}>
-								{renderPrefRows(ADMIN_PREFS, emailPrefs, handleEmailToggle)}
+								{renderPrefRows(
+									ADMIN_PREFS,
+									emailPrefs,
+									handleEmailToggle,
+									savingEmail,
+								)}
 							</Box>
 						</>
 					)}
