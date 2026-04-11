@@ -206,6 +206,17 @@ export default function App() {
 		setMyGroups(updatedGroups);
 	};
 
+	const handleWhatsNewClose = async () => {
+		setWhatsNewOpen(false);
+		const ids = changelogEntries.map((e) => e.id);
+		try {
+			await markChangelogSeen(ids);
+		} catch {
+			/* ignore */
+		}
+		setChangelogEntries([]);
+	};
+
 	// ── Load invitations (only when logged in) ────────────────
 	const loadInvitations = useCallback(async () => {
 		if (!authenticated) return;
