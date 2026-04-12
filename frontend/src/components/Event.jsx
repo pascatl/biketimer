@@ -50,6 +50,7 @@ import SportsVolleyballIcon from "@mui/icons-material/SportsVolleyball";
 import PersonAddAltIcon from "@mui/icons-material/PersonAddAlt";
 import PersonIcon from "@mui/icons-material/Person";
 import ShareIcon from "@mui/icons-material/Share";
+import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import HistoryIcon from "@mui/icons-material/History";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
@@ -440,6 +441,106 @@ export default function Event(props) {
 				setToast({ message: "Link kopiert!", severity: "success" });
 			});
 		}
+	};
+
+	const buildICSContent = () => {
+		const eventUrl = `${window.location.origin}/events/${eventId}`;
+		const eventTitle = title || typeMeta.label || "Event";
+
+		// Escape text for RFC 5545 (backslash, semicolon, comma, newline)
+		const icsEscape = (str) =>
+			String(str)
+				.replace(/\\/g, "\\\\")
+				.replace(/;/g, "\\;")
+				.replace(/,/g, "\\,")
+				.replace(/\n/g, "\\n");
+
+		// Format dates for ICS (YYYYMMDDTHHMMSS local, no Z = floating/local time)
+		const pad = (n) => String(n).padStart(2, "0");
+		const addOneDay = (yi, mi, di) => {
+			// Use explicit local date construction to avoid UTC/DST issues
+			const d = new Date(parseInt(yi, 10), parseInt(mi, 10) - 1, parseInt(di, 10));
+			d.setDate(d.getDate() + 1);
+			return [d.getFullYear(), pad(d.getMonth() + 1), pad(d.getDate())];
+		};
+
+		let dtstart, dtend;
+		if (date) {
+			const [y, m, d] = date.split("-");
+			if (startTime) {
+				const [hh, mm] = startTime.split(":");
+				dtstart = `${y}${m}${d}T${hh}${mm}00`;
+				// Default duration: 2 hours, handle midnight rollover
+				const startHourInt = parseInt(hh, 10);
+				const endHour = (startHourInt + 2) % 24;
+				if (endHour < startHourInt) {
+					// Event crosses midnight – increment the date
+					const [ny, nm, nd] = addOneDay(y, m, d);
+					dtend = `${ny}${nm}${nd}T${pad(endHour)}${mm}00`;
+				} else {
+					dtend = `${y}${m}${d}T${pad(endHour)}${mm}00`;
+				}
+			} else {
+				// All-day event: DTEND must be the next day per RFC 5545
+				const [ny, nm, nd] = addOneDay(y, m, d);
+				dtstart = `${y}${m}${d}`;
+				dtend = `${ny}${nm}${nd}`;
+			}
+		} else {
+			const now = new Date();
+			const ny = now.getFullYear();
+			const nm = pad(now.getMonth() + 1);
+			const nd = pad(now.getDate());
+			const [eny, enm, end] = addOneDay(ny, nm, nd);
+			dtstart = `${ny}${nm}${nd}`;
+			dtend = `${eny}${enm}${end}`;
+		}
+
+		const descParts = [];
+		if (comment) descParts.push(comment);
+		if (link) descParts.push(link);
+		descParts.push(eventUrl);
+		const description = icsEscape(descParts.join("\n"));
+
+		const location = meetingText || "";
+
+		const lines = [
+			"BEGIN:VCALENDAR",
+			"VERSION:2.0",
+			"PRODID:-//biketimer//biketimer//DE",
+			"CALSCALE:GREGORIAN",
+			"METHOD:PUBLISH",
+			"BEGIN:VEVENT",
+			`UID:biketimer-event-${eventId}@biketimer`,
+			`DTSTAMP:${new Date().toISOString().replace(/[-:]/g, "").split(".")[0]}Z`,
+			dtstart.length === 8
+				? `DTSTART;VALUE=DATE:${dtstart}`
+				: `DTSTART:${dtstart}`,
+			dtend.length === 8
+				? `DTEND;VALUE=DATE:${dtend}`
+				: `DTEND:${dtend}`,
+			`SUMMARY:${icsEscape(eventTitle)}`,
+		];
+		if (location) lines.push(`LOCATION:${icsEscape(location)}`);
+		if (description) lines.push(`DESCRIPTION:${description}`);
+		lines.push(`URL:${eventUrl}`);
+		lines.push("END:VEVENT");
+		lines.push("END:VCALENDAR");
+
+		return lines.join("\r\n");
+	};
+
+	const handleExportICS = () => {
+		trackEvent("Event", "KalenderExport ICS", String(eventId));
+		const content = buildICSContent();
+		const blob = new Blob([content], { type: "text/calendar;charset=utf-8" });
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement("a");
+		const filename = (title || `event-${eventId}`).replace(/[^a-z0-9\-_ ]/gi, "_");
+		a.href = url;
+		a.download = `${filename}.ics`;
+		a.click();
+		URL.revokeObjectURL(url);
 	};
 
 	const handleSave = () => {
@@ -840,6 +941,21 @@ export default function Event(props) {
 										}}
 									>
 										<ShareIcon fontSize="small" />
+									</IconButton>
+								</Tooltip>
+								<Tooltip title="Als .ics exportieren">
+									<IconButton
+										size="small"
+										onClick={handleExportICS}
+										sx={{
+											color: "text.secondary",
+											"&:hover": {
+												bgcolor: "rgba(45,60,89,0.08)",
+												color: "primary.main",
+											},
+										}}
+									>
+										<CalendarMonthIcon fontSize="small" />
 									</IconButton>
 								</Tooltip>
 							</Box>
