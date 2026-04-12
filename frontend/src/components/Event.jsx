@@ -132,7 +132,6 @@ export default function Event(props) {
 	const [currentEvent, setCurrentEvent] = useState(props.data);
 	const [leaderAnchor, setLeaderAnchor] = useState(null);
 	const [jerseyAnchor, setJerseyAnchor] = useState(null);
-	const [calendarAnchor, setCalendarAnchor] = useState(null);
 	const [inviteOpen, setInviteOpen] = useState(false);
 	const [inviteLoading, setInviteLoading] = useState(false);
 	const [inviteError, setInviteError] = useState("");
@@ -532,7 +531,6 @@ export default function Event(props) {
 	};
 
 	const handleExportICS = () => {
-		setCalendarAnchor(null);
 		trackEvent("Event", "KalenderExport ICS", String(eventId));
 		const content = buildICSContent();
 		const blob = new Blob([content], { type: "text/calendar;charset=utf-8" });
@@ -543,62 +541,6 @@ export default function Event(props) {
 		a.download = `${filename}.ics`;
 		a.click();
 		URL.revokeObjectURL(url);
-	};
-
-	const handleGoogleCalendar = () => {
-		setCalendarAnchor(null);
-		trackEvent("Event", "KalenderExport Google", String(eventId));
-		const eventTitle = title || typeMeta.label || "Event";
-		const eventUrl = `${window.location.origin}/events/${eventId}`;
-
-		const pad = (n) => String(n).padStart(2, "0");
-		const addOneDay = (yi, mi, di) => {
-			const d = new Date(parseInt(yi, 10), parseInt(mi, 10) - 1, parseInt(di, 10));
-			d.setDate(d.getDate() + 1);
-			return [d.getFullYear(), pad(d.getMonth() + 1), pad(d.getDate())];
-		};
-
-		let dates = "";
-		if (date) {
-			const [y, m, d] = date.split("-");
-			if (startTime) {
-				const [hh, mm] = startTime.split(":");
-				const startHourInt = parseInt(hh, 10);
-				const endHour = (startHourInt + 2) % 24;
-				let endDateStr;
-				if (endHour < startHourInt) {
-					const [ny, nm, nd] = addOneDay(y, m, d);
-					endDateStr = `${ny}${nm}${nd}`;
-				} else {
-					endDateStr = `${y}${m}${d}`;
-				}
-				dates = `${y}${m}${d}T${hh}${mm}00/${endDateStr}T${pad(endHour)}${mm}00`;
-			} else {
-				// All-day event
-				const [ny, nm, nd] = addOneDay(y, m, d);
-				dates = `${y}${m}${d}/${ny}${nm}${nd}`;
-			}
-		}
-
-		const descParts = [];
-		if (comment) descParts.push(comment);
-		if (link) descParts.push(link);
-		descParts.push(eventUrl);
-		const description = descParts.join("\n");
-
-		const params = new URLSearchParams({
-			action: "TEMPLATE",
-			text: eventTitle,
-			details: description,
-		});
-		if (dates) params.set("dates", dates);
-		if (meetingText) params.set("location", meetingText);
-
-		window.open(
-			`https://calendar.google.com/calendar/render?${params.toString()}`,
-			"_blank",
-			"noopener,noreferrer",
-		);
 	};
 
 	const handleSave = () => {
@@ -1001,10 +943,10 @@ export default function Event(props) {
 										<ShareIcon fontSize="small" />
 									</IconButton>
 								</Tooltip>
-								<Tooltip title="Im Kalender speichern">
+								<Tooltip title="Als .ics exportieren">
 									<IconButton
 										size="small"
-										onClick={(e) => setCalendarAnchor(e.currentTarget)}
+										onClick={handleExportICS}
 										sx={{
 											color: "text.secondary",
 											"&:hover": {
@@ -1016,21 +958,6 @@ export default function Event(props) {
 										<CalendarMonthIcon fontSize="small" />
 									</IconButton>
 								</Tooltip>
-								<Menu
-									anchorEl={calendarAnchor}
-									open={Boolean(calendarAnchor)}
-									onClose={() => setCalendarAnchor(null)}
-									PaperProps={{ sx: { borderRadius: 2, minWidth: 220 } }}
-								>
-									<MenuItem onClick={handleExportICS}>
-										<CalendarMonthIcon fontSize="small" sx={{ mr: 1.5, color: "primary.main" }} />
-										Als .ics herunterladen
-									</MenuItem>
-									<MenuItem onClick={handleGoogleCalendar}>
-										<OpenInNewIcon fontSize="small" sx={{ mr: 1.5, color: "primary.main" }} />
-										In Google Kalender öffnen
-									</MenuItem>
-								</Menu>
 							</Box>
 							<WeatherWidget
 								date={date}

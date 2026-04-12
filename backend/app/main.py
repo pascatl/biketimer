@@ -218,6 +218,23 @@ try:
 except Exception as e:
     _log.error(f"Migration 012 check: {e}")
 
+# Run migration 013: ICS export changelog entry (idempotent – ON CONFLICT DO NOTHING)
+try:
+    with engine.connect() as conn:
+        migration_path = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)),
+            "migrations",
+            "013_ics_export_changelog.sql",
+        )
+        if os.path.exists(migration_path):
+            with open(migration_path) as f:
+                sql = f.read()
+            conn.execute(text(sql))
+            conn.commit()
+            _log.info("Migration 013 (ics_export_changelog) applied successfully")
+except Exception as e:
+    _log.error(f"Migration 013 check: {e}")
+
 FRONTEND_ORIGINS = os.getenv(
     "FRONTEND_ORIGINS",
     "http://localhost:5173,http://localhost:4173",
