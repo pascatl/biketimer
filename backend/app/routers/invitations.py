@@ -10,9 +10,12 @@ from sqlalchemy.orm import joinedload, Session
 
 from ..auth import get_current_user
 from ..database import get_db
-from ..models import Event, Invitation
+from ..models import Event, Invitation, User, PushSubscription
 from ..ws_manager import manager as ws_manager
 from ..logger import get_logger
+from ..push_service import send_push_notification
+from ..email_service import send_rsvp_notification_email
+from ..schemas import DEFAULT_NOTIF_PREFS, DEFAULT_EMAIL_PREFS
 
 _log = get_logger("invitations")
 
@@ -33,6 +36,73 @@ def _fmt_event_date(event: "Event | None") -> str:
         return datetime.strptime(raw, EVENT_DATE_FORMAT).strftime("%d.%m.%y")
     except ValueError:
         return raw
+
+
+def _push_with_pref(db, keycloak_id: str, pref_key: str, title: str, body: str):
+    """Send a push notification only if the user's pref for pref_key is enabled."""
+    subs = db.query(PushSubscription).filter(PushSubscription.keycloak_id == keycloak_id).all()
+    for sub in subs:
+        prefs = sub.notification_prefs or {}
+        if prefs.get(pref_key, DEFAULT_NOTIF_PREFS.get(pref_key, False)):
+            try:
+                send_push_notification(sub.endpoint, sub.p256dh, sub.auth, title=title, body=body)
+            except Exception:
+                pass
+
+
+def _email_with_pref(db, keycloak_id: str, pref_key: str, actor_name: str, event_data: dict, action: str, event_id: int):
+    """Send an RSVP notification email only if the user's email pref for pref_key is enabled."""
+    db_user = db.query(User).filter(User.keycloak_id == keycloak_id).first()
+    if not db_user or not db_user.email:
+        return
+    if db_user.email.endswith("@local"):
+        return
+    email_prefs = (db_user.email_prefs or {}) if db_user else {}
+    if email_prefs.get(pref_key, DEFAULT_EMAIL_PREFS.get(pref_key, False)):
+        try:
+            send_rsvp_notification_email(db_user.email, actor_name, event_data, action, event_id)
+        except Exception:
+            pass
+
+
+def _notify_rsvp_organizers(db, event, actor_sub: str, actor_name: str, pref_key: str, action: str):
+    """Notify the event creator, event leader, and all admins about an RSVP action."""
+    if not event:
+        return
+
+    event_date_fmt = _fmt_event_date(event)
+    push_title = "Event-Zusage" if action == "accepted" else "Event-Absage"
+    push_body = (
+        f"{actor_name} hat zum Event am {event_date_fmt} zugesagt."
+        if action == "accepted"
+        else f"{actor_name} hat zum Event am {event_date_fmt} abgesagt."
+    )
+
+    notified = set()
+
+    # Notify event creator
+    creator_id = event.creator_keycloak_id
+    if creator_id and creator_id != actor_sub:
+        _push_with_pref(db, creator_id, pref_key, push_title, push_body)
+        _email_with_pref(db, creator_id, pref_key, actor_name, event.event_data, action, event.id)
+        notified.add(creator_id)
+
+    # Notify event leader (organizer) if different from creator
+    leader_name = event.event_data.get("event_leader", "")
+    if leader_name:
+        leader_user = db.query(User).filter(User.name == leader_name).first()
+        if leader_user and leader_user.keycloak_id and leader_user.keycloak_id != actor_sub and leader_user.keycloak_id not in notified:
+            _push_with_pref(db, leader_user.keycloak_id, pref_key, push_title, push_body)
+            _email_with_pref(db, leader_user.keycloak_id, pref_key, actor_name, event.event_data, action, event.id)
+            notified.add(leader_user.keycloak_id)
+
+    # Notify all admins (for every event, regardless of involvement)
+    admin_users = db.query(User).filter(User.is_active.is_(True), User.is_admin.is_(True)).all()
+    for au in admin_users:
+        if au.keycloak_id and au.keycloak_id != actor_sub and au.keycloak_id not in notified:
+            _push_with_pref(db, au.keycloak_id, pref_key, push_title, push_body)
+            _email_with_pref(db, au.keycloak_id, pref_key, actor_name, event.event_data, action, event.id)
+            notified.add(au.keycloak_id)
 
 
 @router.get("/mine", response_model=List[dict])
@@ -155,6 +225,8 @@ def accept_invitation(
         exclude_sub=user["sub"],
     )
 
+    _notify_rsvp_organizers(db, event, user["sub"], actor_name, "rsvp_accepted", "accepted")
+
     return {"ok": True}
 
 
@@ -197,6 +269,8 @@ def decline_invitation(
         recipient_subs=respond_recipients,
         exclude_sub=user["sub"],
     )
+
+    _notify_rsvp_organizers(db, event, user["sub"], actor_name, "rsvp_declined", "declined")
 
     return {"ok": True}
 
@@ -247,6 +321,8 @@ def withdraw_invitation(
         recipient_subs=respond_recipients,
         exclude_sub=user["sub"],
     )
+
+    _notify_rsvp_organizers(db, event, user["sub"], actor_name, "rsvp_declined", "declined")
 
     return {"ok": True}
 

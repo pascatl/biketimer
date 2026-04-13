@@ -28,6 +28,8 @@ const USER_PREFS = [
 	{ key: "invite_received", label: "Event-Einladung erhalten" },
 	{ key: "event_updated", label: "Event (zugesagt) wurde geändert" },
 	{ key: "event_cancelled", label: "Event (zugesagt) wurde abgesagt" },
+	{ key: "rsvp_accepted", label: "Jemand hat zu meinem Event zugesagt" },
+	{ key: "rsvp_declined", label: "Jemand hat zu meinem Event abgesagt" },
 ];
 
 const ADMIN_PREFS = [
