@@ -710,7 +710,7 @@ export default function Event(props) {
 				/>
 
 				{/* ── Author info ── */}
-				{(props.data.creator_name || props.data.created_at) && (
+				{(props.data.creator_name || props.data.created_at || isPast) && (
 					<Box
 						sx={{
 							px: 2,
@@ -718,43 +718,63 @@ export default function Event(props) {
 							pb: 0.25,
 							display: "flex",
 							alignItems: "center",
+							justifyContent: "space-between",
 							gap: 0.5,
 							borderBottom: "1px solid rgba(45,60,89,0.06)",
 						}}
 					>
-						<PersonIcon sx={{ fontSize: "0.75rem", color: "text.disabled" }} />
-						<Typography
-							variant="caption"
-							sx={{ color: "text.disabled", fontSize: "0.68rem" }}
-						>
-							{props.data.creator_name
-								? `Erstellt von ${props.data.creator_name}`
-								: ""}
-							{props.data.creator_name && props.data.created_at ? " am " : ""}
-							{props.data.created_at
-								? new Date(
-										(props.data.created_at || "").replace(
-											/([+\-]\d{2}:\d{2}|Z)?$/,
-											"Z",
-										),
-									).toLocaleDateString("de-DE", {
-										day: "2-digit",
-										month: "2-digit",
-										year: "2-digit",
-									}) +
-									", " +
-									new Date(
-										(props.data.created_at || "").replace(
-											/([+\-]\d{2}:\d{2}|Z)?$/,
-											"Z",
-										),
-									).toLocaleTimeString("de-DE", {
-										hour: "2-digit",
-										minute: "2-digit",
-									}) +
-									" Uhr"
-								: ""}
-						</Typography>
+						<Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+							{(props.data.creator_name || props.data.created_at) && (
+								<PersonIcon sx={{ fontSize: "0.75rem", color: "text.disabled" }} />
+							)}
+							<Typography
+								variant="caption"
+								sx={{ color: "text.disabled", fontSize: "0.68rem" }}
+							>
+								{props.data.creator_name
+									? `Erstellt von ${props.data.creator_name}`
+									: ""}
+								{props.data.creator_name && props.data.created_at ? " am " : ""}
+								{props.data.created_at
+									? new Date(
+											(props.data.created_at || "").replace(
+												/([+\-]\d{2}:\d{2}|Z)?$/,
+												"Z",
+											),
+										).toLocaleDateString("de-DE", {
+											day: "2-digit",
+											month: "2-digit",
+											year: "2-digit",
+										}) +
+										", " +
+										new Date(
+											(props.data.created_at || "").replace(
+												/([+\-]\d{2}:\d{2}|Z)?$/,
+												"Z",
+											),
+										).toLocaleTimeString("de-DE", {
+											hour: "2-digit",
+											minute: "2-digit",
+										}) +
+										" Uhr"
+									: ""}
+							</Typography>
+						</Box>
+						{isPast && (
+							<Chip
+								icon={<HistoryIcon sx={{ fontSize: "0.85rem" }} />}
+								label="Vergangen"
+								size="small"
+								sx={{
+									height: 22,
+									fontSize: "0.65rem",
+									fontWeight: 700,
+									bgcolor: "rgba(45,60,89,0.08)",
+									color: "text.disabled",
+									"& .MuiChip-icon": { color: "text.disabled" },
+								}}
+							/>
+						)}
 					</Box>
 				)}
 
@@ -865,21 +885,6 @@ export default function Event(props) {
 							}}
 						>
 							<Box sx={{ display: "flex", alignItems: "center", gap: 0.25 }}>
-								{isPast && (
-									<Chip
-										icon={<HistoryIcon sx={{ fontSize: "0.85rem " }} />}
-										label="Vergangen"
-										size="small"
-										sx={{
-											height: 22,
-											fontSize: "0.65rem",
-											fontWeight: 700,
-											bgcolor: "rgba(45,60,89,0.08)",
-											color: "text.disabled",
-											"& .MuiChip-icon": { color: "text.disabled" },
-										}}
-									/>
-								)}
 								{isPast && canDelete && (
 									<Tooltip title="Löschen">
 										<IconButton
