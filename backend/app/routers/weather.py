@@ -58,7 +58,7 @@ async def get_forecast(
     def slot_dt(slot):
         return datetime.strptime(slot["dt_txt"], "%Y-%m-%d %H:%M:%S")
 
-    day_slots = [slot for slot in slots if slot.get("dt_txt", "").startswith(f"{date} ")]
+    day_slots = [slot for slot in slots if slot_dt(slot).date() == target_dt.date()]
     if not day_slots:
         raise HTTPException(status_code=404, detail="Keine Vorhersage für diesen Tag verfügbar")
 

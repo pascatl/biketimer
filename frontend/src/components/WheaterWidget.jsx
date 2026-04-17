@@ -80,7 +80,7 @@ export default function WeatherWidget({
 			})
 			.catch((err) => {
 				const isNoDayForecast =
-					err?.status === 404 && err?.detail === "Keine Vorhersage für diesen Tag verfügbar"
+					err?.status === 404 && err?.detail === "Keine Vorhersage für diesen Tag verfügbar";
 				setNoDayForecast(isNoDayForecast);
 				setError(!isNoDayForecast);
 				setLoading(false);
