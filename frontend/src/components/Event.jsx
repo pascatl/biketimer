@@ -159,6 +159,8 @@ export default function Event(props) {
 	const [comments, setComments] = useState([]);
 	const [newComment, setNewComment] = useState("");
 	const [commentLoading, setCommentLoading] = useState(false);
+	const [commentDeleteConfirmOpen, setCommentDeleteConfirmOpen] = useState(false);
+	const [commentDeleteTargetId, setCommentDeleteTargetId] = useState(null);
 
 	const isMounted = useRef(false);
 	const linkTimerRef = useRef(null);
@@ -352,13 +354,26 @@ export default function Event(props) {
 		}
 	};
 
-	const handleCommentDelete = async (commentId) => {
+	const handleCommentDeleteClick = (commentId) => {
+		setCommentDeleteTargetId(commentId);
+		setCommentDeleteConfirmOpen(true);
+	};
+
+	const handleCommentDelete = async () => {
+		if (!commentDeleteTargetId) return;
 		try {
-			await deleteEventComment(eventId, commentId);
+			await deleteEventComment(eventId, commentDeleteTargetId);
 			await loadComments();
+			setCommentDeleteConfirmOpen(false);
+			setCommentDeleteTargetId(null);
 		} catch (err) {
 			setToast({ message: err.message, severity: "error" });
 		}
+	};
+
+	const handleCommentDeleteCancel = () => {
+		setCommentDeleteConfirmOpen(false);
+		setCommentDeleteTargetId(null);
 	};
 
 	const handleReaction = async (commentId, emoji) => {
@@ -1437,9 +1452,7 @@ export default function Event(props) {
 						{comments.length > 0 && (
 							<Stack spacing={1} sx={{ mb: 1.5 }}>
 								{comments.map((c) => {
-									const canDeleteComment =
-										authenticated &&
-										(user?.sub === c.author_keycloak_id || user?.is_admin);
+									const canDeleteComment = authenticated && user?.is_admin;
 									const createdDate = c.created_at
 										? new Date(
 												(c.created_at || "").replace(
@@ -1499,7 +1512,7 @@ export default function Event(props) {
 													<Tooltip title="Kommentar löschen">
 														<IconButton
 															size="small"
-															onClick={() => handleCommentDelete(c.id)}
+															onClick={() => handleCommentDeleteClick(c.id)}
 															sx={{
 																ml: "auto",
 																p: 0.25,
@@ -1507,7 +1520,7 @@ export default function Event(props) {
 																"&:hover": { color: "#D1855C" },
 															}}
 														>
-															<CloseIcon sx={{ fontSize: "0.85rem" }} />
+															<DeleteIcon sx={{ fontSize: "0.85rem" }} />
 														</IconButton>
 													</Tooltip>
 												)}
@@ -2215,6 +2228,61 @@ export default function Event(props) {
 					</Button>
 					<Button
 						onClick={handleConfirmDelete}
+						variant="contained"
+						disableElevation
+						startIcon={<DeleteIcon />}
+						sx={{
+							bgcolor: "#D1855C",
+							color: "#fff",
+							fontWeight: 700,
+							borderRadius: 2,
+							"&:hover": { bgcolor: "#b8693f" },
+						}}
+					>
+						Löschen
+					</Button>
+				</DialogActions>
+			</Dialog>
+
+			{/* Comment Delete Confirmation Dialog */}
+			<Dialog
+				open={commentDeleteConfirmOpen}
+				onClose={handleCommentDeleteCancel}
+				maxWidth="xs"
+				fullWidth
+				PaperProps={{ sx: { borderRadius: 3 } }}
+			>
+				<DialogTitle sx={{ fontWeight: 700, color: "text.primary", pr: 6 }}>
+					Kommentar löschen
+					<IconButton
+						onClick={handleCommentDeleteCancel}
+						size="small"
+						sx={{
+							position: "absolute",
+							right: 12,
+							top: 12,
+							color: "text.secondary",
+						}}
+					>
+						<CloseIcon fontSize="small" />
+					</IconButton>
+				</DialogTitle>
+				<DialogContent>
+					<Typography variant="body2" color="text.secondary">
+						Möchtest du diesen Kommentar wirklich löschen? Diese Aktion kann
+						nicht rückgängig gemacht werden.
+					</Typography>
+				</DialogContent>
+				<DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
+					<Button
+						onClick={handleCommentDeleteCancel}
+						color="inherit"
+						sx={{ color: "text.secondary" }}
+					>
+						Abbrechen
+					</Button>
+					<Button
+						onClick={handleCommentDelete}
 						variant="contained"
 						disableElevation
 						startIcon={<DeleteIcon />}
