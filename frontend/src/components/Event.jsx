@@ -133,8 +133,6 @@ export default function Event(props) {
 	const [leaderAnchor, setLeaderAnchor] = useState(null);
 	const [jerseyAnchor, setJerseyAnchor] = useState(null);
 	const [inviteOpen, setInviteOpen] = useState(false);
-	const [inviteLoading, setInviteLoading] = useState(false);
-	const [inviteError, setInviteError] = useState("");
 	const [inviteSearch, setInviteSearch] = useState("");
 
 	const [invitations, setInvitations] = useState([]);
@@ -632,29 +630,33 @@ export default function Event(props) {
 
 	const handleInviteSubmit = async () => {
 		if (selectedInvitees.length === 0) return;
-		setInviteLoading(true);
-		setInviteError("");
+		const ids = selectedInvitees.map((u) => u.id);
+		handleInviteClose();
 		try {
-			const ids = selectedInvitees.map((u) => u.id);
 			const res = await inviteUsersToEvent(eventId, ids);
 			const sent = res?.sent ?? ids.length;
 			trackEvent("Einladung", "Gesendet", String(eventId), sent);
-			handleInviteClose();
 			setToast({
 				message: `${sent} Einladung${sent !== 1 ? "en" : ""} gesendet!`,
 				severity: "success",
 			});
 			await loadInvitations();
 		} catch (err) {
-			setInviteError(err.message);
-		} finally {
-			setInviteLoading(false);
+			const fallbackMessage =
+				"Die Einladungen konnten nicht gesendet werden. Bitte versuche es erneut.";
+			const message =
+				err?.message && err.message !== "Failed to fetch"
+					? err.message
+					: fallbackMessage;
+			setToast({
+				message,
+				severity: "error",
+			});
 		}
 	};
 
 	const handleInviteClose = () => {
 		setInviteOpen(false);
-		setInviteError("");
 		setSelectedInvitees([]);
 		setInviteSearch("");
 	};
@@ -2035,15 +2037,6 @@ export default function Event(props) {
 								InputProps={{ sx: { borderRadius: 2 } }}
 							/>
 						</Box>
-						{inviteError && (
-							<Typography
-								variant="body2"
-								color="error"
-								sx={{ fontWeight: 600, px: 3 }}
-							>
-								{inviteError}
-							</Typography>
-						)}
 						{/* Alle auswählen */}
 						<ListItem
 							disablePadding
@@ -2120,7 +2113,7 @@ export default function Event(props) {
 						variant="contained"
 						disableElevation
 						onClick={handleInviteSubmit}
-						disabled={inviteLoading || selectedInvitees.length === 0}
+						disabled={selectedInvitees.length === 0}
 						sx={{
 							bgcolor: "#E5BA41",
 							color: "#2D3C59",
@@ -2129,7 +2122,7 @@ export default function Event(props) {
 							"&:hover": { bgcolor: "#d4a92e" },
 						}}
 					>
-						{inviteLoading ? "Sende..." : "Einladen"}
+						Einladen
 					</Button>
 				</DialogActions>
 			</Dialog>
