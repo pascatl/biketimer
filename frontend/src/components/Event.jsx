@@ -886,72 +886,45 @@ export default function Event(props) {
 									</Typography>
 								</>
 							)}
+							<Box sx={{ display: "flex", justifyContent: "flex-end", mt: 0.5 }}>
+								<WeatherWidget
+									date={date}
+									time={startTime}
+									lat={meetingLat}
+									lon={meetingLon}
+									iconSize={48}
+								/>
+							</Box>
 						</Box>
 					}
 					action={
 						<Box
 							sx={{
 								display: "flex",
-								flexDirection: "column",
-								alignItems: "flex-end",
+								flexDirection: "row",
+								alignItems: "center",
 								gap: 0.5,
-								mt: 0.5,
-								mr: 1,
 							}}
 						>
-							<Box sx={{ display: "flex", alignItems: "center", gap: 0.25 }}>
-								{isPast && canDelete && (
-									<Tooltip title="Löschen">
-										<IconButton
-											size="small"
-											onClick={handleDeleteClick}
-											sx={{
-												color: "#D1855C",
-												"&:hover": { bgcolor: "rgba(209,133,92,0.08)" },
-											}}
-										>
-											<DeleteIcon fontSize="small" />
-										</IconButton>
-									</Tooltip>
-								)}
-								{canEdit && (
-									<Tooltip title="Person einladen">
-										<IconButton
-											size="small"
-											onClick={() => setInviteOpen(true)}
-											sx={{
-												color: "text.secondary",
-												"&:hover": {
-													bgcolor: "rgba(45,60,89,0.08)",
-													color: "primary.main",
-												},
-											}}
-										>
-											<PersonAddAltIcon fontSize="small" />
-										</IconButton>
-									</Tooltip>
-								)}
-								{canEdit && !editMode && (
-									<Tooltip title="Bearbeiten">
-										<IconButton
-											size="small"
-											onClick={() => setEditMode(true)}
-											sx={{
-												color: "text.secondary",
-												"&:hover": {
-													bgcolor: "rgba(45,60,89,0.08)",
-													color: "primary.main",
-												},
-											}}
-										>
-											<EditIcon fontSize="small" />
-										</IconButton>
-									</Tooltip>
-								)}
-								<Tooltip title="Teilen / Link kopieren">
+							{isPast && canDelete && (
+								<Tooltip title="Löschen">
 									<IconButton
 										size="small"
-										onClick={handleShare}
+										onClick={handleDeleteClick}
+										sx={{
+											color: "#D1855C",
+											"&:hover": { bgcolor: "rgba(209,133,92,0.08)" },
+										}}
+									>
+										<DeleteIcon fontSize="small" />
+									</IconButton>
+								</Tooltip>
+							)}
+							{canEdit && (
+								<Tooltip title="Person einladen">
+									<IconButton
+										size="small"
+										onClick={() => setInviteOpen(true)}
 										sx={{
 											color: "text.secondary",
 											"&:hover": {
@@ -960,13 +933,15 @@ export default function Event(props) {
 											},
 										}}
 									>
-										<ShareIcon fontSize="small" />
+										<PersonAddAltIcon fontSize="small" />
 									</IconButton>
 								</Tooltip>
-								<Tooltip title="Als .ics exportieren">
+							)}
+							{canEdit && !editMode && (
+								<Tooltip title="Bearbeiten">
 									<IconButton
 										size="small"
-										onClick={handleExportICS}
+										onClick={() => setEditMode(true)}
 										sx={{
 											color: "text.secondary",
 											"&:hover": {
@@ -975,23 +950,53 @@ export default function Event(props) {
 											},
 										}}
 									>
-										<CalendarMonthIcon fontSize="small" />
+										<EditIcon fontSize="small" />
 									</IconButton>
 								</Tooltip>
-							</Box>
-							<WeatherWidget
-								date={date}
-								time={startTime}
-								lat={meetingLat}
-								lon={meetingLon}
-								iconSize={48}
-							/>
+							)}
+							<Tooltip title="Teilen / Link kopieren">
+								<IconButton
+									size="small"
+									onClick={handleShare}
+									sx={{
+										color: "text.secondary",
+										"&:hover": {
+											bgcolor: "rgba(45,60,89,0.08)",
+											color: "primary.main",
+										},
+									}}
+								>
+									<ShareIcon fontSize="small" />
+								</IconButton>
+							</Tooltip>
+							<Tooltip title="Als .ics exportieren">
+								<IconButton
+									size="small"
+									onClick={handleExportICS}
+									sx={{
+										color: "text.secondary",
+										"&:hover": {
+											bgcolor: "rgba(45,60,89,0.08)",
+											color: "primary.main",
+										},
+									}}
+								>
+									<CalendarMonthIcon fontSize="small" />
+								</IconButton>
+							</Tooltip>
 						</Box>
 					}
 					sx={{
+						position: "relative",
 						pb: 0.5,
 						pt: 2,
 						"& .MuiCardHeader-content": { minWidth: 0, overflow: "hidden" },
+						"& .MuiCardHeader-action": {
+							position: "absolute",
+							top: 1.75,
+							right: 2,
+							m: 0,
+						},
 					}}
 				/>
 
