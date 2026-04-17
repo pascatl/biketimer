@@ -640,7 +640,7 @@ def delete_event_comment(
     db: Session = Depends(get_db),
     user: dict = Depends(get_current_user),
 ):
-    """Delete a comment. Only the author or an admin may delete."""
+    """Delete a comment. Only admins may delete."""
     comment = (
         db.query(EventComment)
         .filter(EventComment.id == comment_id, EventComment.event_id == event_id)
@@ -649,10 +649,10 @@ def delete_event_comment(
     if not comment:
         raise HTTPException(status_code=404, detail="Kommentar nicht gefunden")
 
-    if comment.author_keycloak_id != user["sub"] and not user.get("is_admin"):
+    if not user.get("is_admin"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Nur der Autor oder ein Admin darf diesen Kommentar löschen",
+            detail="Nur Admins dürfen diesen Kommentar löschen",
         )
 
     db.delete(comment)
