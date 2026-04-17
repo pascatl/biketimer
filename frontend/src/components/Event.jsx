@@ -617,21 +617,24 @@ export default function Event(props) {
 
 	const handleInviteSubmit = async () => {
 		if (selectedInvitees.length === 0) return;
+		const ids = selectedInvitees.map((u) => u.id);
+		handleInviteClose();
 		setInviteLoading(true);
 		setInviteError("");
 		try {
-			const ids = selectedInvitees.map((u) => u.id);
 			const res = await inviteUsersToEvent(eventId, ids);
 			const sent = res?.sent ?? ids.length;
 			trackEvent("Einladung", "Gesendet", String(eventId), sent);
-			handleInviteClose();
 			setToast({
 				message: `${sent} Einladung${sent !== 1 ? "en" : ""} gesendet!`,
 				severity: "success",
 			});
 			await loadInvitations();
 		} catch (err) {
-			setInviteError(err.message);
+			setToast({
+				message: err.message || "Fehler beim Einladen",
+				severity: "error",
+			});
 		} finally {
 			setInviteLoading(false);
 		}
