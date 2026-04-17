@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 from typing import Optional
 
 import httpx
@@ -47,9 +48,7 @@ async def get_forecast(
     if not slots:
         raise HTTPException(status_code=404, detail="Keine Vorhersage verfügbar")
 
-    # Parse requested datetime and find closest slot
-    from datetime import datetime
-
+    # Parse requested datetime and find closest slot on the requested date
     target_str = f"{date} {time}:00"
     try:
         target_dt = datetime.strptime(target_str, "%Y-%m-%d %H:%M:%S")
@@ -59,7 +58,11 @@ async def get_forecast(
     def slot_dt(slot):
         return datetime.strptime(slot["dt_txt"], "%Y-%m-%d %H:%M:%S")
 
-    closest = min(slots, key=lambda s: abs((slot_dt(s) - target_dt).total_seconds()))
+    day_slots = [slot for slot in slots if slot.get("dt_txt", "").startswith(f"{date} ")]
+    if not day_slots:
+        raise HTTPException(status_code=404, detail="Keine Vorhersage für diesen Tag verfügbar")
+
+    closest = min(day_slots, key=lambda s: abs((slot_dt(s) - target_dt).total_seconds()))
 
     w = closest["weather"][0]
     return {

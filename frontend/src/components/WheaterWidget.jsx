@@ -38,6 +38,7 @@ export default function WeatherWidget({
 	const [data, setData] = useState(null);
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState(null);
+	const [noDayForecast, setNoDayForecast] = useState(false);
 
 	const useLat = lat ?? DEFAULT_LAT;
 	const useLon = lon ?? DEFAULT_LON;
@@ -47,6 +48,8 @@ export default function WeatherWidget({
 
 		setLoading(true);
 		setError(null);
+		setNoDayForecast(false);
+		setData(null);
 
 		const params = new URLSearchParams({
 			lat: useLat,
@@ -61,22 +64,40 @@ export default function WeatherWidget({
 		fetch(`/api/weather/forecast?${params}`, {
 			headers: { "Content-Type": "application/json", ...authHeader },
 		})
-			.then((r) => {
-				if (!r.ok) throw new Error(r.status);
-				return r.json();
+			.then(async (r) => {
+				const body = await r.json().catch(() => null);
+				if (!r.ok) {
+					const err = new Error(String(r.status));
+					err.status = r.status;
+					err.detail = body?.detail;
+					throw err;
+				}
+				return body;
 			})
 			.then((d) => {
 				setData(d);
 				setLoading(false);
 			})
-			.catch(() => {
-				setError(true);
+			.catch((err) => {
+				const isNoDayForecast =
+					err?.status === 404 && err?.detail === "Keine Vorhersage für diesen Tag verfügbar"
+				setNoDayForecast(isNoDayForecast);
+				setError(!isNoDayForecast);
 				setLoading(false);
 			});
 	}, [date, time, useLat, useLon]);
 
 	if (!date || !isWithinForecastWindow(date)) return null;
 	if (loading) return <CircularProgress size={14} sx={{ ml: 1 }} />;
+	if (noDayForecast) {
+		return (
+			<Tooltip title="Keine Wettervorhersage für diesen Tag verfügbar" placement="bottom">
+				<Typography variant="body2" sx={{ ml: 1, color: "text.secondary", fontWeight: 600 }}>
+					Keine Vorhersage
+				</Typography>
+			</Tooltip>
+		);
+	}
 	if (error || !data) return null;
 
 	return (
