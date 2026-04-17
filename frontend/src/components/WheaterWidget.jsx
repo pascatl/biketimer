@@ -65,7 +65,8 @@ export default function WeatherWidget({
 			headers: { "Content-Type": "application/json", ...authHeader },
 		})
 			.then(async (r) => {
-				const body = await r.json().catch(() => null);
+				const isJson = (r.headers.get("content-type") || "").includes("application/json");
+				const body = isJson ? await r.json() : null;
 				if (!r.ok) {
 					const err = new Error(String(r.status));
 					err.status = r.status;
