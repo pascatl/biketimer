@@ -15,10 +15,14 @@ class ErrorBoundary extends React.Component {
 	render() {
 		if (this.state.error) {
 			return (
-				<div style={{ padding: "2rem", fontFamily: "sans-serif", color: "#333" }}>
+				<div
+					style={{ padding: "2rem", fontFamily: "sans-serif", color: "#333" }}
+				>
 					<h2>Etwas ist schiefgelaufen.</h2>
 					<p style={{ color: "#666" }}>{this.state.error?.message}</p>
-					<button onClick={() => window.location.reload()}>Seite neu laden</button>
+					<button onClick={() => window.location.reload()}>
+						Seite neu laden
+					</button>
 				</div>
 			);
 		}
@@ -30,7 +34,7 @@ import "@fontsource/josefin-sans/600.css";
 import "@fontsource/josefin-sans/700.css";
 import "@fortawesome/fontawesome-free/css/all.min.css";
 import { ThemeProvider, CssBaseline } from "@mui/material";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import theme from "./theme";
 import App from "./App";
 import "./index.css";
@@ -51,7 +55,8 @@ function AuthGate() {
 				{authenticated && (
 					<>
 						<Route path="/events/:id" element={<App />} />
-						<Route path="*" element={<App />} />
+						<Route path="/" element={<App />} />
+						<Route path="*" element={<Navigate to="/" replace />} />
 					</>
 				)}
 			</Routes>

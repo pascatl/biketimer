@@ -29,7 +29,9 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 # ── Users CRUD ────────────────────────────────────────────────
 
 
-@router.get("/users", response_model=List[UserResponse])
+@router.get(
+    "/users", response_model=List[UserResponse], summary="Alle Benutzer auflisten"
+)
 def admin_list_users(
     db: Session = Depends(get_db),
     user: dict = Depends(require_admin),
@@ -37,7 +39,12 @@ def admin_list_users(
     return db.query(User).order_by(User.name.asc()).all()
 
 
-@router.post("/users", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/users",
+    response_model=UserResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Benutzer anlegen",
+)
 def admin_create_user(
     data: UserCreate,
     db: Session = Depends(get_db),
@@ -50,7 +57,9 @@ def admin_create_user(
     return new_user
 
 
-@router.put("/users/{user_id}", response_model=UserResponse)
+@router.put(
+    "/users/{user_id}", response_model=UserResponse, summary="Benutzer bearbeiten"
+)
 def admin_update_user(
     user_id: int,
     data: UserUpdate,
@@ -73,7 +82,7 @@ def admin_update_user(
     return u
 
 
-@router.delete("/users/{user_id}")
+@router.delete("/users/{user_id}", summary="Benutzer löschen")
 def admin_delete_user(
     user_id: int,
     db: Session = Depends(get_db),
@@ -97,7 +106,9 @@ def admin_delete_user(
 # ── Jerseys CRUD ──────────────────────────────────────────────
 
 
-@router.get("/jerseys", response_model=List[JerseyResponse])
+@router.get(
+    "/jerseys", response_model=List[JerseyResponse], summary="Alle Trikots auflisten"
+)
 def admin_list_jerseys(
     db: Session = Depends(get_db),
     user: dict = Depends(require_admin),
@@ -106,7 +117,10 @@ def admin_list_jerseys(
 
 
 @router.post(
-    "/jerseys", response_model=JerseyResponse, status_code=status.HTTP_201_CREATED
+    "/jerseys",
+    response_model=JerseyResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Trikot anlegen",
 )
 def admin_create_jersey(
     data: JerseyCreate,
@@ -120,7 +134,9 @@ def admin_create_jersey(
     return j
 
 
-@router.put("/jerseys/{jersey_id}", response_model=JerseyResponse)
+@router.put(
+    "/jerseys/{jersey_id}", response_model=JerseyResponse, summary="Trikot bearbeiten"
+)
 def admin_update_jersey(
     jersey_id: int,
     data: JerseyUpdate,
@@ -141,7 +157,7 @@ def admin_update_jersey(
     return j
 
 
-@router.delete("/jerseys/{jersey_id}")
+@router.delete("/jerseys/{jersey_id}", summary="Trikot löschen")
 def admin_delete_jersey(
     jersey_id: int,
     db: Session = Depends(get_db),
@@ -158,7 +174,11 @@ def admin_delete_jersey(
 # ── Sport Types CRUD ──────────────────────────────────────────
 
 
-@router.get("/sport-types", response_model=List[SportTypeResponse])
+@router.get(
+    "/sport-types",
+    response_model=List[SportTypeResponse],
+    summary="Alle Sportarten auflisten",
+)
 def admin_list_sport_types(
     db: Session = Depends(get_db),
     user: dict = Depends(require_admin),
@@ -170,6 +190,7 @@ def admin_list_sport_types(
     "/sport-types",
     response_model=SportTypeResponse,
     status_code=status.HTTP_201_CREATED,
+    summary="Sportart anlegen",
 )
 def admin_create_sport_type(
     data: SportTypeCreate,
@@ -189,7 +210,11 @@ def admin_create_sport_type(
     return st
 
 
-@router.put("/sport-types/{sport_type_id}", response_model=SportTypeResponse)
+@router.put(
+    "/sport-types/{sport_type_id}",
+    response_model=SportTypeResponse,
+    summary="Sportart bearbeiten",
+)
 def admin_update_sport_type(
     sport_type_id: int,
     data: SportTypeUpdate,
@@ -216,7 +241,7 @@ def admin_update_sport_type(
     return st
 
 
-@router.delete("/sport-types/{sport_type_id}")
+@router.delete("/sport-types/{sport_type_id}", summary="Sportart löschen")
 def admin_delete_sport_type(
     sport_type_id: int,
     db: Session = Depends(get_db),

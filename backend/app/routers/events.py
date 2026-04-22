@@ -7,10 +7,30 @@ from sqlalchemy.orm import Session
 
 from ..auth import get_current_user
 from ..database import get_db
-from ..models import Event, Invitation, User, PushSubscription, EventComment, CommentReaction
-from ..schemas import EventCreate, EventResponse, EventUpdate, InvitationCreate, EventCommentCreate, EventCommentResponse, CommentReactionCreate, DEFAULT_EMAIL_PREFS
+from ..models import (
+    Event,
+    Invitation,
+    User,
+    PushSubscription,
+    EventComment,
+    CommentReaction,
+)
+from ..schemas import (
+    EventCreate,
+    EventResponse,
+    EventUpdate,
+    InvitationCreate,
+    EventCommentCreate,
+    EventCommentResponse,
+    CommentReactionCreate,
+    DEFAULT_EMAIL_PREFS,
+)
 from ..push_service import send_push_notification
-from ..email_service import send_invitation_email, send_event_update_email, send_event_cancel_email
+from ..email_service import (
+    send_invitation_email,
+    send_event_update_email,
+    send_event_cancel_email,
+)
 from ..ws_manager import manager as ws_manager
 from ..logger import get_logger
 
@@ -21,19 +41,27 @@ router = APIRouter(prefix="/events", tags=["events"])
 
 def _push_with_pref(db, keycloak_id: str, pref_key: str, title: str, body: str):
     """Send a push notification only if the user's pref for pref_key is enabled."""
-    subs = db.query(PushSubscription).filter(PushSubscription.keycloak_id == keycloak_id).all()
+    subs = (
+        db.query(PushSubscription)
+        .filter(PushSubscription.keycloak_id == keycloak_id)
+        .all()
+    )
     for sub in subs:
         prefs = sub.notification_prefs or {}
         if prefs.get(pref_key, False):  # default False = opt-in
             try:
-                send_push_notification(sub.endpoint, sub.p256dh, sub.auth, title=title, body=body)
+                send_push_notification(
+                    sub.endpoint, sub.p256dh, sub.auth, title=title, body=body
+                )
             except Exception:
                 pass
 
 
 def _push_admins(db, pref_key: str, title: str, body: str):
     """Send push only to users flagged as admin in the DB."""
-    admin_users = db.query(User).filter(User.is_active == True, User.is_admin == True).all()
+    admin_users = (
+        db.query(User).filter(User.is_active == True, User.is_admin == True).all()
+    )
     for au in admin_users:
         if au.keycloak_id:
             _push_with_pref(db, au.keycloak_id, pref_key, title, body)
@@ -107,7 +135,9 @@ def get_my_events(
     )
 
 
-@router.get("/{event_id}", response_model=EventResponse)
+@router.get(
+    "/{event_id}", response_model=EventResponse, summary="Eine Veranstaltung abrufen"
+)
 def get_event(
     event_id: int,
     db: Session = Depends(get_db),
@@ -164,9 +194,12 @@ def get_event_invitations(
         inv_conditions = [Invitation.invitee_keycloak_id == sub]
         if email:
             inv_conditions.append(Invitation.invitee_email == email)
-        has_access = is_creator or db.query(Invitation).filter(
-            Invitation.event_id == event_id, or_(*inv_conditions)
-        ).first()
+        has_access = (
+            is_creator
+            or db.query(Invitation)
+            .filter(Invitation.event_id == event_id, or_(*inv_conditions))
+            .first()
+        )
         if not has_access:
             raise HTTPException(status_code=403, detail="Kein Zugriff auf dieses Event")
     invitations = db.query(Invitation).filter(Invitation.event_id == event_id).all()
@@ -210,7 +243,12 @@ def get_event_invitations(
     return result
 
 
-@router.post("", response_model=EventResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "",
+    response_model=EventResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Neue Veranstaltung erstellen",
+)
 def create_event(
     event_in: EventCreate,
     db: Session = Depends(get_db),
@@ -246,14 +284,22 @@ def create_event(
     event_date_raw = event_in.event_data.event_date
     try:
         from datetime import datetime as _dt
+
         event_date_fmt = _dt.strptime(event_date_raw, "%Y-%m-%d").strftime("%d.%m.%y")
     except Exception:
         event_date_fmt = event_date_raw
     creator = user.get("name") or user.get("preferred_username", "Jemand")
 
-    _log.info(f"Event created: id={new_event.id} date={event_date_raw!r} by {creator!r} sub={user['sub']}")
+    _log.info(
+        f"Event created: id={new_event.id} date={event_date_raw!r} by {creator!r} sub={user['sub']}"
+    )
 
-    _push_admins(db, "admin_event_created", "Neues Event", f"{creator} hat ein Event am {event_date_fmt} angelegt.")
+    _push_admins(
+        db,
+        "admin_event_created",
+        "Neues Event",
+        f"{creator} hat ein Event am {event_date_fmt} angelegt.",
+    )
 
     ws_manager.dispatch_sync(
         {"type": "event_created", "event_id": new_event.id},
@@ -263,7 +309,9 @@ def create_event(
     return new_event
 
 
-@router.put("/{event_id}", response_model=EventResponse)
+@router.put(
+    "/{event_id}", response_model=EventResponse, summary="Veranstaltung aktualisieren"
+)
 def update_event(
     event_id: int,
     event_in: EventUpdate,
@@ -289,33 +337,53 @@ def update_event(
     event_date_raw = event.event_data.get("event_date", "")
     try:
         from datetime import datetime as _dt
+
         event_date_fmt = _dt.strptime(event_date_raw, "%Y-%m-%d").strftime("%d.%m.%y")
     except Exception:
         event_date_fmt = event_date_raw
 
-    _log.info(f"Event updated: id={event_id} date={event_date_raw!r} by {user.get('name') or user.get('preferred_username', '?')!r} sub={user['sub']}")
+    _log.info(
+        f"Event updated: id={event_id} date={event_date_raw!r} by {user.get('name') or user.get('preferred_username', '?')!r} sub={user['sub']}"
+    )
     # Notify ALL invitees (any status) except the editor
-    all_invitees = db.query(Invitation).filter(
-        Invitation.event_id == event_id,
-    ).all()
+    all_invitees = (
+        db.query(Invitation)
+        .filter(
+            Invitation.event_id == event_id,
+        )
+        .all()
+    )
     editor = user.get("name") or user.get("preferred_username", "")
     for inv in all_invitees:
         kid = inv.invitee_keycloak_id
         if kid and kid != sub:
-            _push_with_pref(db, kid, "event_updated", "Event geändert",
-                            f"Das Event am {event_date_fmt} wurde aktualisiert.")
+            _push_with_pref(
+                db,
+                kid,
+                "event_updated",
+                "Event geändert",
+                f"Das Event am {event_date_fmt} wurde aktualisiert.",
+            )
             invitee_email = inv.invitee_email
             if invitee_email and not invitee_email.endswith("@local"):
                 db_user = db.query(User).filter(User.keycloak_id == kid).first()
                 email_prefs = (db_user.email_prefs or {}) if db_user else {}
-                if email_prefs.get("event_updated", DEFAULT_EMAIL_PREFS["event_updated"]):
+                if email_prefs.get(
+                    "event_updated", DEFAULT_EMAIL_PREFS["event_updated"]
+                ):
                     try:
-                        send_event_update_email(invitee_email, event.event_data, event_id)
+                        send_event_update_email(
+                            invitee_email, event.event_data, event_id
+                        )
                     except Exception:
                         pass
     # Notify admins
-    _push_admins(db, "admin_event_updated", "Event aktualisiert",
-                 f"Event am {event_date_fmt} wurde geändert (von {editor}).")
+    _push_admins(
+        db,
+        "admin_event_updated",
+        "Event aktualisiert",
+        f"Event am {event_date_fmt} wurde geändert (von {editor}).",
+    )
 
     ws_manager.dispatch_sync(
         {
@@ -323,14 +391,16 @@ def update_event(
             "event_id": event_id,
             "message": f"Das Event am {event_date_fmt} wurde aktualisiert.",
         },
-        recipient_subs=[inv.invitee_keycloak_id for inv in all_invitees if inv.invitee_keycloak_id],
+        recipient_subs=[
+            inv.invitee_keycloak_id for inv in all_invitees if inv.invitee_keycloak_id
+        ],
         exclude_sub=sub,
     )
 
     return event
 
 
-@router.delete("/{event_id}")
+@router.delete("/{event_id}", summary="Veranstaltung löschen")
 def delete_event(
     event_id: int,
     db: Session = Depends(get_db),
@@ -347,36 +417,54 @@ def delete_event(
     event_date_raw = event.event_data.get("event_date", "")
     try:
         from datetime import datetime as _dt
+
         event_date_fmt = _dt.strptime(event_date_raw, "%Y-%m-%d").strftime("%d.%m.%y")
     except Exception:
         event_date_fmt = event_date_raw
     # Notify ALL invitees (any status) except the deleter
-    all_invitees = db.query(Invitation).filter(
-        Invitation.event_id == event_id,
-    ).all()
+    all_invitees = (
+        db.query(Invitation)
+        .filter(
+            Invitation.event_id == event_id,
+        )
+        .all()
+    )
     deleter = user.get("name") or user.get("preferred_username", "")
     for inv in all_invitees:
         kid = inv.invitee_keycloak_id
         if kid and kid != user["sub"]:
-            _push_with_pref(db, kid, "event_cancelled", "Event abgesagt",
-                            f"Das Event am {event_date_fmt} wurde gelöscht.")
+            _push_with_pref(
+                db,
+                kid,
+                "event_cancelled",
+                "Event abgesagt",
+                f"Das Event am {event_date_fmt} wurde gelöscht.",
+            )
             invitee_email = inv.invitee_email
             if invitee_email and not invitee_email.endswith("@local"):
                 db_user = db.query(User).filter(User.keycloak_id == kid).first()
                 email_prefs = (db_user.email_prefs or {}) if db_user else {}
-                if email_prefs.get("event_cancelled", DEFAULT_EMAIL_PREFS["event_cancelled"]):
+                if email_prefs.get(
+                    "event_cancelled", DEFAULT_EMAIL_PREFS["event_cancelled"]
+                ):
                     try:
                         send_event_cancel_email(invitee_email, event.event_data)
                     except Exception:
                         pass
     # Notify admins
-    _push_admins(db, "admin_event_deleted", "Event gelöscht",
-                 f"Event am {event_date_fmt} wurde gelöscht (von {deleter}).")
+    _push_admins(
+        db,
+        "admin_event_deleted",
+        "Event gelöscht",
+        f"Event am {event_date_fmt} wurde gelöscht (von {deleter}).",
+    )
 
     db.delete(event)
     db.commit()
 
-    _log.info(f"Event deleted: id={event_id} date={event_date_raw!r} by {deleter!r} sub={user['sub']}")
+    _log.info(
+        f"Event deleted: id={event_id} date={event_date_raw!r} by {deleter!r} sub={user['sub']}"
+    )
 
     ws_manager.dispatch_sync(
         {
@@ -384,14 +472,20 @@ def delete_event(
             "event_id": event_id,
             "message": f"Das Event am {event_date_fmt} wurde gelöscht.",
         },
-        recipient_subs=[inv.invitee_keycloak_id for inv in all_invitees if inv.invitee_keycloak_id],
+        recipient_subs=[
+            inv.invitee_keycloak_id for inv in all_invitees if inv.invitee_keycloak_id
+        ],
         exclude_sub=user["sub"],
     )
 
     return {"ok": True}
 
 
-@router.post("/{event_id}/invite", status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{event_id}/invite",
+    status_code=status.HTTP_201_CREATED,
+    summary="Teilnehmer einladen",
+)
 def invite_users(
     event_id: int,
     invitation_in: InvitationCreate,
@@ -407,9 +501,7 @@ def invite_users(
     current_leader = event.event_data.get("event_leader", "")
     user_name = user.get("name") or user.get("preferred_username", "")
     is_creator = event.creator_keycloak_id == sub
-    is_leader = bool(current_leader) and (
-        user_name == current_leader
-    )
+    is_leader = bool(current_leader) and (user_name == current_leader)
     if not is_creator and not is_leader and not user.get("is_admin"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -421,6 +513,7 @@ def invite_users(
     event_date_fmt = event_date_raw
     try:
         from datetime import datetime as _dt
+
         event_date_fmt = _dt.strptime(event_date_raw, "%Y-%m-%d").strftime("%d.%m.%y")
     except ValueError:
         pass
@@ -463,12 +556,16 @@ def invite_users(
         db.commit()
         db.refresh(invitation)
         results.append({"user_id": uid, "ok": True, "invitation_id": invitation.id})
-        _log.info(f"Invitation created: event_id={event_id} invitee={invitee_email!r} by {inviter_name!r} sub={user['sub']}")
+        _log.info(
+            f"Invitation created: event_id={event_id} invitee={invitee_email!r} by {inviter_name!r} sub={user['sub']}"
+        )
 
         # Send email notification if invitee has a real email and email pref enabled
         if invitee.email and not invitee.email.endswith("@local"):
             email_prefs = invitee.email_prefs or {}
-            if email_prefs.get("invite_received", DEFAULT_EMAIL_PREFS["invite_received"]):
+            if email_prefs.get(
+                "invite_received", DEFAULT_EMAIL_PREFS["invite_received"]
+            ):
                 try:
                     send_invitation_email(
                         invitee_email=invitee.email,
@@ -493,8 +590,12 @@ def invite_users(
     sent = sum(1 for r in results if r["ok"])
     if sent > 0:
         # All current invitees of the event (accepted + newly added pending)
-        all_event_invs = db.query(Invitation).filter(Invitation.event_id == event_id).all()
-        recipient_subs = list({i.invitee_keycloak_id for i in all_event_invs if i.invitee_keycloak_id})
+        all_event_invs = (
+            db.query(Invitation).filter(Invitation.event_id == event_id).all()
+        )
+        recipient_subs = list(
+            {i.invitee_keycloak_id for i in all_event_invs if i.invitee_keycloak_id}
+        )
         ws_manager.dispatch_sync(
             {
                 "type": "invitation_created",
@@ -518,6 +619,7 @@ def invite_users(
 def _serialize_comment(comment: EventComment, current_sub: str) -> dict:
     """Build a comment dict including grouped emoji reactions."""
     from collections import defaultdict
+
     groups: dict = defaultdict(list)
     for r in comment.reactions:
         groups[r.emoji].append({"keycloak_id": r.user_keycloak_id, "name": r.user_name})
@@ -558,9 +660,12 @@ def get_event_comments(
         inv_conditions = [Invitation.invitee_keycloak_id == sub]
         if email:
             inv_conditions.append(Invitation.invitee_email == email)
-        has_access = is_creator or db.query(Invitation).filter(
-            Invitation.event_id == event_id, or_(*inv_conditions)
-        ).first()
+        has_access = (
+            is_creator
+            or db.query(Invitation)
+            .filter(Invitation.event_id == event_id, or_(*inv_conditions))
+            .first()
+        )
         if not has_access:
             raise HTTPException(status_code=403, detail="Kein Zugriff auf dieses Event")
     comments = (
@@ -597,9 +702,12 @@ def create_event_comment(
         inv_conditions = [Invitation.invitee_keycloak_id == sub]
         if email:
             inv_conditions.append(Invitation.invitee_email == email)
-        has_access = is_creator or db.query(Invitation).filter(
-            Invitation.event_id == event_id, or_(*inv_conditions)
-        ).first()
+        has_access = (
+            is_creator
+            or db.query(Invitation)
+            .filter(Invitation.event_id == event_id, or_(*inv_conditions))
+            .first()
+        )
         if not has_access:
             raise HTTPException(status_code=403, detail="Kein Zugriff auf dieses Event")
 
@@ -618,7 +726,9 @@ def create_event_comment(
 
     # Notify all event members so comments update live
     all_invitees = db.query(Invitation).filter(Invitation.event_id == event_id).all()
-    recipient_subs = list({i.invitee_keycloak_id for i in all_invitees if i.invitee_keycloak_id})
+    recipient_subs = list(
+        {i.invitee_keycloak_id for i in all_invitees if i.invitee_keycloak_id}
+    )
     author_name = user.get("name") or user.get("preferred_username", "Jemand")
     ws_manager.dispatch_sync(
         {
@@ -660,7 +770,9 @@ def delete_event_comment(
 
     # Notify all event members so comments update live
     all_invitees = db.query(Invitation).filter(Invitation.event_id == event_id).all()
-    recipient_subs = list({i.invitee_keycloak_id for i in all_invitees if i.invitee_keycloak_id})
+    recipient_subs = list(
+        {i.invitee_keycloak_id for i in all_invitees if i.invitee_keycloak_id}
+    )
     ws_manager.dispatch_sync(
         {
             "type": "event_comment_deleted",
@@ -676,7 +788,9 @@ def delete_event_comment(
 # ── Comment Reactions ─────────────────────────────────────────
 
 
-@router.post("/{event_id}/comments/{comment_id}/reactions", status_code=status.HTTP_200_OK)
+@router.post(
+    "/{event_id}/comments/{comment_id}/reactions", status_code=status.HTTP_200_OK
+)
 def toggle_comment_reaction(
     event_id: int,
     comment_id: int,
@@ -727,7 +841,9 @@ def toggle_comment_reaction(
 
     # Notify all event members so reactions update live
     all_invitees = db.query(Invitation).filter(Invitation.event_id == event_id).all()
-    recipient_subs = list({i.invitee_keycloak_id for i in all_invitees if i.invitee_keycloak_id})
+    recipient_subs = list(
+        {i.invitee_keycloak_id for i in all_invitees if i.invitee_keycloak_id}
+    )
     ws_manager.dispatch_sync(
         {
             "type": "event_comment_reaction_updated",

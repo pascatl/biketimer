@@ -248,7 +248,63 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title=f"{APP_NAME} API", version="2.0.0", lifespan=lifespan)
+_OPENAPI_TAGS = [
+    {
+        "name": "events",
+        "description": "Radveranstaltungen erstellen, abrufen, aktualisieren und löschen. "
+        "Enthält auch Kommentare und ICS-Export.",
+    },
+    {
+        "name": "invitations",
+        "description": "Einladungen zu Veranstaltungen versenden, annehmen oder ablehnen.",
+    },
+    {
+        "name": "users",
+        "description": "Eigenes Benutzerprofil abrufen und verwalten (Trikot, Benachrichtigungseinstellungen, …).",
+    },
+    {
+        "name": "admin",
+        "description": "Adminbereich: Benutzer, Trikots, Sportarten und Gruppen verwalten. "
+        "Erfordert die Rolle **admin**.",
+    },
+    {
+        "name": "data",
+        "description": "Stammdaten abrufen: verfügbare Trikots, Sportarten und Benutzergruppen.",
+    },
+    {
+        "name": "push",
+        "description": "Web-Push-Abonnements registrieren, aktualisieren und löschen.",
+    },
+    {
+        "name": "stats",
+        "description": "Teilnahme-Statistiken und Bestenlisten.",
+    },
+    {
+        "name": "auth",
+        "description": "Keycloak-Token validieren und Benutzer-Sync beim ersten Login.",
+    },
+    {
+        "name": "weather",
+        "description": "Wettervorhersage für einen Veranstaltungsort (Open-Meteo).",
+    },
+    {
+        "name": "changelog",
+        "description": "App-Changelog: Einträge und Kategorien abrufen.",
+    },
+]
+
+app = FastAPI(
+    title=f"{APP_NAME} API",
+    version="2.0.0",
+    description=(
+        "REST-Backend für **Biketimer** – eine App zur Organisation von Radveranstaltungen.\n\n"
+        "Authentifizierung erfolgt via **Keycloak** (OAuth 2.0 / OpenID Connect). "
+        "Klicke auf **Authorize** und gib deinen Bearer-Token ein, um geschützte Endpunkte zu testen.\n\n"
+        "Echtzeit-Updates werden über `/api/ws` (WebSocket) geliefert."
+    ),
+    openapi_tags=_OPENAPI_TAGS,
+    lifespan=lifespan,
+)
 
 app.add_middleware(
     CORSMiddleware,

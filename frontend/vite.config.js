@@ -13,6 +13,18 @@ export default defineConfig({
 				changeOrigin: true,
 				ws: true,
 			},
+			"/docs": {
+				target: "http://backend:8000",
+				changeOrigin: true,
+			},
+			"/redoc": {
+				target: "http://backend:8000",
+				changeOrigin: true,
+			},
+			"/openapi.json": {
+				target: "http://backend:8000",
+				changeOrigin: true,
+			},
 			"/kc": {
 				target: process.env.KEYCLOAK_URL || "http://localhost:8080",
 				changeOrigin: true,

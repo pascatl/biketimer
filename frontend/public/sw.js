@@ -25,6 +25,11 @@ self.addEventListener("activate", (event) => {
 
 // Fetch – network first, fall back to cache
 self.addEventListener("fetch", (event) => {
+	// Only handle same-origin requests – let CDN/external URLs pass through untouched
+	if (!event.request.url.startsWith(self.location.origin)) {
+		return;
+	}
+
 	// Don't cache API requests or auth requests
 	if (
 		event.request.url.includes("/api/") ||

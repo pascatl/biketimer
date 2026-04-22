@@ -40,17 +40,31 @@ def _fmt_event_date(event: "Event | None") -> str:
 
 def _push_with_pref(db, keycloak_id: str, pref_key: str, title: str, body: str):
     """Send a push notification only if the user's pref for pref_key is enabled."""
-    subs = db.query(PushSubscription).filter(PushSubscription.keycloak_id == keycloak_id).all()
+    subs = (
+        db.query(PushSubscription)
+        .filter(PushSubscription.keycloak_id == keycloak_id)
+        .all()
+    )
     for sub in subs:
         prefs = sub.notification_prefs or {}
         if prefs.get(pref_key, DEFAULT_NOTIF_PREFS.get(pref_key, False)):
             try:
-                send_push_notification(sub.endpoint, sub.p256dh, sub.auth, title=title, body=body)
+                send_push_notification(
+                    sub.endpoint, sub.p256dh, sub.auth, title=title, body=body
+                )
             except Exception:
                 pass
 
 
-def _email_with_pref(db, keycloak_id: str, pref_key: str, actor_name: str, event_data: dict, action: str, event_id: int):
+def _email_with_pref(
+    db,
+    keycloak_id: str,
+    pref_key: str,
+    actor_name: str,
+    event_data: dict,
+    action: str,
+    event_id: int,
+):
     """Send an RSVP notification email only if the user's email pref for pref_key is enabled."""
     db_user = db.query(User).filter(User.keycloak_id == keycloak_id).first()
     if not db_user or not db_user.email:
@@ -60,12 +74,16 @@ def _email_with_pref(db, keycloak_id: str, pref_key: str, actor_name: str, event
     email_prefs = (db_user.email_prefs or {}) if db_user else {}
     if email_prefs.get(pref_key, DEFAULT_EMAIL_PREFS.get(pref_key, False)):
         try:
-            send_rsvp_notification_email(db_user.email, actor_name, event_data, action, event_id)
+            send_rsvp_notification_email(
+                db_user.email, actor_name, event_data, action, event_id
+            )
         except Exception:
             pass
 
 
-def _notify_rsvp_organizers(db, event, actor_sub: str, actor_name: str, pref_key: str, action: str):
+def _notify_rsvp_organizers(
+    db, event, actor_sub: str, actor_name: str, pref_key: str, action: str
+):
     """Notify the event creator, event leader, and all admins about an RSVP action."""
     if not event:
         return
@@ -84,28 +102,61 @@ def _notify_rsvp_organizers(db, event, actor_sub: str, actor_name: str, pref_key
     creator_id = event.creator_keycloak_id
     if creator_id and creator_id != actor_sub:
         _push_with_pref(db, creator_id, pref_key, push_title, push_body)
-        _email_with_pref(db, creator_id, pref_key, actor_name, event.event_data, action, event.id)
+        _email_with_pref(
+            db, creator_id, pref_key, actor_name, event.event_data, action, event.id
+        )
         notified.add(creator_id)
 
     # Notify event leader (organizer) if different from creator
     leader_name = event.event_data.get("event_leader", "")
     if leader_name:
         leader_user = db.query(User).filter(User.name == leader_name).first()
-        if leader_user and leader_user.keycloak_id and leader_user.keycloak_id != actor_sub and leader_user.keycloak_id not in notified:
-            _push_with_pref(db, leader_user.keycloak_id, pref_key, push_title, push_body)
-            _email_with_pref(db, leader_user.keycloak_id, pref_key, actor_name, event.event_data, action, event.id)
+        if (
+            leader_user
+            and leader_user.keycloak_id
+            and leader_user.keycloak_id != actor_sub
+            and leader_user.keycloak_id not in notified
+        ):
+            _push_with_pref(
+                db, leader_user.keycloak_id, pref_key, push_title, push_body
+            )
+            _email_with_pref(
+                db,
+                leader_user.keycloak_id,
+                pref_key,
+                actor_name,
+                event.event_data,
+                action,
+                event.id,
+            )
             notified.add(leader_user.keycloak_id)
 
     # Notify all admins (for every event, regardless of involvement)
-    admin_users = db.query(User).filter(User.is_active.is_(True), User.is_admin.is_(True)).all()
+    admin_users = (
+        db.query(User).filter(User.is_active.is_(True), User.is_admin.is_(True)).all()
+    )
     for au in admin_users:
-        if au.keycloak_id and au.keycloak_id != actor_sub and au.keycloak_id not in notified:
+        if (
+            au.keycloak_id
+            and au.keycloak_id != actor_sub
+            and au.keycloak_id not in notified
+        ):
             _push_with_pref(db, au.keycloak_id, pref_key, push_title, push_body)
-            _email_with_pref(db, au.keycloak_id, pref_key, actor_name, event.event_data, action, event.id)
+            _email_with_pref(
+                db,
+                au.keycloak_id,
+                pref_key,
+                actor_name,
+                event.event_data,
+                action,
+                event.id,
+            )
             notified.add(au.keycloak_id)
 
 
-@router.get("/mine", response_model=List[dict])
+@router.get(
+    "/mine", response_model=List[dict], summary="Eigene ausstehende Einladungen abrufen"
+)
 def get_my_invitations(
     db: Session = Depends(get_db),
     user: dict = Depends(get_current_user),
@@ -184,7 +235,7 @@ def respond_via_token(
     )
 
 
-@router.post("/{invitation_id}/accept")
+@router.post("/{invitation_id}/accept", summary="Einladung annehmen")
 def accept_invitation(
     invitation_id: int,
     db: Session = Depends(get_db),
@@ -193,7 +244,10 @@ def accept_invitation(
     inv = db.query(Invitation).filter(Invitation.id == invitation_id).first()
     if not inv:
         raise HTTPException(status_code=404, detail="Einladung nicht gefunden")
-    if inv.invitee_email != user.get("email") and inv.invitee_keycloak_id != user["sub"]:
+    if (
+        inv.invitee_email != user.get("email")
+        and inv.invitee_keycloak_id != user["sub"]
+    ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="Nicht berechtigt"
         )
@@ -204,16 +258,26 @@ def accept_invitation(
     inv.responded_at = datetime.now(timezone.utc)
     db.commit()
 
-    _log.info(f"Invitation accepted: id={invitation_id} event_id={inv.event_id} by {user.get('name') or user.get('preferred_username', '?')!r} sub={user['sub']}")
+    _log.info(
+        f"Invitation accepted: id={invitation_id} event_id={inv.event_id} by {user.get('name') or user.get('preferred_username', '?')!r} sub={user['sub']}"
+    )
 
     event = db.query(Event).filter(Event.id == inv.event_id).first()
     event_date_fmt = _fmt_event_date(event)
     actor_name = user.get("name") or user.get("preferred_username", "Jemand")
-    accepted_invs = db.query(Invitation).filter(
-        Invitation.event_id == inv.event_id, Invitation.status == "accepted"
-    ).all()
-    respond_recipients = list({i.invitee_keycloak_id for i in accepted_invs if i.invitee_keycloak_id})
-    if event and event.creator_keycloak_id and event.creator_keycloak_id not in respond_recipients:
+    accepted_invs = (
+        db.query(Invitation)
+        .filter(Invitation.event_id == inv.event_id, Invitation.status == "accepted")
+        .all()
+    )
+    respond_recipients = list(
+        {i.invitee_keycloak_id for i in accepted_invs if i.invitee_keycloak_id}
+    )
+    if (
+        event
+        and event.creator_keycloak_id
+        and event.creator_keycloak_id not in respond_recipients
+    ):
         respond_recipients.append(event.creator_keycloak_id)
     ws_manager.dispatch_sync(
         {
@@ -225,12 +289,14 @@ def accept_invitation(
         exclude_sub=user["sub"],
     )
 
-    _notify_rsvp_organizers(db, event, user["sub"], actor_name, "rsvp_accepted", "accepted")
+    _notify_rsvp_organizers(
+        db, event, user["sub"], actor_name, "rsvp_accepted", "accepted"
+    )
 
     return {"ok": True}
 
 
-@router.post("/{invitation_id}/decline")
+@router.post("/{invitation_id}/decline", summary="Einladung ablehnen")
 def decline_invitation(
     invitation_id: int,
     db: Session = Depends(get_db),
@@ -239,7 +305,10 @@ def decline_invitation(
     inv = db.query(Invitation).filter(Invitation.id == invitation_id).first()
     if not inv:
         raise HTTPException(status_code=404, detail="Einladung nicht gefunden")
-    if inv.invitee_email != user.get("email") and inv.invitee_keycloak_id != user["sub"]:
+    if (
+        inv.invitee_email != user.get("email")
+        and inv.invitee_keycloak_id != user["sub"]
+    ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="Nicht berechtigt"
         )
@@ -249,16 +318,26 @@ def decline_invitation(
     inv.responded_at = datetime.now(timezone.utc)
     db.commit()
 
-    _log.info(f"Invitation declined: id={invitation_id} event_id={inv.event_id} by {user.get('name') or user.get('preferred_username', '?')!r} sub={user['sub']}")
+    _log.info(
+        f"Invitation declined: id={invitation_id} event_id={inv.event_id} by {user.get('name') or user.get('preferred_username', '?')!r} sub={user['sub']}"
+    )
 
     event = db.query(Event).filter(Event.id == inv.event_id).first()
     event_date_fmt = _fmt_event_date(event)
     actor_name = user.get("name") or user.get("preferred_username", "Jemand")
-    accepted_invs = db.query(Invitation).filter(
-        Invitation.event_id == inv.event_id, Invitation.status == "accepted"
-    ).all()
-    respond_recipients = list({i.invitee_keycloak_id for i in accepted_invs if i.invitee_keycloak_id})
-    if event and event.creator_keycloak_id and event.creator_keycloak_id not in respond_recipients:
+    accepted_invs = (
+        db.query(Invitation)
+        .filter(Invitation.event_id == inv.event_id, Invitation.status == "accepted")
+        .all()
+    )
+    respond_recipients = list(
+        {i.invitee_keycloak_id for i in accepted_invs if i.invitee_keycloak_id}
+    )
+    if (
+        event
+        and event.creator_keycloak_id
+        and event.creator_keycloak_id not in respond_recipients
+    ):
         respond_recipients.append(event.creator_keycloak_id)
     ws_manager.dispatch_sync(
         {
@@ -270,7 +349,9 @@ def decline_invitation(
         exclude_sub=user["sub"],
     )
 
-    _notify_rsvp_organizers(db, event, user["sub"], actor_name, "rsvp_declined", "declined")
+    _notify_rsvp_organizers(
+        db, event, user["sub"], actor_name, "rsvp_declined", "declined"
+    )
 
     return {"ok": True}
 
@@ -286,7 +367,10 @@ def withdraw_invitation(
     inv = db.query(Invitation).filter(Invitation.id == invitation_id).first()
     if not inv:
         raise HTTPException(status_code=404, detail="Einladung nicht gefunden")
-    if inv.invitee_email != user.get("email") and inv.invitee_keycloak_id != user["sub"]:
+    if (
+        inv.invitee_email != user.get("email")
+        and inv.invitee_keycloak_id != user["sub"]
+    ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="Nicht berechtigt"
         )
@@ -301,16 +385,26 @@ def withdraw_invitation(
     inv.responded_at = datetime.now(timezone.utc)
     db.commit()
 
-    _log.info(f"Invitation withdrawn: id={invitation_id} event_id={inv.event_id} by {user.get('name') or user.get('preferred_username', '?')!r} sub={user['sub']}")
+    _log.info(
+        f"Invitation withdrawn: id={invitation_id} event_id={inv.event_id} by {user.get('name') or user.get('preferred_username', '?')!r} sub={user['sub']}"
+    )
 
     event = db.query(Event).filter(Event.id == inv.event_id).first()
     event_date_fmt = _fmt_event_date(event)
     actor_name = user.get("name") or user.get("preferred_username", "Jemand")
-    accepted_invs = db.query(Invitation).filter(
-        Invitation.event_id == inv.event_id, Invitation.status == "accepted"
-    ).all()
-    respond_recipients = list({i.invitee_keycloak_id for i in accepted_invs if i.invitee_keycloak_id})
-    if event and event.creator_keycloak_id and event.creator_keycloak_id not in respond_recipients:
+    accepted_invs = (
+        db.query(Invitation)
+        .filter(Invitation.event_id == inv.event_id, Invitation.status == "accepted")
+        .all()
+    )
+    respond_recipients = list(
+        {i.invitee_keycloak_id for i in accepted_invs if i.invitee_keycloak_id}
+    )
+    if (
+        event
+        and event.creator_keycloak_id
+        and event.creator_keycloak_id not in respond_recipients
+    ):
         respond_recipients.append(event.creator_keycloak_id)
     ws_manager.dispatch_sync(
         {
@@ -322,7 +416,9 @@ def withdraw_invitation(
         exclude_sub=user["sub"],
     )
 
-    _notify_rsvp_organizers(db, event, user["sub"], actor_name, "rsvp_declined", "declined")
+    _notify_rsvp_organizers(
+        db, event, user["sub"], actor_name, "rsvp_declined", "declined"
+    )
 
     return {"ok": True}
 
@@ -353,7 +449,9 @@ def revoke_invitation(
     db.delete(inv)
     db.commit()
 
-    _log.info(f"Invitation revoked: id={invitation_id} event_id={event_id_for_ws} invitee_sub={revoked_invitee_sub} by {user.get('name') or user.get('preferred_username', '?')!r} sub={user['sub']}")
+    _log.info(
+        f"Invitation revoked: id={invitation_id} event_id={event_id_for_ws} invitee_sub={revoked_invitee_sub} by {user.get('name') or user.get('preferred_username', '?')!r} sub={user['sub']}"
+    )
 
     event = db.query(Event).filter(Event.id == event_id_for_ws).first()
     event_date_fmt = _fmt_event_date(event)
