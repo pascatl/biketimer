@@ -2,8 +2,9 @@ from collections import defaultdict
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends
-from sqlalchemy import func
+from sqlalchemy import cast, func, or_
 from sqlalchemy.orm import Session
+from sqlalchemy.types import Date as SADate
 
 from ..auth import get_current_user
 from ..database import get_db
@@ -17,10 +18,16 @@ def get_stats(
     db: Session = Depends(get_db),
     user: dict = Depends(get_current_user),
 ):
-    """Return participation statistics for all users."""
-    total_events = db.query(func.count(Event.id)).scalar() or 0
+    """Return participation statistics for all users (past events only)."""
+    # Only include events whose date is strictly before today
+    is_past = cast(Event.event_data["event_date"].astext, SADate) < func.current_date()
 
-    # Count accepted invitations per user
+    total_events = db.query(func.count(Event.id)).filter(is_past).scalar() or 0
+
+    # Subquery: IDs of past events
+    past_event_ids = db.query(Event.id).filter(is_past).subquery()
+
+    # Count accepted invitations per user for past events only
     rows = (
         db.query(
             User.id,
@@ -33,7 +40,8 @@ def get_stats(
                 (Invitation.invitee_email == User.email)
                 | (Invitation.invitee_keycloak_id == User.keycloak_id)
             )
-            & (Invitation.status == "accepted"),
+            & (Invitation.status == "accepted")
+            & Invitation.event_id.in_(past_event_ids),
         )
         .filter(User.is_active == True)
         .group_by(User.id, User.name)
@@ -45,7 +53,7 @@ def get_stats(
         {"user_id": r.id, "name": r.name, "participations": r.count} for r in rows
     ]
 
-    # Per-user: events they were invited to (any status)
+    # Per-user: invitation stats for past events only
     my_email = user.get("email")
     my_sub = user.get("sub")
     my_stats = {"accepted": 0, "declined": 0, "pending": 0}
@@ -56,11 +64,11 @@ def get_stats(
         if my_sub:
             filters.append(Invitation.invitee_keycloak_id == my_sub)
 
-        from sqlalchemy import or_
-
         my_invitations = (
             db.query(Invitation.status, func.count(Invitation.id))
+            .join(Event, Event.id == Invitation.event_id)
             .filter(or_(*filters))
+            .filter(is_past)
             .group_by(Invitation.status)
             .all()
         )

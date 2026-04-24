@@ -167,7 +167,7 @@ export default function StatsPanel({ open, onClose }) {
 									{totalEvents}
 								</Typography>
 								<Typography variant="body2" color="text.secondary">
-									Events gesamt
+									Vergangene Events
 								</Typography>
 							</Paper>
 							<Paper
