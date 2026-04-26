@@ -172,7 +172,7 @@ export default function Event(props) {
 	const onInvitationResponded = props.onInvitationResponded; // notify parent
 	const isPast = props.isPast || false;
 
-	// Edit permission: creator or current organizer (never for past events); admins always
+	// Edit permission: creator or current organizer (never for past events, not even for admins)
 	const canDelete =
 		authenticated &&
 		(user?.is_admin ||
@@ -180,7 +180,7 @@ export default function Event(props) {
 			(leader &&
 				(user?.name === leader || user?.preferred_username === leader)));
 
-	const canEdit = user?.is_admin ? authenticated : !isPast && canDelete;
+	const canEdit = !isPast && canDelete;
 
 	// Users filtered by event's sport-type group (for invite dialog)
 	const [groupUsers, setGroupUsers] = useState(null); // null = not loaded yet
