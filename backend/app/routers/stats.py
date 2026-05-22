@@ -19,15 +19,13 @@ def get_stats(
     user: dict = Depends(get_current_user),
 ):
     """Return participation statistics for all users (past events only)."""
-    # Only include events whose date is strictly before today
-    is_past = cast(Event.event_data["event_date"].astext, SADate) < func.current_date()
-
     # Subquery: past events with at least two accepted invitations
     # (creator + at least one additional accepted participant)
     qualifying_event_ids = (
         db.query(Invitation.event_id)
         .join(Event, Event.id == Invitation.event_id)
-        .filter(is_past, Invitation.status == "accepted")
+        .filter(Invitation.status == "accepted")
+        .filter(cast(Event.event_data["event_date"].astext, SADate) < func.current_date())
         .group_by(Invitation.event_id)
         .having(func.count(Invitation.id) >= 2)
         .subquery()
