@@ -33,7 +33,12 @@ def get_stats(
         .subquery()
     )
 
-    total_events = db.query(func.count()).select_from(qualifying_event_ids).scalar() or 0
+    total_events = (
+        db.query(func.count(qualifying_event_ids.c.event_id))
+        .select_from(qualifying_event_ids)
+        .scalar()
+        or 0
+    )
 
     # Count accepted invitations per user for qualifying past group events only
     rows = (
