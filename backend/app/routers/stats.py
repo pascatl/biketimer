@@ -22,12 +22,20 @@ def get_stats(
     # Only include events whose date is strictly before today
     is_past = cast(Event.event_data["event_date"].astext, SADate) < func.current_date()
 
-    total_events = db.query(func.count(Event.id)).filter(is_past).scalar() or 0
+    # Subquery: past events with at least two accepted invitations
+    # (creator + at least one additional accepted participant)
+    qualifying_event_ids = (
+        db.query(Invitation.event_id)
+        .join(Event, Event.id == Invitation.event_id)
+        .filter(is_past, Invitation.status == "accepted")
+        .group_by(Invitation.event_id)
+        .having(func.count(Invitation.id) >= 2)
+        .subquery()
+    )
 
-    # Subquery: IDs of past events
-    past_event_ids = db.query(Event.id).filter(is_past).subquery()
+    total_events = db.query(func.count()).select_from(qualifying_event_ids).scalar() or 0
 
-    # Count accepted invitations per user for past events only
+    # Count accepted invitations per user for qualifying past group events only
     rows = (
         db.query(
             User.id,
@@ -41,7 +49,7 @@ def get_stats(
                 | (Invitation.invitee_keycloak_id == User.keycloak_id)
             )
             & (Invitation.status == "accepted")
-            & Invitation.event_id.in_(past_event_ids),
+            & Invitation.event_id.in_(qualifying_event_ids),
         )
         .filter(User.is_active == True)
         .group_by(User.id, User.name)
@@ -53,7 +61,7 @@ def get_stats(
         {"user_id": r.id, "name": r.name, "participations": r.count} for r in rows
     ]
 
-    # Per-user: invitation stats for past events only
+    # Per-user: invitation stats for qualifying past group events only
     my_email = user.get("email")
     my_sub = user.get("sub")
     my_stats = {"accepted": 0, "declined": 0, "pending": 0}
@@ -68,7 +76,7 @@ def get_stats(
             db.query(Invitation.status, func.count(Invitation.id))
             .join(Event, Event.id == Invitation.event_id)
             .filter(or_(*filters))
-            .filter(is_past)
+            .filter(Invitation.event_id.in_(qualifying_event_ids))
             .group_by(Invitation.status)
             .all()
         )
