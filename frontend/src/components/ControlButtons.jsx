@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import {
 	Button,
 	Dialog,
+	DialogActions,
 	DialogContent,
 	DialogTitle,
 	Box,
@@ -78,6 +79,8 @@ export default function ControlButtons(props) {
 	const [selectedLink, setSelectedLink] = useState("");
 	const [linkStatus, setLinkStatus] = useState(null); // null | "checking" | "valid" | "invalid"
 	const linkTimerRef = React.useRef(null);
+	const [pendingTitle, setPendingTitle] = useState(null);
+	const [titleConfirmOpen, setTitleConfirmOpen] = useState(false);
 
 	const handleTypeChange = (key) => {
 		// Auto-update title only if it's still a default or empty
@@ -119,6 +122,8 @@ export default function ControlButtons(props) {
 		setSelectedMeetingLon(null);
 		setSelectedLink("");
 		setLinkStatus(null);
+		setPendingTitle(null);
+		setTitleConfirmOpen(false);
 	};
 
 	const handleClose = () => {
@@ -132,6 +137,20 @@ export default function ControlButtons(props) {
 		setSelectedMeetingLon(null);
 		setSelectedLink("");
 		setLinkStatus(null);
+		setPendingTitle(null);
+		setTitleConfirmOpen(false);
+	};
+
+	const applyRouteTitle = (fetchedTitle) => {
+		const currentIsDefault =
+			selectedTitle === "" ||
+			Object.values(TYPE_DEFAULT_TITLES).includes(selectedTitle);
+		if (currentIsDefault) {
+			setSelectedTitle(fetchedTitle);
+		} else {
+			setPendingTitle(fetchedTitle);
+			setTitleConfirmOpen(true);
+		}
 	};
 
 	const validateRouteLink = async (url) => {
@@ -156,18 +175,22 @@ export default function ControlButtons(props) {
 					setLinkStatus("invalid");
 					return;
 				}
-				await axios.get(
+				const res = await axios.get(
 					`${KOMOOT_API}?tour_id=${tour_id}&share_token=${share_token}`,
 				);
 				setLinkStatus("valid");
+				const fetchedTitle = res.data?.page?._embedded?.tour?.name;
+				if (fetchedTitle) applyRouteTitle(fetchedTitle);
 			} else if (host === "strava") {
 				const route_id = path[path.length - 1];
 				if (!route_id || path[path.length - 2] !== "routes") {
 					setLinkStatus("invalid");
 					return;
 				}
-				await axios.get(`${STRAVA_API}?route_id=${route_id}`);
+				const res = await axios.get(`${STRAVA_API}?route_id=${route_id}`);
 				setLinkStatus("valid");
+				const fetchedTitle = res.data?.name;
+				if (fetchedTitle) applyRouteTitle(fetchedTitle);
 			} else {
 				setLinkStatus("invalid");
 			}
@@ -420,6 +443,51 @@ export default function ControlButtons(props) {
 						)}
 					</Stack>
 				</DialogContent>
+			</Dialog>
+
+			{/* Title Confirmation Dialog */}
+			<Dialog
+				open={titleConfirmOpen}
+				onClose={() => setTitleConfirmOpen(false)}
+				maxWidth="xs"
+				fullWidth
+				PaperProps={{ sx: { borderRadius: 3 } }}
+			>
+				<DialogTitle sx={{ fontWeight: 700, color: "text.primary" }}>
+					Titel übernehmen?
+				</DialogTitle>
+				<DialogContent>
+					<Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+						Soll der Titel aus der Route übernommen werden?
+					</Typography>
+					<Typography variant="body1" sx={{ fontWeight: 700 }}>
+						„{pendingTitle}"
+					</Typography>
+				</DialogContent>
+				<DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
+					<Button
+						onClick={() => {
+							setTitleConfirmOpen(false);
+							setPendingTitle(null);
+						}}
+						color="inherit"
+						sx={{ color: "text.secondary" }}
+					>
+						Behalten
+					</Button>
+					<Button
+						variant="contained"
+						disableElevation
+						onClick={() => {
+							setSelectedTitle(pendingTitle);
+							setPendingTitle(null);
+							setTitleConfirmOpen(false);
+						}}
+						sx={{ borderRadius: 2, fontWeight: 700 }}
+					>
+						Übernehmen
+					</Button>
+				</DialogActions>
 			</Dialog>
 		</LocalizationProvider>
 	);

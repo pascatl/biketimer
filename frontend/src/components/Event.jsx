@@ -163,6 +163,8 @@ export default function Event(props) {
 	const isMounted = useRef(false);
 	const linkTimerRef = useRef(null);
 	const [linkStatus, setLinkStatus] = useState(null); // null | "checking" | "valid" | "invalid"
+	const [pendingLinkTitle, setPendingLinkTitle] = useState(null);
+	const [titleFromLinkOpen, setTitleFromLinkOpen] = useState(false);
 
 	const default_users = props.default_users || [];
 	const default_types = props.default_types || {};
@@ -389,6 +391,21 @@ export default function Event(props) {
 
 	const KOMOOT_API = "https://ptom.de/api/biketimer/komoot";
 	const STRAVA_API = "https://ptom.de/api/biketimer/strava";
+
+	const applyRouteTitle = (fetchedTitle) => {
+		const allTypeLabels = Object.values(default_types).flatMap((t) =>
+			[t.label, t.alias].filter(Boolean),
+		);
+		const currentIsDefault =
+			!title || allTypeLabels.includes(title);
+		if (currentIsDefault) {
+			setTitle(fetchedTitle);
+		} else {
+			setPendingLinkTitle(fetchedTitle);
+			setTitleFromLinkOpen(true);
+		}
+	};
+
 	const validateRouteLink = async (url) => {
 		if (!url.trim()) {
 			setLinkStatus(null);
@@ -411,18 +428,22 @@ export default function Event(props) {
 					setLinkStatus("invalid");
 					return;
 				}
-				await axios.get(
+				const res = await axios.get(
 					`${KOMOOT_API}?tour_id=${tour_id}&share_token=${share_token}`,
 				);
 				setLinkStatus("valid");
+				const fetchedTitle = res.data?.page?._embedded?.tour?.name;
+				if (fetchedTitle) applyRouteTitle(fetchedTitle);
 			} else if (host === "strava") {
 				const route_id = path[path.length - 1];
 				if (!route_id || path[path.length - 2] !== "routes") {
 					setLinkStatus("invalid");
 					return;
 				}
-				await axios.get(`${STRAVA_API}?route_id=${route_id}`);
+				const res = await axios.get(`${STRAVA_API}?route_id=${route_id}`);
 				setLinkStatus("valid");
+				const fetchedTitle = res.data?.name;
+				if (fetchedTitle) applyRouteTitle(fetchedTitle);
 			} else {
 				setLinkStatus("invalid");
 			}
@@ -2346,6 +2367,51 @@ export default function Event(props) {
 						}}
 					>
 						Entfernen
+					</Button>
+				</DialogActions>
+			</Dialog>
+
+			{/* Title from Link Confirmation Dialog */}
+			<Dialog
+				open={titleFromLinkOpen}
+				onClose={() => setTitleFromLinkOpen(false)}
+				maxWidth="xs"
+				fullWidth
+				PaperProps={{ sx: { borderRadius: 3 } }}
+			>
+				<DialogTitle sx={{ fontWeight: 700, color: "text.primary" }}>
+					Titel übernehmen?
+				</DialogTitle>
+				<DialogContent>
+					<Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+						Soll der Titel aus der Route übernommen werden?
+					</Typography>
+					<Typography variant="body1" sx={{ fontWeight: 700 }}>
+						„{pendingLinkTitle}"
+					</Typography>
+				</DialogContent>
+				<DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
+					<Button
+						onClick={() => {
+							setTitleFromLinkOpen(false);
+							setPendingLinkTitle(null);
+						}}
+						color="inherit"
+						sx={{ color: "text.secondary" }}
+					>
+						Behalten
+					</Button>
+					<Button
+						variant="contained"
+						disableElevation
+						onClick={() => {
+							setTitle(pendingLinkTitle);
+							setPendingLinkTitle(null);
+							setTitleFromLinkOpen(false);
+						}}
+						sx={{ borderRadius: 2, fontWeight: 700 }}
+					>
+						Übernehmen
 					</Button>
 				</DialogActions>
 			</Dialog>
