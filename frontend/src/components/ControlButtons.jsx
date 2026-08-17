@@ -34,8 +34,9 @@ const STRAVA_API = "https://ptom.de/api/biketimer/strava";
 const TYPE_DEFAULT_TITLES = {
 	rennrad: "Rennradrunde",
 	mtb: "MTB",
-	beachen: "Beachen",
+	beachvolleyball: "Beachen",
 	squash: "Squash",
+	konzert: "Konzert"
 };
 
 function toIso(date) {
