@@ -35,19 +35,22 @@ setRouteData(null);
 
 if (!URL.canParse(link)) { setRouteConfig(null); setLoading(false); return; }
 const url = new URL(link);
-const path = url.pathname.split("/");
 const parts = url.hostname.split(".");
 const host = parts[parts.length - 2];
 
 if (host === "komoot") {
 const share_token = url.searchParams.get("share_token");
-const tour_id = path[path.length - 1];
+const pathParts = url.pathname.split("/").filter(Boolean);
+const tourIdx = pathParts.indexOf("tour");
+const tour_id = tourIdx >= 0 && tourIdx + 1 < pathParts.length ? pathParts[tourIdx + 1] : pathParts[pathParts.length - 1];
 if (tour_id && share_token) {
 setRouteConfig({ service: "komoot", tour_id, share_token });
 } else { setRouteConfig(null); setLoading(false); }
 } else if (host === "strava") {
-const route_id = path[path.length - 1];
-if (route_id && path[path.length - 2] === "routes") {
+const pathParts = url.pathname.split("/").filter(Boolean);
+const routesIdx = pathParts.indexOf("routes");
+const route_id = routesIdx >= 0 && routesIdx + 1 < pathParts.length ? pathParts[routesIdx + 1] : null;
+if (route_id) {
 setRouteConfig({ service: "strava", route_id });
 } else { setRouteConfig(null); setLoading(false); }
 } else { setRouteConfig(null); setLoading(false); }

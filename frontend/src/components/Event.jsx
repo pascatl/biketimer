@@ -416,14 +416,15 @@ export default function Event(props) {
 			return;
 		}
 		const parsed = new URL(url);
-		const path = parsed.pathname.split("/");
 		const parts = parsed.hostname.split(".");
 		const host = parts[parts.length - 2];
 		setLinkStatus("checking");
 		try {
 			if (host === "komoot") {
 				const share_token = parsed.searchParams.get("share_token");
-				const tour_id = path[path.length - 1];
+				const pathParts = parsed.pathname.split("/").filter(Boolean);
+				const tourIdx = pathParts.indexOf("tour");
+				const tour_id = tourIdx >= 0 && tourIdx + 1 < pathParts.length ? pathParts[tourIdx + 1] : pathParts[pathParts.length - 1];
 				if (!tour_id || !share_token) {
 					setLinkStatus("invalid");
 					return;
@@ -435,8 +436,10 @@ export default function Event(props) {
 				const fetchedTitle = res.data?.page?._embedded?.tour?.name;
 				if (fetchedTitle) applyRouteTitle(fetchedTitle);
 			} else if (host === "strava") {
-				const route_id = path[path.length - 1];
-				if (!route_id || path[path.length - 2] !== "routes") {
+				const pathParts = parsed.pathname.split("/").filter(Boolean);
+				const routesIdx = pathParts.indexOf("routes");
+				const route_id = routesIdx >= 0 && routesIdx + 1 < pathParts.length ? pathParts[routesIdx + 1] : null;
+				if (!route_id) {
 					setLinkStatus("invalid");
 					return;
 				}
