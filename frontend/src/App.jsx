@@ -380,12 +380,21 @@ export default function App() {
 	};
 
 	// ── Handlers ──────────────────────────────────────────────
-	const handleAddEvent = async (event) => {
+	const handleAddEvent = async (eventOrEvents) => {
 		try {
-			const newEvent = await createEvent(event.event_data);
-			trackEvent("Event", "Erstellt", event.event_data?.event_title);
+			const events = Array.isArray(eventOrEvents) ? eventOrEvents : [eventOrEvents];
+			const newEvents = [];
+			for (const event of events) {
+				const newEvent = await createEvent(event.event_data);
+				newEvents.push(newEvent);
+			}
+			if (events.length > 1) {
+				trackEvent("Event", "Serientermin erstellt", `${events[0]?.event_data?.event_title} (${events.length}x)`);
+			} else {
+				trackEvent("Event", "Erstellt", events[0]?.event_data?.event_title);
+			}
 			setCurrentEvents((prev) =>
-				[...prev, newEvent].sort(
+				[...prev, ...newEvents].sort(
 					(a, b) =>
 						new Date(a.event_data?.event_date) -
 						new Date(b.event_data?.event_date),
