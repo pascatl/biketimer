@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import {
 	Button,
+	Checkbox,
+	Collapse,
 	Dialog,
 	DialogActions,
 	DialogContent,
@@ -8,6 +10,8 @@ import {
 	Box,
 	Chip,
 	Divider,
+	FormControlLabel,
+	InputAdornment,
 	Stack,
 	TextField,
 	Typography,
@@ -23,7 +27,7 @@ import { TimePicker } from "@mui/x-date-pickers/TimePicker";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { de } from "date-fns/locale";
-import { format } from "date-fns";
+import { addWeeks, format } from "date-fns";
 import MeetingPointPicker from "./MeetingPointPicker";
 import axios from "axios";
 
@@ -82,6 +86,8 @@ export default function ControlButtons(props) {
 	const linkTimerRef = React.useRef(null);
 	const [pendingTitle, setPendingTitle] = useState(null);
 	const [titleConfirmOpen, setTitleConfirmOpen] = useState(false);
+	const [isSerientermin, setIsSerientermin] = useState(false);
+	const [repeatCount, setRepeatCount] = useState(2);
 
 	const handleTypeChange = (key) => {
 		// Auto-update title only if it's still a default or empty
@@ -96,23 +102,34 @@ export default function ControlButtons(props) {
 
 	const handleAddEvent = () => {
 		if (!selectedDate) return;
-		const isoDate = toIso(selectedDate);
 		const isoTime = selectedTime ? format(selectedTime, "HH:mm") : null;
-		const new_event = {
-			id: props.defaultEvent.id,
-			event_data: {
-				...props.defaultEvent.event_data,
-				event_date: isoDate,
-				event_title: selectedTitle.trim(),
-				event_type: selectedType || firstTypeKey,
-				...(isoTime && { event_startTime: isoTime }),
-				event_meeting_text: selectedMeetingText,
-				event_meeting_lat: selectedMeetingLat,
-				event_meeting_lon: selectedMeetingLon,
-				...(selectedLink.trim() && { event_link: selectedLink.trim() }),
-			},
+		const baseEventData = {
+			...props.defaultEvent.event_data,
+			event_title: selectedTitle.trim(),
+			event_type: selectedType || firstTypeKey,
+			...(isoTime && { event_startTime: isoTime }),
+			event_meeting_text: selectedMeetingText,
+			event_meeting_lat: selectedMeetingLat,
+			event_meeting_lon: selectedMeetingLon,
+			...(selectedLink.trim() && { event_link: selectedLink.trim() }),
 		};
-		props.onAddEvent(new_event);
+
+		if (isSerientermin && repeatCount > 1) {
+			const events = Array.from({ length: repeatCount }, (_, i) => ({
+				id: props.defaultEvent.id,
+				event_data: {
+					...baseEventData,
+					event_date: toIso(addWeeks(selectedDate, i)),
+				},
+			}));
+			props.onAddEvent(events);
+		} else {
+			props.onAddEvent({
+				id: props.defaultEvent.id,
+				event_data: { ...baseEventData, event_date: toIso(selectedDate) },
+			});
+		}
+
 		setAddOpen(false);
 		setSelectedDate(null);
 		setSelectedTime(DEFAULT_TIME);
@@ -125,6 +142,8 @@ export default function ControlButtons(props) {
 		setLinkStatus(null);
 		setPendingTitle(null);
 		setTitleConfirmOpen(false);
+		setIsSerientermin(false);
+		setRepeatCount(2);
 	};
 
 	const handleClose = () => {
@@ -140,6 +159,8 @@ export default function ControlButtons(props) {
 		setLinkStatus(null);
 		setPendingTitle(null);
 		setTitleConfirmOpen(false);
+		setIsSerientermin(false);
+		setRepeatCount(2);
 	};
 
 	const applyRouteTitle = (fetchedTitle) => {
@@ -344,7 +365,61 @@ export default function ControlButtons(props) {
 
 						<Divider />
 
-						{/* Treffpunkt */}
+						{/* Serientermin */}
+						<Box>
+							<FormControlLabel
+								control={
+									<Checkbox
+										checked={isSerientermin}
+										onChange={(e) => setIsSerientermin(e.target.checked)}
+										size="small"
+									/>
+								}
+								label={
+									<Typography variant="body2" sx={{ fontWeight: 600 }}>
+										Serientermin
+									</Typography>
+								}
+							/>
+							<Collapse in={isSerientermin}>
+								<Box sx={{ mt: 1.5, pl: 0.5 }}>
+									<Typography
+										variant="body2"
+										sx={{ color: "text.secondary", mb: 1, fontWeight: 500 }}
+									>
+										Wiederholung: wöchentlich
+									</Typography>
+									<TextField
+										label="Anzahl Wiederholungen"
+										type="number"
+										size="small"
+										value={repeatCount}
+										onChange={(e) => {
+											const val = Math.max(2, Math.min(52, parseInt(e.target.value, 10) || 2));
+											setRepeatCount(val);
+										}}
+										inputProps={{ min: 2, max: 52 }}
+										InputProps={{
+											endAdornment: (
+												<InputAdornment position="end">
+													<Typography variant="caption" sx={{ color: "text.secondary" }}>
+														Wochen
+													</Typography>
+												</InputAdornment>
+											),
+										}}
+										sx={{ width: 200 }}
+									/>
+									{repeatCount > 1 && selectedDate && (
+										<Typography variant="caption" sx={{ color: "text.secondary", mt: 1, display: "block" }}>
+											Es werden {repeatCount} Termine angelegt (wöchentlich ab {selectedDate.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "2-digit" })}).
+										</Typography>
+									)}
+								</Box>
+							</Collapse>
+						</Box>
+
+						<Divider />
 						<Box>
 							<Typography
 								variant="body2"
