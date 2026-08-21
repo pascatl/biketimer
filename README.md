@@ -40,9 +40,9 @@ Frontend is served on port 80 (Nginx). Backend and DB are internal only.
 docker compose -f docker-compose.dev.yml up --build
 ```
 
-| Service  | Port |
-|----------|------|
-| Frontend | 5173 (Vite) |
+| Service  | Port                              |
+| -------- | --------------------------------- |
+| Frontend | 5173 (Vite)                       |
 | Backend  | 8000 (FastAPI + Swagger at /docs) |
 
 Changes to frontend or backend source files are picked up without rebuilding the image.
@@ -51,16 +51,16 @@ Changes to frontend or backend source files are picked up without rebuilding the
 
 All config lives in `.env`:
 
-| Variable | Description |
-|---|---|
-| `DB_USER` / `DB_PASSWORD` / `DB_NAME` | PostgreSQL credentials |
-| `KEYCLOAK_URL` | Keycloak server base URL |
-| `KEYCLOAK_REALM` | Realm name |
-| `KEYCLOAK_CLIENT_ID_FRONTEND` | Public client for the frontend |
-| `KEYCLOAK_CLIENT_ID_BACKEND` | Confidential client for token verification |
-| `FRONTEND_URL` | Public URL (used for email RSVP links) |
-| `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASSWORD` / `SMTP_FROM` | Mail settings |
-| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | Web Push VAPID keys |
+| Variable                                                                | Description                                |
+| ----------------------------------------------------------------------- | ------------------------------------------ |
+| `DB_USER` / `DB_PASSWORD` / `DB_NAME`                                   | PostgreSQL credentials                     |
+| `KEYCLOAK_URL`                                                          | Keycloak server base URL                   |
+| `KEYCLOAK_REALM`                                                        | Realm name                                 |
+| `KEYCLOAK_CLIENT_ID_FRONTEND`                                           | Public client for the frontend             |
+| `KEYCLOAK_CLIENT_ID_BACKEND`                                            | Confidential client for token verification |
+| `FRONTEND_URL`                                                          | Public URL (used for email RSVP links)     |
+| `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASSWORD` / `SMTP_FROM` | Mail settings                              |
+| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY`                                | Web Push VAPID keys                        |
 
 ## Database migrations
 
@@ -68,7 +68,41 @@ Migrations in `backend/migrations/` are applied automatically on startup. The ap
 
 To add a migration, create a new numbered `.sql` file and register it in `backend/app/main.py`.
 
+### Neuigkeiten (Changelog) hinzufügen und deployen
 
+1. Neue SQL-Datei in `backend/migrations/` anlegen, z. B. `016_my_feature_changelog.sql`.
+2. Eintrag in `changelog_entries` per `INSERT ... ON CONFLICT (slug) DO NOTHING` anlegen:
+
+```sql
+INSERT INTO changelog_entries (slug, title, body) VALUES (
+	'my-feature-v1',
+	'Neu: Meine Funktion',
+	'Kurze Beschreibung, was sich für Nutzer:innen geändert hat.'
+) ON CONFLICT (slug) DO NOTHING;
+```
+
+3. Migration in `backend/app/main.py` registrieren (analog zu 013/014/015), damit sie beim Backend-Start auch auf bestehenden Datenbanken ausgeführt wird.
+4. Code deployen (pull + `docker compose up --build -d`).
+
+Wichtig für bestehende DB-Volumes:
+
+- `docker-entrypoint-initdb.d` läuft nur bei Erstinitialisierung einer leeren Postgres-Datenbank.
+- Bei bestehenden Volumes neue SQL-Migration einmal manuell ausführen:
+
+```bash
+docker compose exec db sh -lc "psql -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -f /migrations/016_my_feature_changelog.sql"
+```
+
+- Ergebnis verifizieren:
+
+```bash
+docker compose exec db sh -lc "psql -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -c \"SELECT slug, created_at FROM changelog_entries WHERE slug = 'my-feature-v1';\""
+```
+
+Hinweis:
+
+- Wenn ein Eintrag mit derselben `slug` bereits existiert, aktualisiert `ON CONFLICT DO NOTHING` den Text nicht.
+- In dem Fall entweder neue `slug` verwenden (z. B. `my-feature-v2`) oder den bestehenden Datensatz per `UPDATE` anpassen.
 
 ## Development notes
 
