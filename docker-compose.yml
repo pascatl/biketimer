@@ -1,7 +1,7 @@
 # ── Production ────────────────────────────────────────────────────────────────
 # Start: docker compose up --build -d
 # .env is loaded from the project root (same directory as this file).
-# Ports: frontend 80 (nginx, public). backend + db are internal only.
+# Ports: frontend 80 (nginx, public). backend internal. db bound to server localhost only.
 # ──────────────────────────────────────────────────────────────────────────────
 
 services:
@@ -26,9 +26,11 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    ports:
+      - "127.0.0.1:5432:5432" # SSH tunnel target; not reachable from public interfaces
     networks:
       - biketimer-net
-    # Port 5432 is NOT published in production.
+    # Port 5432 is only bound to loopback on the server.
 
   backend:
     build:
