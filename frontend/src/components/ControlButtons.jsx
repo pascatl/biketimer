@@ -76,7 +76,7 @@ export default function ControlButtons(props) {
 	const firstTypeKey = Object.keys(sportTypes)[0] || "rennrad";
 
 	const [addOpen, setAddOpen] = useState(false);
-	const [selectedDate, setSelectedDate] = useState(null);
+	const [selectedDate, setSelectedDate] = useState(() => new Date());
 	const [selectedTime, setSelectedTime] = useState(DEFAULT_TIME);
 	const [selectedTitle, setSelectedTitle] = useState(
 		getDefaultTitle(firstTypeKey),
@@ -139,7 +139,7 @@ export default function ControlButtons(props) {
 		}
 
 		setAddOpen(false);
-		setSelectedDate(null);
+		setSelectedDate(new Date());
 		setSelectedTime(DEFAULT_TIME);
 		setSelectedTitle(getDefaultTitle(firstTypeKey));
 		setSelectedType(firstTypeKey);
@@ -157,7 +157,7 @@ export default function ControlButtons(props) {
 
 	const handleClose = () => {
 		setAddOpen(false);
-		setSelectedDate(null);
+		setSelectedDate(new Date());
 		setSelectedTime(DEFAULT_TIME);
 		setSelectedTitle(getDefaultTitle(firstTypeKey));
 		setSelectedType(firstTypeKey);
