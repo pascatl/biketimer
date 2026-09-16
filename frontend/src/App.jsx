@@ -435,6 +435,8 @@ export default function App() {
 				defaultEvent={defaultEvent}
 				sportTypes={sportTypes}
 				myGroups={myGroups}
+				default_users={userNames}
+				allUsers={allUsers}
 				invitationCount={invitations.length}
 				isAdmin={isAdmin}
 				onAdminOpen={() => setAdminOpen(true)}

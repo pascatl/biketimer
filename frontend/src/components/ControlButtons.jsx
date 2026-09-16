@@ -12,6 +12,8 @@ import {
 	Divider,
 	FormControlLabel,
 	InputAdornment,
+	Menu,
+	MenuItem,
 	Stack,
 	TextField,
 	Typography,
@@ -21,6 +23,8 @@ import AddIcon from "@mui/icons-material/Add";
 import CloseIcon from "@mui/icons-material/Close";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
+import EmojiPeopleIcon from "@mui/icons-material/EmojiPeople";
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import CircularProgress from "@mui/material/CircularProgress";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { TimePicker } from "@mui/x-date-pickers/TimePicker";
@@ -88,6 +92,9 @@ export default function ControlButtons(props) {
 	const [titleConfirmOpen, setTitleConfirmOpen] = useState(false);
 	const [isSerientermin, setIsSerientermin] = useState(false);
 	const [repeatCount, setRepeatCount] = useState(2);
+	const [selectedLeader, setSelectedLeader] = useState("");
+	const [leaderAnchor, setLeaderAnchor] = useState(null);
+	const leaderOptions = props.default_users || [];
 
 	const handleTypeChange = (key) => {
 		// Auto-update title only if it's still a default or empty
@@ -111,6 +118,7 @@ export default function ControlButtons(props) {
 			event_meeting_text: selectedMeetingText,
 			event_meeting_lat: selectedMeetingLat,
 			event_meeting_lon: selectedMeetingLon,
+			event_leader: selectedLeader,
 			...(selectedLink.trim() && { event_link: selectedLink.trim() }),
 		};
 
@@ -144,6 +152,7 @@ export default function ControlButtons(props) {
 		setTitleConfirmOpen(false);
 		setIsSerientermin(false);
 		setRepeatCount(2);
+		setSelectedLeader("");
 	};
 
 	const handleClose = () => {
@@ -161,6 +170,7 @@ export default function ControlButtons(props) {
 		setTitleConfirmOpen(false);
 		setIsSerientermin(false);
 		setRepeatCount(2);
+		setSelectedLeader("");
 	};
 
 	const applyRouteTitle = (fetchedTitle) => {
@@ -327,6 +337,57 @@ export default function ControlButtons(props) {
 							fullWidth
 							inputProps={{ maxLength: 80 }}
 						/>
+
+						{/* Organisator */}
+						<Box>
+							<Button
+								variant="outlined"
+								onClick={(e) => setLeaderAnchor(e.currentTarget)}
+								startIcon={<EmojiPeopleIcon />}
+								endIcon={<KeyboardArrowDownIcon />}
+								fullWidth
+								sx={{
+									justifyContent: "space-between",
+									textTransform: "none",
+									fontWeight: 600,
+									borderRadius: 2,
+									borderColor: "divider",
+									color: "text.secondary",
+								}}
+							>
+								{selectedLeader || "Organisator …"}
+							</Button>
+							<Menu
+								anchorEl={leaderAnchor}
+								open={Boolean(leaderAnchor)}
+								onClose={() => setLeaderAnchor(null)}
+								PaperProps={{ sx: { borderRadius: 2 } }}
+							>
+								{selectedLeader && (
+									<MenuItem
+										onClick={() => {
+											setSelectedLeader("");
+											setLeaderAnchor(null);
+										}}
+										sx={{ fontStyle: "italic", color: "text.secondary" }}
+									>
+										Kein Organisator
+									</MenuItem>
+								)}
+								{leaderOptions.map((u) => (
+									<MenuItem
+										key={u}
+										selected={u === selectedLeader}
+										onClick={() => {
+											setSelectedLeader(u);
+											setLeaderAnchor(null);
+										}}
+									>
+										{u}
+									</MenuItem>
+								))}
+							</Menu>
+						</Box>
 
 						<Divider />
 

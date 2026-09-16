@@ -39,6 +39,8 @@ const TopBar = ({
 	defaultEvent,
 	sportTypes,
 	myGroups,
+	default_users,
+	allUsers,
 	invitationCount,
 	isAdmin,
 	onAdminOpen,
@@ -236,6 +238,8 @@ const TopBar = ({
 									defaultEvent={defaultEvent}
 									sportTypes={sportTypes}
 									myGroups={myGroups}
+									default_users={default_users}
+									allUsers={allUsers}
 								/>
 							)}
 						</Box>
