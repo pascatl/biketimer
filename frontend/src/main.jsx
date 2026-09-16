@@ -39,6 +39,7 @@ import theme from "./theme";
 import App from "./App";
 import "./index.css";
 import { AuthProvider, useAuth } from "./auth/AuthContext";
+import { LoadingProvider } from "./contexts/LoadingContext";
 import LoginDialog from "./components/LoginDialog";
 import ImpressumPage from "./pages/ImpressumPage";
 import DatenschutzPage from "./pages/DatenschutzPage";
@@ -70,7 +71,9 @@ ReactDOM.createRoot(document.getElementById("root")).render(
 			<CssBaseline />
 			<BrowserRouter>
 				<AuthProvider>
-					<AuthGate />
+					<LoadingProvider>
+						<AuthGate />
+					</LoadingProvider>
 				</AuthProvider>
 			</BrowserRouter>
 		</ThemeProvider>

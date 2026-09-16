@@ -14,6 +14,7 @@ import MailOutlineIcon from "@mui/icons-material/MailOutline";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 import { respondInvitation } from "../api";
+import { useLoading } from "../contexts/LoadingContext";
 
 function formatDate(isoDate) {
   if (!isoDate) return "";
@@ -29,13 +30,14 @@ function formatDate(isoDate) {
 export default function InvitationsBanner({ invitations, onRefresh }) {
   const [loading, setLoading] = useState({});
   const [feedback, setFeedback] = useState(null); // { type, message }
+  const { withLoading } = useLoading();
 
   if (!invitations || invitations.length === 0) return null;
 
   const handle = async (invId, action) => {
     setLoading((l) => ({ ...l, [invId]: true }));
     try {
-      await respondInvitation(invId, action);
+      await withLoading(() => respondInvitation(invId, action));
       setFeedback({
         type: "success",
         message: action === "accept" ? "Einladung angenommen!" : "Einladung abgelehnt.",

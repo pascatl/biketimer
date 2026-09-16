@@ -33,6 +33,7 @@ import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { de } from "date-fns/locale";
 import { addWeeks, format } from "date-fns";
 import MeetingPointPicker from "./MeetingPointPicker";
+import { useLoading } from "../contexts/LoadingContext";
 import axios from "axios";
 
 const KOMOOT_API = "https://ptom.de/api/biketimer/komoot";
@@ -62,6 +63,7 @@ const DEFAULT_TIME = (() => {
 })();
 
 export default function ControlButtons(props) {
+	const { withLoading } = useLoading();
 	const allSportTypes = props.sportTypes || {};
 	const myGroups = props.myGroups;
 	// Filter sport types to only show types the user belongs to
@@ -108,7 +110,7 @@ export default function ControlButtons(props) {
 		setSelectedType(key);
 	};
 
-	const handleAddEvent = () => {
+	const handleAddEvent = async () => {
 		if (!selectedDate) return;
 		const isoTime = selectedTime ? format(selectedTime, "HH:mm") : null;
 		const baseEventData = {
@@ -132,13 +134,15 @@ export default function ControlButtons(props) {
 					event_date: toIso(addWeeks(selectedDate, i)),
 				},
 			}));
-			props.onAddEvent(events);
+			await withLoading(() => props.onAddEvent(events));
 		} else {
-			props.onAddEvent({
-				id: props.defaultEvent.id,
-				notify_signal: notifySignal,
-				event_data: { ...baseEventData, event_date: toIso(selectedDate) },
-			});
+			await withLoading(() =>
+				props.onAddEvent({
+					id: props.defaultEvent.id,
+					notify_signal: notifySignal,
+					event_data: { ...baseEventData, event_date: toIso(selectedDate) },
+				}),
+			);
 		}
 
 		setAddOpen(false);

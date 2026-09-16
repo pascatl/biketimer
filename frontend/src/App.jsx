@@ -47,11 +47,13 @@ import {
 	markChangelogSeen,
 } from "./api";
 import { useAuth } from "./auth/AuthContext";
+import { useLoading } from "./contexts/LoadingContext";
 import { trackEvent } from "./matomo";
 import { useWebSocket } from "./useWebSocket";
 
 export default function App() {
 	const { user, authenticated } = useAuth();
+	const { withLoading } = useLoading();
 	const navigate = useNavigate();
 	const { id: urlEventId } = useParams();
 
@@ -197,7 +199,7 @@ export default function App() {
 	}, [authenticated]);
 
 	const handleGroupsSaved = async (selectedKeys) => {
-		await updateMyGroups(selectedKeys);
+		await withLoading(() => updateMyGroups(selectedKeys));
 		setMyGroups(selectedKeys);
 		setGroupOnboardingOpen(false);
 	};

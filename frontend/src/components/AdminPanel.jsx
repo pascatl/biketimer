@@ -53,6 +53,7 @@ import {
 	adminFetchUserGroups,
 	adminUpdateUserGroups,
 } from "../api";
+import { useLoading } from "../contexts/LoadingContext";
 
 function TabPanel({ children, value, index }) {
 	return value === index ? <Box sx={{ pt: 2 }}>{children}</Box> : null;
@@ -126,6 +127,7 @@ function UserManager({ sportTypes }) {
 	const [deleteTargetId, setDeleteTargetId] = useState(null);
 	// Group management per user
 	const [userGroups, setUserGroups] = useState({}); // { userId: [keys] }
+	const { withLoading } = useLoading();
 
 	const load = useCallback(async () => {
 		try {
@@ -151,7 +153,7 @@ function UserManager({ sportTypes }) {
 
 	const handleSave = async (id) => {
 		try {
-			await adminUpdateUser(id, editData);
+			await withLoading(() => adminUpdateUser(id, editData));
 			setEditId(null);
 			load();
 		} catch (e) {
@@ -167,7 +169,7 @@ function UserManager({ sportTypes }) {
 	const handleConfirmDelete = async () => {
 		setDeleteConfirmOpen(false);
 		try {
-			await adminDeleteUser(deleteTargetId);
+			await withLoading(() => adminDeleteUser(deleteTargetId));
 			load();
 		} catch (e) {
 			alert(e.message);
@@ -186,7 +188,7 @@ function UserManager({ sportTypes }) {
 			: [...current, key];
 		setUserGroups((prev) => ({ ...prev, [userId]: updated }));
 		try {
-			await adminUpdateUserGroups(userId, updated);
+			await withLoading(() => adminUpdateUserGroups(userId, updated));
 		} catch (e) {
 			// Revert on error
 			setUserGroups((prev) => ({ ...prev, [userId]: current }));
@@ -363,6 +365,7 @@ function JerseyManager() {
 	const [newName, setNewName] = useState("");
 	const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 	const [deleteTargetId, setDeleteTargetId] = useState(null);
+	const { withLoading } = useLoading();
 
 	const load = useCallback(async () => {
 		try {
@@ -379,10 +382,12 @@ function JerseyManager() {
 	const handleAdd = async () => {
 		if (!newName.trim()) return;
 		try {
-			await adminCreateJersey({
-				name: newName.trim(),
-				sort_order: jerseys.length,
-			});
+			await withLoading(() =>
+				adminCreateJersey({
+					name: newName.trim(),
+					sort_order: jerseys.length,
+				}),
+			);
 			setNewName("");
 			setAddOpen(false);
 			load();
@@ -393,7 +398,7 @@ function JerseyManager() {
 
 	const handleSave = async (id) => {
 		try {
-			await adminUpdateJersey(id, editData);
+			await withLoading(() => adminUpdateJersey(id, editData));
 			setEditId(null);
 			load();
 		} catch (e) {
@@ -409,7 +414,7 @@ function JerseyManager() {
 	const handleConfirmDelete = async () => {
 		setDeleteConfirmOpen(false);
 		try {
-			await adminDeleteJersey(deleteTargetId);
+			await withLoading(() => adminDeleteJersey(deleteTargetId));
 			load();
 		} catch (e) {
 			alert(e.message);
@@ -590,6 +595,7 @@ function SportTypeManager() {
 	});
 	const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 	const [deleteTargetId, setDeleteTargetId] = useState(null);
+	const { withLoading } = useLoading();
 
 	const load = useCallback(async () => {
 		try {
@@ -613,7 +619,9 @@ function SportTypeManager() {
 	const handleAdd = async () => {
 		if (!newData.key.trim() || !newData.label.trim()) return;
 		try {
-			await adminCreateSportType({ ...newData, sort_order: types.length });
+			await withLoading(() =>
+				adminCreateSportType({ ...newData, sort_order: types.length }),
+			);
 			setNewData({
 				key: "",
 				label: "",
@@ -629,7 +637,7 @@ function SportTypeManager() {
 
 	const handleSave = async (id) => {
 		try {
-			await adminUpdateSportType(id, editData);
+			await withLoading(() => adminUpdateSportType(id, editData));
 			setEditId(null);
 			load();
 		} catch (e) {
@@ -645,7 +653,7 @@ function SportTypeManager() {
 	const handleConfirmDelete = async () => {
 		setDeleteConfirmOpen(false);
 		try {
-			await adminDeleteSportType(deleteTargetId);
+			await withLoading(() => adminDeleteSportType(deleteTargetId));
 			load();
 		} catch (e) {
 			alert(e.message);

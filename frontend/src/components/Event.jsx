@@ -78,6 +78,7 @@ import {
 	fetchUsers,
 } from "../api";
 import { useAuth } from "../auth/AuthContext";
+import { useLoading } from "../contexts/LoadingContext";
 import { trackEvent } from "../matomo";
 import EmojiPicker from "./EmojiPicker";
 
@@ -106,6 +107,7 @@ const getPaceMeta = (value) =>
 export default function Event(props) {
 	const event_data = props.data.event_data;
 	const { authenticated, user } = useAuth();
+	const { withLoading } = useLoading();
 
 	const [date, setDate] = useState(event_data.event_date);
 	const [eventId] = useState(props.data.id);
@@ -300,8 +302,10 @@ export default function Event(props) {
 
 	const handleRevoke = async (invId) => {
 		try {
-			await revokeInvitation(invId);
-			await loadInvitations();
+			await withLoading(async () => {
+				await revokeInvitation(invId);
+				await loadInvitations();
+			});
 		} catch (err) {
 			console.error(err);
 		}
@@ -327,11 +331,13 @@ export default function Event(props) {
 		if (!myInvitation) return;
 		setWithdrawLoading(true);
 		try {
-			await withdrawInvitation(myInvitation.id, withdrawReason);
-			setWithdrawOpen(false);
-			setWithdrawReason("");
-			await loadInvitations();
-			onInvitationResponded?.();
+			await withLoading(async () => {
+				await withdrawInvitation(myInvitation.id, withdrawReason);
+				setWithdrawOpen(false);
+				setWithdrawReason("");
+				await loadInvitations();
+				onInvitationResponded?.();
+			});
 		} catch (err) {
 			console.error(err);
 		} finally {
@@ -343,10 +349,12 @@ export default function Event(props) {
 		if (!newComment.trim()) return;
 		setCommentLoading(true);
 		try {
-			await createEventComment(eventId, newComment.trim());
-			trackEvent("Kommentar", "Gesendet", String(eventId));
-			setNewComment("");
-			await loadComments();
+			await withLoading(async () => {
+				await createEventComment(eventId, newComment.trim());
+				trackEvent("Kommentar", "Gesendet", String(eventId));
+				setNewComment("");
+				await loadComments();
+			});
 		} catch (err) {
 			setToast({ message: err.message, severity: "error" });
 		} finally {
@@ -362,8 +370,10 @@ export default function Event(props) {
 	const handleCommentDelete = async () => {
 		if (!commentDeleteTargetId) return;
 		try {
-			await deleteEventComment(eventId, commentDeleteTargetId);
-			await loadComments();
+			await withLoading(async () => {
+				await deleteEventComment(eventId, commentDeleteTargetId);
+				await loadComments();
+			});
 			setCommentDeleteConfirmOpen(false);
 			setCommentDeleteTargetId(null);
 		} catch (err) {
@@ -379,7 +389,9 @@ export default function Event(props) {
 	const handleReaction = async (commentId, emoji) => {
 		if (!authenticated) return;
 		try {
-			const res = await toggleCommentReaction(eventId, commentId, emoji);
+			const res = await withLoading(() =>
+				toggleCommentReaction(eventId, commentId, emoji),
+			);
 			// Update comment reactions in place for immediate feedback
 			setComments((prev) =>
 				prev.map((c) => (c.id === commentId ? res.comment : c)),
@@ -612,11 +624,13 @@ export default function Event(props) {
 	}, [currentEvent]);
 
 	const updateEvent = () => {
-		apiUpdateEvent(eventId, currentEvent.event_data).catch(console.error);
+		withLoading(() => apiUpdateEvent(eventId, currentEvent.event_data)).catch(
+			console.error,
+		);
 	};
 
 	const handleDelete = () => {
-		apiDeleteEvent(eventId)
+		withLoading(() => apiDeleteEvent(eventId))
 			.then(() => {
 				trackEvent("Event", "Gelöscht", String(eventId));
 				props.onDeleteEvent(eventId);
@@ -657,14 +671,16 @@ export default function Event(props) {
 		const ids = selectedInvitees.map((u) => u.id);
 		handleInviteClose();
 		try {
-			const res = await inviteUsersToEvent(eventId, ids);
-			const sent = res?.sent ?? ids.length;
-			trackEvent("Einladung", "Gesendet", String(eventId), sent);
-			setToast({
-				message: `${sent} Einladung${sent !== 1 ? "en" : ""} gesendet!`,
-				severity: "success",
+			await withLoading(async () => {
+				const res = await inviteUsersToEvent(eventId, ids);
+				const sent = res?.sent ?? ids.length;
+				trackEvent("Einladung", "Gesendet", String(eventId), sent);
+				setToast({
+					message: `${sent} Einladung${sent !== 1 ? "en" : ""} gesendet!`,
+					severity: "success",
+				});
+				await loadInvitations();
 			});
-			await loadInvitations();
 		} catch (err) {
 			const fallbackMessage =
 				"Die Einladungen konnten nicht gesendet werden. Bitte versuche es erneut.";
