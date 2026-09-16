@@ -303,24 +303,25 @@ def create_event(
         f"{creator} hat ein Event am {event_date_fmt} angelegt.",
     )
 
-    try:
-        event_url = f"{FRONTEND_URL.rstrip('/')}/events/{new_event.id}"
-        lines = [f"{creator} hat ein neues Event angelegt:"]
-        title = (event_in.event_data.event_title or "").strip()
-        if title:
-            lines.append(title)
-        lines.append(
-            f"Datum: {event_date_fmt}, {event_in.event_data.event_startTime} Uhr"
-        )
-        lines.append(f"Sportart: {event_in.event_data.event_type}")
-        if event_in.event_data.event_leader:
-            lines.append(f"Organisator: {event_in.event_data.event_leader}")
-        if event_in.event_data.event_meeting_text:
-            lines.append(f"Treffpunkt: {event_in.event_data.event_meeting_text}")
-        lines.append(event_url)
-        send_signal_notification(SIGNAL_NOTIFY_RECIPIENTS, "\n".join(lines))
-    except Exception:
-        _log.exception("Signal-Benachrichtigung fehlgeschlagen")
+    if event_in.event_data.event_type in ("rennrad", "mtb"):
+        try:
+            event_url = f"{FRONTEND_URL.rstrip('/')}/events/{new_event.id}"
+            title = (event_in.event_data.event_title or "").strip()
+            header = f"{creator} hat ein neues Event angelegt!"
+            lines = [f"{header}: {title}" if title else f"{header}"]
+            lines.append("")
+            lines.append(
+                f"Wann: {event_date_fmt} um {event_in.event_data.event_startTime} Uhr"
+            )
+            if event_in.event_data.event_leader:
+                lines.append(f"Organisator: {event_in.event_data.event_leader}")
+            if event_in.event_data.event_meeting_text:
+                lines.append(f"Treffpunkt: {event_in.event_data.event_meeting_text}")
+            lines.append("")
+            lines.append(event_url)
+            send_signal_notification(SIGNAL_NOTIFY_RECIPIENTS, "\n".join(lines))
+        except Exception:
+            _log.exception("Signal-Benachrichtigung fehlgeschlagen")
 
     ws_manager.dispatch_sync(
         {"type": "event_created", "event_id": new_event.id},
