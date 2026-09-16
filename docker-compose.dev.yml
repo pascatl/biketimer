@@ -46,12 +46,16 @@ services:
     environment:
       - DATABASE_URL=postgresql://${DB_USER:-biketimer}:${DB_PASSWORD:-biketimer}@db:5432/${DB_NAME:-biketimer}
       - FRONTEND_ORIGINS=http://localhost:${FRONTEND_PORT:-5173}
+      - SIGNAL_NOTIFICATION_URL=http://signal-notify:8080
+      - SIGNAL_NOTIFICATION_API_KEY=${SIGNAL_NOTIFICATION_API_KEY}
+      - SIGNAL_NOTIFY_RECIPIENTS=${SIGNAL_NOTIFY_RECIPIENTS}
     depends_on:
       db:
         condition: service_healthy
     restart: unless-stopped
     networks:
       - biketimer-net
+      - signal-services
 
   frontend:
     build:
@@ -84,3 +88,6 @@ volumes:
 networks:
   biketimer-net:
     driver: bridge
+  signal-services:
+    external: true
+    name: signal-services

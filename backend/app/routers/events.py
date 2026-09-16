@@ -1,5 +1,5 @@
-from typing import List
 from datetime import datetime, timezone
+from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import or_
@@ -7,32 +7,34 @@ from sqlalchemy.orm import Session
 
 from ..auth import get_current_user
 from ..database import get_db
-from ..models import (
-    Event,
-    Invitation,
-    User,
-    PushSubscription,
-    EventComment,
-    CommentReaction,
+from ..email_service import (
+    FRONTEND_URL,
+    send_event_cancel_email,
+    send_event_update_email,
+    send_invitation_email,
 )
+from ..logger import get_logger
+from ..models import (
+    CommentReaction,
+    Event,
+    EventComment,
+    Invitation,
+    PushSubscription,
+    User,
+)
+from ..push_service import send_push_notification
 from ..schemas import (
+    DEFAULT_EMAIL_PREFS,
+    CommentReactionCreate,
+    EventCommentCreate,
+    EventCommentResponse,
     EventCreate,
     EventResponse,
     EventUpdate,
     InvitationCreate,
-    EventCommentCreate,
-    EventCommentResponse,
-    CommentReactionCreate,
-    DEFAULT_EMAIL_PREFS,
 )
-from ..push_service import send_push_notification
-from ..email_service import (
-    send_invitation_email,
-    send_event_update_email,
-    send_event_cancel_email,
-)
+from ..signal_service import SIGNAL_NOTIFY_RECIPIENTS, send_signal_notification
 from ..ws_manager import manager as ws_manager
-from ..logger import get_logger
 
 _log = get_logger("events")
 
@@ -300,6 +302,25 @@ def create_event(
         "Neues Event",
         f"{creator} hat ein Event am {event_date_fmt} angelegt.",
     )
+
+    try:
+        event_url = f"{FRONTEND_URL.rstrip('/')}/events/{new_event.id}"
+        lines = [f"{creator} hat ein neues Event angelegt:"]
+        title = (event_in.event_data.event_title or "").strip()
+        if title:
+            lines.append(title)
+        lines.append(
+            f"Datum: {event_date_fmt}, {event_in.event_data.event_startTime} Uhr"
+        )
+        lines.append(f"Sportart: {event_in.event_data.event_type}")
+        if event_in.event_data.event_leader:
+            lines.append(f"Organisator: {event_in.event_data.event_leader}")
+        if event_in.event_data.event_meeting_text:
+            lines.append(f"Treffpunkt: {event_in.event_data.event_meeting_text}")
+        lines.append(event_url)
+        send_signal_notification(SIGNAL_NOTIFY_RECIPIENTS, "\n".join(lines))
+    except Exception:
+        _log.exception("Signal-Benachrichtigung fehlgeschlagen")
 
     ws_manager.dispatch_sync(
         {"type": "event_created", "event_id": new_event.id},
