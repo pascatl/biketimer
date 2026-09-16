@@ -303,7 +303,7 @@ def create_event(
         f"{creator} hat ein Event am {event_date_fmt} angelegt.",
     )
 
-    if event_in.event_data.event_type in ("rennrad", "mtb"):
+    if event_in.notify_signal and event_in.event_data.event_type in ("rennrad", "mtb"):
         try:
             event_url = f"{FRONTEND_URL.rstrip('/')}/events/{new_event.id}"
             title = (event_in.event_data.event_title or "").strip()

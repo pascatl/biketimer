@@ -94,6 +94,7 @@ export default function ControlButtons(props) {
 	const [repeatCount, setRepeatCount] = useState(2);
 	const [selectedLeader, setSelectedLeader] = useState("");
 	const [leaderAnchor, setLeaderAnchor] = useState(null);
+	const [notifySignal, setNotifySignal] = useState(true);
 	const leaderOptions = props.default_users || [];
 
 	const handleTypeChange = (key) => {
@@ -125,6 +126,7 @@ export default function ControlButtons(props) {
 		if (isSerientermin && repeatCount > 1) {
 			const events = Array.from({ length: repeatCount }, (_, i) => ({
 				id: props.defaultEvent.id,
+				notify_signal: notifySignal,
 				event_data: {
 					...baseEventData,
 					event_date: toIso(addWeeks(selectedDate, i)),
@@ -134,6 +136,7 @@ export default function ControlButtons(props) {
 		} else {
 			props.onAddEvent({
 				id: props.defaultEvent.id,
+				notify_signal: notifySignal,
 				event_data: { ...baseEventData, event_date: toIso(selectedDate) },
 			});
 		}
@@ -153,6 +156,7 @@ export default function ControlButtons(props) {
 		setIsSerientermin(false);
 		setRepeatCount(2);
 		setSelectedLeader("");
+		setNotifySignal(true);
 	};
 
 	const handleClose = () => {
@@ -171,6 +175,7 @@ export default function ControlButtons(props) {
 		setIsSerientermin(false);
 		setRepeatCount(2);
 		setSelectedLeader("");
+		setNotifySignal(true);
 	};
 
 	const applyRouteTitle = (fetchedTitle) => {
@@ -525,6 +530,22 @@ export default function ControlButtons(props) {
 								error={linkStatus === "invalid"}
 							/>
 						)}
+
+						{/* Signal-Benachrichtigung */}
+						<FormControlLabel
+							control={
+								<Checkbox
+									checked={notifySignal}
+									onChange={(e) => setNotifySignal(e.target.checked)}
+									size="small"
+								/>
+							}
+							label={
+								<Typography variant="body2" sx={{ fontWeight: 600 }}>
+									Per Signal verschicken
+								</Typography>
+							}
+						/>
 
 						{/* Bestätigen */}
 						{selectedDate && (

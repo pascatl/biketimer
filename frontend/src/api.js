@@ -35,12 +35,12 @@ export async function fetchEvent(id) {
 	return res.json();
 }
 
-export async function createEvent(eventData) {
+export async function createEvent(eventData, notifySignal = true) {
 	const headers = authHeaders();
 	const res = await fetch(`${API_URL}/events`, {
 		method: "POST",
 		headers: { "Content-Type": "application/json", ...headers },
-		body: JSON.stringify({ event_data: eventData }),
+		body: JSON.stringify({ event_data: eventData, notify_signal: notifySignal }),
 	});
 	if (!res.ok) {
 		const body = await res.json().catch(() => ({}));

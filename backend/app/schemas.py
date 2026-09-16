@@ -3,7 +3,6 @@ from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, EmailStr
 
-
 # ── Event schemas ─────────────────────────────────────────────
 
 
@@ -26,6 +25,7 @@ class EventData(BaseModel):
 
 class EventCreate(BaseModel):
     event_data: EventData
+    notify_signal: Optional[bool] = True
 
 
 class EventUpdate(BaseModel):
