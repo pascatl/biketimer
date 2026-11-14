@@ -96,7 +96,8 @@ export default function ControlButtons(props) {
 	const [repeatCount, setRepeatCount] = useState(2);
 	const [selectedLeader, setSelectedLeader] = useState("");
 	const [leaderAnchor, setLeaderAnchor] = useState(null);
-	const [notifySignal, setNotifySignal] = useState(true);
+	const [inviteAll, setInviteAll] = useState(false);
+	const [notifySignal, setNotifySignal] = useState(false);
 	const leaderOptions = props.default_users || [];
 
 	const handleTypeChange = (key) => {
@@ -128,6 +129,7 @@ export default function ControlButtons(props) {
 		if (isSerientermin && repeatCount > 1) {
 			const events = Array.from({ length: repeatCount }, (_, i) => ({
 				id: props.defaultEvent.id,
+				invite_all: inviteAll,
 				notify_signal: notifySignal,
 				event_data: {
 					...baseEventData,
@@ -139,6 +141,7 @@ export default function ControlButtons(props) {
 			await withLoading(() =>
 				props.onAddEvent({
 					id: props.defaultEvent.id,
+					invite_all: inviteAll,
 					notify_signal: notifySignal,
 					event_data: { ...baseEventData, event_date: toIso(selectedDate) },
 				}),
@@ -160,7 +163,8 @@ export default function ControlButtons(props) {
 		setIsSerientermin(false);
 		setRepeatCount(2);
 		setSelectedLeader("");
-		setNotifySignal(true);
+		setInviteAll(false);
+		setNotifySignal(false);
 	};
 
 	const handleClose = () => {
@@ -179,7 +183,8 @@ export default function ControlButtons(props) {
 		setIsSerientermin(false);
 		setRepeatCount(2);
 		setSelectedLeader("");
-		setNotifySignal(true);
+		setInviteAll(false);
+		setNotifySignal(false);
 	};
 
 	const applyRouteTitle = (fetchedTitle) => {
@@ -535,12 +540,31 @@ export default function ControlButtons(props) {
 							/>
 						)}
 
+						<FormControlLabel
+							control={
+								<Checkbox
+									checked={inviteAll}
+									onChange={(e) => {
+										setInviteAll(e.target.checked);
+										if (!e.target.checked) setNotifySignal(false);
+									}}
+									size="small"
+								/>
+							}
+							label={
+								<Typography variant="body2" sx={{ fontWeight: 600 }}>
+									Alle Gruppenmitglieder einladen
+								</Typography>
+							}
+						/>
+
 						{/* Signal-Benachrichtigung */}
 						<FormControlLabel
 							control={
 								<Checkbox
 									checked={notifySignal}
 									onChange={(e) => setNotifySignal(e.target.checked)}
+									disabled={!inviteAll}
 									size="small"
 								/>
 							}

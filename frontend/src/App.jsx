@@ -387,7 +387,11 @@ export default function App() {
 			const events = Array.isArray(eventOrEvents) ? eventOrEvents : [eventOrEvents];
 			const newEvents = [];
 			for (const event of events) {
-				const newEvent = await createEvent(event.event_data, event.notify_signal);
+				const newEvent = await createEvent(
+					event.event_data,
+					event.notify_signal,
+					event.invite_all,
+				);
 				newEvents.push(newEvent);
 			}
 			if (events.length > 1) {
