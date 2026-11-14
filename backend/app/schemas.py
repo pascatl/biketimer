@@ -25,7 +25,8 @@ class EventData(BaseModel):
 
 class EventCreate(BaseModel):
     event_data: EventData
-    notify_signal: Optional[bool] = True
+    notify_signal: bool = False
+    invite_all: bool = False
 
 
 class EventUpdate(BaseModel):

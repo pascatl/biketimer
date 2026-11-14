@@ -21,6 +21,7 @@ from ..models import (
     Invitation,
     PushSubscription,
     User,
+    UserGroup,
 )
 from ..push_service import send_push_notification
 from ..schemas import (
@@ -279,6 +280,33 @@ def create_event(
         responded_at=datetime.now(timezone.utc),
     )
     db.add(self_invitation)
+    group_invitations = []
+    if event_in.invite_all:
+        group_users = (
+            db.query(User)
+            .join(UserGroup, UserGroup.user_id == User.id)
+            .filter(
+                UserGroup.sport_type_key == event_in.event_data.event_type,
+                User.is_active.is_(True),
+            )
+            .all()
+        )
+        for invitee in group_users:
+            if invitee.keycloak_id == user["sub"] or invitee.email == creator_email:
+                continue
+            invitee_email = (
+                invitee.email or f"{invitee.name.lower().replace(' ', '.')}@local"
+            )
+            invitation = Invitation(
+                event_id=new_event.id,
+                inviter_keycloak_id=user["sub"],
+                inviter_name=user.get("name"),
+                invitee_email=invitee_email,
+                invitee_keycloak_id=invitee.keycloak_id,
+            )
+            db.add(invitation)
+            group_invitations.append((invitee, invitation))
+    db.flush()
     db.commit()
     db.refresh(new_event)
 
@@ -303,7 +331,55 @@ def create_event(
         f"{creator} hat ein Event am {event_date_fmt} angelegt.",
     )
 
-    if event_in.notify_signal and event_in.event_data.event_type in ("rennrad", "mtb"):
+    if group_invitations:
+        ws_manager.dispatch_sync(
+            {
+                "type": "invitation_created",
+                "event_id": new_event.id,
+                "message": f"{creator} hat dich zu einem Event am {event_date_fmt} eingeladen!",
+            },
+            recipient_subs=[
+                invitee.keycloak_id
+                for invitee, _ in group_invitations
+                if invitee.keycloak_id
+            ],
+        )
+
+    for invitee, invitation in group_invitations:
+        if invitee.email and not invitee.email.endswith("@local"):
+            email_prefs = invitee.email_prefs or {}
+            if email_prefs.get(
+                "invite_received", DEFAULT_EMAIL_PREFS["invite_received"]
+            ):
+                try:
+                    send_invitation_email(
+                        invitee_email=invitee.email,
+                        inviter_name=creator,
+                        event_data=new_event.event_data,
+                        invitation_token=str(invitation.token),
+                        event_id=new_event.id,
+                    )
+                except Exception:
+                    _log.exception(
+                        "Invitation email failed for event_id=%s invitee=%r",
+                        new_event.id,
+                        invitee.email,
+                    )
+        if invitee.keycloak_id:
+            _push_with_pref(
+                db,
+                invitee.keycloak_id,
+                "invite_received",
+                "Neue Einladung",
+                f"{creator} hat dich zu einem Event am {event_date_fmt} eingeladen!",
+            )
+
+    if (
+        group_invitations
+        and event_in.notify_signal
+        and event_in.invite_all
+        and event_in.event_data.event_type in ("rennrad", "mtb")
+    ):
         try:
             event_url = f"{FRONTEND_URL.rstrip('/')}/events/{new_event.id}"
             title = (event_in.event_data.event_title or "").strip()
